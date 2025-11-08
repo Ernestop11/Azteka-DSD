@@ -1,5 +1,15 @@
 const API_BASE = import.meta.env?.VITE_API_URL ?? '';
 
+// Helper to construct URL properly
+function buildUrl(endpoint: string): string {
+  // If API_BASE is set, use it with a slash
+  if (API_BASE) {
+    return `${API_BASE}/${endpoint}`;
+  }
+  // Otherwise use relative path with leading slash
+  return `/${endpoint}`;
+}
+
 export async function fetchFromAPI<T>(endpoint: string): Promise<T[]> {
   try {
     const token = localStorage.getItem('auth_token');
@@ -11,7 +21,7 @@ export async function fetchFromAPI<T>(endpoint: string): Promise<T[]> {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}/${endpoint}`, {
+    const res = await fetch(buildUrl(endpoint), {
       headers,
       credentials: 'include',
     });
@@ -40,7 +50,7 @@ export async function postToAPI<T>(endpoint: string, body: any): Promise<T | nul
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}/${endpoint}`, {
+    const res = await fetch(buildUrl(endpoint), {
       method: 'POST',
       headers,
       credentials: 'include',
