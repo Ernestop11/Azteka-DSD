@@ -1,6 +1,6 @@
 // Service Worker for Azteka DSD PWA
-const CACHE_NAME = 'azteka-dsd-v1';
-const RUNTIME_CACHE = 'azteka-runtime';
+const CACHE_NAME = 'azteka-dsd-v2';  // Incremented to bust cache
+const RUNTIME_CACHE = 'azteka-runtime-v2';
 
 // Assets to cache immediately on install
 const PRECACHE_URLS = [
