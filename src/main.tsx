@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import AppTest from './AppTest.tsx';
+import AppMinimal from './AppMinimal.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppTest />
+    <AppMinimal />
   </StrictMode>
 );
