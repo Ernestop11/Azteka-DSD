@@ -12,29 +12,36 @@ const PRECACHE_URLS = [
 
 // Install event - precache critical assets
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Precaching app shell');
-        return cache.addAll(PRECACHE_URLS);
-      })
-      .then(() => self.skipWaiting())
-  );
+  console.log('[SW v2] Installing new service worker - will skip waiting');
+  // Skip waiting immediately to activate new SW
+  self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - DELETE ALL CACHES (nuclear option)
 self.addEventListener('activate', (event) => {
+  console.log('[SW v2] Activating - deleting ALL caches');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
+      // Delete ALL caches, including old v1 caches
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
+          console.log('[SW v2] Deleting cache:', cacheName);
+          return caches.delete(cacheName);
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[SW v2] All caches deleted, claiming clients');
+      // Take control of all pages immediately
+      return self.clients.claim();
+    }).then(() => {
+      // Force reload all clients
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          console.log('[SW v2] Reloading client:', client.url);
+          client.postMessage({ type: 'RELOAD' });
+        });
+      });
+    })
   );
 });
 

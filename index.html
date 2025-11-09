@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
 
+    <!-- Prevent index.html from being cached -->
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="pragma" content="no-cache" />
+
     <!-- Primary Meta Tags -->
     <title>Azteka DSD - Direct Store Delivery Management</title>
     <meta name="title" content="Azteka DSD - Direct Store Delivery Management" />
@@ -46,10 +51,23 @@
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered:', registration);
+
+              // Check for updates every 60 seconds
+              setInterval(() => {
+                registration.update();
+              }, 60000);
             })
             .catch((error) => {
               console.log('SW registration failed:', error);
             });
+
+          // Listen for reload messages from Service Worker
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'RELOAD') {
+              console.log('SW requested reload - reloading page');
+              window.location.reload();
+            }
+          });
         });
       }
     </script>
