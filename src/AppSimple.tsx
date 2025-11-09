@@ -45,7 +45,16 @@ export default function AppSimple() {
         throw new Error('API did not return an array');
       }
 
-      setProducts(data);
+      // Transform products to ensure price is a number
+      const transformedProducts = data.map((p: any) => ({
+        ...p,
+        price: typeof p.price === 'number' ? p.price : parseFloat(p.price) || 0,
+        stock: typeof p.stock === 'number' ? p.stock : parseInt(p.stock) || 0,
+        unitsPerCase: typeof p.unitsPerCase === 'number' ? p.unitsPerCase : parseInt(p.unitsPerCase) || 1,
+        inStock: p.inStock !== undefined ? Boolean(p.inStock) : true,
+      }));
+
+      setProducts(transformedProducts);
       console.log(`Successfully loaded ${data.length} products`);
 
     } catch (err) {
@@ -406,7 +415,7 @@ export default function AppSimple() {
                       color: '#111827',
                       margin: '0'
                     }}>
-                      ${product.price.toFixed(2)}
+                      ${(Number(product.price) || 0).toFixed(2)}
                     </p>
                     <p style={{
                       fontSize: '12px',

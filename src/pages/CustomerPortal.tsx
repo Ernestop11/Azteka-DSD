@@ -1,29 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Float } from '@react-three/drei';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import Lottie from 'lottie-react';
+import { Package, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? '';
-
-function ProductMesh() {
-  const meshRef = useRef(null);
-  useFrame((_state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.6;
-    }
-  });
-
-  return (
-    <Float floatIntensity={1} speed={2}>
-      <mesh ref={meshRef} scale={1.4}>
-        <boxGeometry args={[1.6, 1, 1]} />
-        <meshStandardMaterial color="#10b981" metalness={0.2} roughness={0.25} />
-      </mesh>
-    </Float>
-  );
-}
 
 export default function CustomerPortal() {
   const { token } = useAuth();
@@ -107,13 +88,89 @@ export default function CustomerPortal() {
               </p>
             )}
           </div>
-          <div className="relative h-80">
-            <Canvas camera={{ position: [2.5, 1.5, 3.5] }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[5, 5, 5]} intensity={1.2} />
-              <ProductMesh />
-              <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={0.8} />
-            </Canvas>
+
+          {/* Beautiful 2D Product Display - Replaces 3D Canvas */}
+          <div className="relative h-80 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 overflow-hidden flex items-center justify-center">
+            {/* Animated background effects */}
+            <div className="absolute inset-0">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl animate-pulse delay-1000" />
+            </div>
+
+            {/* Product showcase */}
+            <motion.div
+              animate={{
+                rotateY: [0, 360],
+                scale: [1, 1.1, 1]
+              }}
+              transition={{
+                duration: 8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="relative z-10"
+            >
+              <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-12 transform perspective-1000">
+                <div className="relative">
+                  {/* Product icon/image */}
+                  <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-8 shadow-xl">
+                    <Package className="w-32 h-32 text-white" strokeWidth={1.5} />
+                  </div>
+
+                  {/* Sparkles effect */}
+                  <motion.div
+                    animate={{
+                      rotate: 360,
+                      scale: [1, 1.2, 1]
+                    }}
+                    transition={{
+                      duration: 4,
+                      repeat: Infinity
+                    }}
+                    className="absolute -top-4 -right-4"
+                  >
+                    <Sparkles className="w-12 h-12 text-yellow-400" fill="currentColor" />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{
+                      rotate: -360,
+                      scale: [1, 1.3, 1]
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Infinity
+                    }}
+                    className="absolute -bottom-4 -left-4"
+                  >
+                    <Sparkles className="w-10 h-10 text-cyan-300" fill="currentColor" />
+                  </motion.div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Floating particles effect */}
+            <div className="absolute inset-0 pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  animate={{
+                    y: [0, -100, 0],
+                    x: [0, Math.random() * 50 - 25, 0],
+                    opacity: [0, 1, 0]
+                  }}
+                  transition={{
+                    duration: 3 + Math.random() * 2,
+                    repeat: Infinity,
+                    delay: Math.random() * 2
+                  }}
+                  className="absolute bottom-0 w-2 h-2 bg-white/40 rounded-full"
+                  style={{
+                    left: `${Math.random() * 100}%`
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </section>
 

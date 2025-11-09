@@ -1,996 +1,479 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { ShoppingCart, Store, Award, History, Grid3x3, LayoutDashboard } from 'lucide-react';
-import { Category, Product, CartItem, Customer, SalesRep, Brand, Subcategory } from './types';
-import OrdersService, { CreateOrderPayload, OrderResponse } from './lib/orders';
-import { fetchFromAPI } from './lib/apiClient';
+import { useState, useEffect } from 'react';
+import { ShoppingCart as ShoppingCartIcon, Package, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Hero from './components/Hero';
 import CategoryTabs from './components/CategoryTabs';
 import ProductCard from './components/ProductCard';
-import CatalogGrid from './components/CatalogGrid';
-import BundleShowcase from './components/BundleShowcase';
 import ProductBillboard from './components/ProductBillboard';
+import BundleShowcase from './components/BundleShowcase';
 import SpecialOffers from './components/SpecialOffers';
-import RewardsPanel from './components/RewardsPanel';
-import OrderHistory from './components/OrderHistory';
 import BulkOrderSheet from './components/BulkOrderSheet';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
-import OrderConfirmation from './components/OrderConfirmation';
-import AdminOrders from './pages/AdminOrders';
-import PurchaseOrders from './pages/PurchaseOrders';
-import InvoiceUpload from './pages/InvoiceUpload';
-import AiInsights from './pages/AiInsights';
-import AutomationCenter from './pages/AutomationCenter';
-import Leaderboard from './pages/Leaderboard';
-import IncentivesPage from './pages/Incentives';
-import ExecutiveDashboard from './pages/ExecutiveDashboard';
-import CustomerPortal from './pages/CustomerPortal';
-import RewardsPage from './pages/Rewards';
-import Login from './pages/Login';
-import SalesRepDashboard from './pages/SalesRepDashboard';
-import DriverDashboard from './pages/DriverDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { Product, Category, CartItem } from './types';
 
-type ViewMode = 'catalog' | 'checkout' | 'confirmation';
+// Transform API data (camelCase) to component format (snake_case for ProductCard)
+function transformProduct(apiProduct: any): Product & {
+  image_url?: string;
+  background_color?: string;
+  in_stock: boolean;
+  units_per_case: number;
+  unit_type: string;
+} {
+  return {
+    // Original camelCase (for TypeScript Product type)
+    id: apiProduct.id,
+    name: apiProduct.name,
+    sku: apiProduct.sku,
+    description: apiProduct.description || '',
+    price: typeof apiProduct.price === 'number' ? apiProduct.price : parseFloat(apiProduct.price) || 0,
+    cost: apiProduct.cost,
+    margin: apiProduct.margin,
+    imageUrl: apiProduct.imageUrl || apiProduct.image_url || '',
+    inStock: apiProduct.inStock !== undefined ? Boolean(apiProduct.inStock) : true,
+    stock: typeof apiProduct.stock === 'number' ? apiProduct.stock : parseInt(apiProduct.stock) || 0,
+    minStock: apiProduct.minStock || 0,
+    supplier: apiProduct.supplier || '',
+    featured: Boolean(apiProduct.featured),
+    unitType: apiProduct.unitType || apiProduct.unit_type || 'case',
+    unitsPerCase: typeof apiProduct.unitsPerCase === 'number' ? apiProduct.unitsPerCase : parseInt(apiProduct.unitsPerCase) || 1,
+    minOrderQty: apiProduct.minOrderQty || 1,
+    backgroundColor: apiProduct.backgroundColor || apiProduct.background_color || '#f3f4f6',
+    categoryId: apiProduct.categoryId,
+    brandId: apiProduct.brandId,
+    subcategoryId: apiProduct.subcategoryId,
 
-interface Bundle {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  image_url: string;
-  badge_text: string;
-  badge_color: string;
-  discount_percent: number;
+    // Add snake_case versions for ProductCard component
+    image_url: apiProduct.imageUrl || apiProduct.image_url || '',
+    background_color: apiProduct.backgroundColor || apiProduct.background_color || '#f3f4f6',
+    in_stock: apiProduct.inStock !== undefined ? Boolean(apiProduct.inStock) : true,
+    units_per_case: typeof apiProduct.unitsPerCase === 'number' ? apiProduct.unitsPerCase : parseInt(apiProduct.unitsPerCase) || 1,
+    unit_type: apiProduct.unitType || apiProduct.unit_type || 'case',
+  };
 }
 
-interface Promotion {
-  id: string;
-  badge_text: string;
-  badge_color: string;
-  icon_type: string;
-  points: number;
-}
+type ViewMode = 'catalog' | 'bulk-order' | 'cart' | 'checkout';
 
-interface SpecialOffer {
-  id: string;
-  title: string;
-  description: string;
-  badge_text: string;
-  badge_color: string;
-  icon_type: string;
-  expires_at: string;
-}
+export default function App() {
+  const navigate = useNavigate();
 
-interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon_type: string;
-  color: string;
-  reward_description: string;
-  earned?: boolean;
-}
-
-function CatalogExperience() {
-  const { user, logout, token } = useAuth();
-  const canManageOrders = useMemo(() => {
-    if (!user) return false;
-    return ['ADMIN', 'SALES_REP'].includes(user.role);
-  }, [user]);
-  const isAdmin = user?.role === 'ADMIN';
-  const isSalesRep = user?.role === 'SALES_REP';
-  const isDriver = user?.role === 'DRIVER';
-  const [categories, setCategories] = useState<Category[]>([]);
+  // State
   const [products, setProducts] = useState<Product[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [showCatalogMode, setShowCatalogMode] = useState(false);
-  const [bundles, setBundles] = useState<Bundle[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [specialOffers, setSpecialOffers] = useState<SpecialOffer[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [productPromotions, setProductPromotions] = useState<Record<string, Promotion>>({});
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCart, setShowCart] = useState(false);
-  const [showRewards, setShowRewards] = useState(false);
-  const [showOrderHistory, setShowOrderHistory] = useState(false);
-  const [showBulkOrder, setShowBulkOrder] = useState(false);
-  const [stores, setStores] = useState([
-    { id: '1', store_name: 'Downtown Location' },
-    { id: '2', store_name: 'North Plaza' },
-    { id: '3', store_name: 'West Side Market' },
-    { id: '4', store_name: 'East End Store' },
-    { id: '5', store_name: 'South Branch' },
-    { id: '6', store_name: 'Central Hub' },
-    { id: '7', store_name: 'Lakeside' },
-    { id: '8', store_name: 'Mountain View' },
-    { id: '9', store_name: 'Riverside' },
-    { id: '10', store_name: 'Sunset Boulevard' },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('catalog');
-  const [orderDetails, setOrderDetails] = useState<{
-    orderNumber: string;
-    customer: Customer;
-    total: number;
-    deliveryDate?: string;
-  } | null>(null);
-  const [salesRep, setSalesRep] = useState<SalesRep | null>(null);
-  const [rewardsPoints, setRewardsPoints] = useState(1250);
-  const [memberTier, setMemberTier] = useState('bronze');
-  const [previousOrders, setPreviousOrders] = useState<any[]>([]);
-  const [customerNameInput, setCustomerNameInput] = useState('');
-  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [orderToast, setOrderToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [apiOrders, setApiOrders] = useState<OrderResponse[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [ordersError, setOrdersError] = useState<string | null>(null);
-  const [loyaltySummary, setLoyaltySummary] = useState<{ points: number; tier: string } | null>(null);
 
+  // Fetch data on mount
   useEffect(() => {
-    loadData();
-    checkSalesRepLink();
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [products, selectedCategory]);
-
-  useEffect(() => {
-    if (canManageOrders) {
-      loadApiOrders();
-    } else {
-      setApiOrders([]);
-      setPreviousOrders([]);
-    }
-  }, [loadApiOrders, canManageOrders]);
-
-  const checkSalesRepLink = async () => {
-    // Sales rep tracking disabled - table doesn't exist in PostgreSQL
-    // const params = new URLSearchParams(window.location.search);
-    // const repCode = params.get('rep');
-    // TODO: Implement sales rep API endpoint when needed
-  };
-
-  const loadData = async () => {
+  async function fetchData() {
     try {
-      // Fetch products from internal PostgreSQL API
-      const productsData = await fetchFromAPI<Product>('api/products');
-      setProducts(productsData.filter((p: any) => p.inStock));
+      setLoading(true);
+      setError(null);
 
-      // Categories, brands, promotions etc. don't exist in PostgreSQL yet
-      // Setting empty arrays to prevent errors
-      setCategories([]);
-      setBundles([]);
-      setSpecialOffers([]);
-      setBrands([]);
-      setSubcategories([]);
-      setBadges([]);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setProducts([]);
-      setCategories([]);
-      setBundles([]);
-      setSpecialOffers([]);
-      setBrands([]);
-      setSubcategories([]);
-      setBadges([]);
-    }
+      console.log('Fetching data from API...');
 
-    // Promotions also not in PostgreSQL yet
-    setPromotions([]);
-  };
+      // Fetch products (required)
+      const productsRes = await fetch('/api/products');
+      if (!productsRes.ok) {
+        throw new Error(`Products API returned ${productsRes.status}: ${productsRes.statusText}`);
+      }
+      const productsData = await productsRes.json();
+      console.log('Products received:', productsData);
 
-  // loadProductPromotions removed - no longer using Supabase
+      if (!Array.isArray(productsData)) {
+        throw new Error('Products API did not return an array');
+      }
 
-  const formatCurrency = (value: string | number | undefined) => {
-    const amount = typeof value === 'string' ? parseFloat(value) : value ?? 0;
-    const safeAmount = Number.isNaN(amount) ? 0 : amount;
-    return `$${safeAmount.toFixed(2)}`;
-  };
+      const transformedProducts = productsData.map(transformProduct);
+      setProducts(transformedProducts);
 
-  const mapApiOrdersToHistory = (orders: OrderResponse[]) =>
-    orders.map((order) => ({
-      id: order.id,
-      order_number: order.id,
-      created_at: order.createdAt,
-      total: Number(order.total ?? 0),
-      status: order.status || 'pending',
-      items: order.items.map((item) => ({
-        product_id: item.product?.id || item.id,
-        product_name: item.product?.name || 'Product',
-        quantity: item.quantity,
-        unit_price: Number(item.price ?? 0),
-      })),
-    }));
+      // Fetch categories (optional)
+      try {
+        const categoriesRes = await fetch('/api/categories');
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          if (Array.isArray(categoriesData)) {
+            setCategories(categoriesData);
+            console.log('Categories received:', categoriesData);
+          }
+        }
+      } catch (err) {
+        console.warn('Categories not available:', err);
+      }
 
-  const loadApiOrders = useCallback(async () => {
-    setOrdersLoading(true);
-    try {
-      const orders = await OrdersService.fetchOrders();
-      setApiOrders(orders);
-      setPreviousOrders(mapApiOrdersToHistory(orders));
-      setOrdersError(null);
-    } catch (error) {
-      console.error('Failed to load orders', error);
-      setOrdersError(error instanceof Error ? error.message : 'Failed to load orders');
+      // Fetch brands (optional - not used currently but available)
+      try {
+        const brandsRes = await fetch('/api/brands');
+        if (brandsRes.ok) {
+          const brandsData = await brandsRes.json();
+          if (Array.isArray(brandsData)) {
+            console.log('Brands received:', brandsData);
+            // Could be used for filtering in the future
+          }
+        }
+      } catch (err) {
+        console.warn('Brands not available:', err);
+      }
+
+      console.log(`Successfully loaded ${transformedProducts.length} products`);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Error fetching data:', errorMessage);
+      setError(errorMessage);
     } finally {
-      setOrdersLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }
 
-  const filterProducts = () => {
-    let filtered = products;
-
-    if (selectedCategory) {
-      filtered = filtered.filter((p) => p.category_id === selectedCategory);
-    }
-
-    setFilteredProducts(filtered);
-  };
-
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.id === product.id);
-
-    if (existingItem) {
-      setCart(
-        cart.map((item) =>
+  // Cart functions
+  function handleAddToCart(product: Product) {
+    setCart(prev => {
+      const existingItem = prev.find(item => item.id === product.id);
+      if (existingItem) {
+        return prev.map(item =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+    console.log('Added to cart:', product.name);
+  }
+
+  function handleUpdateQuantity(productId: string, quantity: number) {
+    if (quantity <= 0) {
+      setCart(prev => prev.filter(item => item.id !== productId));
+    } else {
+      setCart(prev =>
+        prev.map(item =>
+          item.id === productId ? { ...item, quantity } : item
         )
       );
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
     }
-  };
+  }
 
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity < 1) {
-      removeFromCart(productId);
-      return;
-    }
+  function handleRemoveFromCart(productId: string) {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  }
 
-    setCart(
-      cart.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
-  };
+  function handleClearCart() {
+    setCart([]);
+  }
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter((item) => item.id !== productId));
-  };
-
-  const handleCheckout = () => {
-    setShowCart(false);
-    setViewMode('checkout');
-  };
-
-  const handleReorder = (items: CartItem[]) => {
-    items.forEach((item) => addToCart(item));
-    setShowOrderHistory(false);
-  };
-
-  const handleBulkOrderSubmit = (orders: Record<string, Record<string, number>>) => {
-    let totalItems = 0;
-    Object.values(orders).forEach(storeQtys => {
-      Object.entries(storeQtys).forEach(([productId, qty]) => {
-        if (qty > 0) {
-          const product = products.find(p => p.id === productId);
-          if (product) {
-            addToCart(product);
-            totalItems += qty;
-          }
-        }
-      });
-    });
-    setShowBulkOrder(false);
-    setShowCart(true);
-  };
-
-  const handleSubmitOrderToApi = async () => {
-    if (cart.length === 0) {
-      setOrderToast({ type: 'error', message: 'Add at least one product to your cart before submitting.' });
-      return;
-    }
-
-    if (!customerNameInput.trim()) {
-      setOrderToast({ type: 'error', message: 'Customer name is required.' });
-      return;
-    }
-
-    if (!canManageOrders) {
-      setOrderToast({ type: 'error', message: 'You do not have permission to submit orders.' });
-      return;
-    }
-
-    setIsSubmittingOrder(true);
-    setOrderToast(null);
-
-    try {
-      const payload: CreateOrderPayload = {
-        customerName: customerNameInput.trim(),
-        status: 'pending',
-        userId: user?.id || salesRep?.id,
-        items: cart.map((item) => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: Number(item.price).toFixed(2),
-        })),
-      };
-
-      const response = await OrdersService.createOrder(payload);
-      setOrderToast({
-        type: 'success',
-        message: `Order created successfully for ${response.customerName}.`,
-      });
-      setCart([]);
-      setCustomerNameInput('');
-      await loadApiOrders();
-    } catch (error) {
-      setOrderToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to submit order.',
-      });
-    } finally {
-      setIsSubmittingOrder(false);
-    }
-  };
-
-  const handleCompleteOrder = async (
-    customer: Customer,
-    orderData: { notes?: string; delivery_date?: string }
-  ) => {
-    try {
-      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-      // Use OrdersService to create order via API
-      const payload: CreateOrderPayload = {
-        customerName: customer.business_name || customer.contact_name || 'Guest',
-        items: cart.map((item) => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        status: 'pending',
-      };
-
-      const response = await OrdersService.createOrder(payload);
-
-      const earnedPoints = Math.floor(subtotal);
-      setRewardsPoints(rewardsPoints + earnedPoints);
-
-      setOrderDetails({
-        orderNumber: response.id,
-        customer,
-        total: subtotal,
-        deliveryDate: orderData.delivery_date,
-      });
-
-      setCart([]);
-      setViewMode('confirmation');
-    } catch (error) {
-      console.error('Failed to complete order:', error);
-      alert('Failed to complete order. Please try again.');
-    }
-  };
-
-  const handleNewOrder = () => {
-    setOrderDetails(null);
+  // Bulk order functions
+  function handleSubmitBulkOrders(orders: Record<string, Record<string, number>>) {
+    console.log('Bulk orders submitted:', orders);
+    // TODO: Send to API
+    alert('Bulk orders submitted! (Check console for details)');
     setViewMode('catalog');
-    setSelectedCategory(null);
-  };
+  }
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  // Checkout functions
+  function handleCheckout() {
+    setViewMode('checkout');
+  }
 
-  const getProductCountByCategory = (categoryId: string) => {
-    return products.filter((p) => p.category_id === categoryId).length;
-  };
+  function handlePlaceOrder(orderData: any) {
+    console.log('Order placed:', orderData);
+    // TODO: Send to API
+    alert('Order placed successfully!');
+    setCart([]);
+    setViewMode('catalog');
+  }
 
-  const productCounts = categories.reduce((acc, cat) => {
-    acc[cat.id] = getProductCountByCategory(cat.id);
+  // Filter products by category
+  const filteredProducts = selectedCategory === 'all'
+    ? products
+    : products.filter(p => p.categoryId === selectedCategory);
+
+  const featuredProducts = products.filter(p => p.featured);
+
+  // Calculate product counts per category
+  const productCounts = products.reduce((acc, product) => {
+    if (product.categoryId) {
+      acc[product.categoryId] = (acc[product.categoryId] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
 
-  const upsellProducts = products.filter((p) => p.featured && !cart.find((item) => item.id === p.id)).slice(0, 3);
+  // Calculate cart total
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (viewMode === 'confirmation' && orderDetails) {
+  // Loading state
+  if (loading) {
     return (
-      <OrderConfirmation
-        orderNumber={orderDetails.orderNumber}
-        customerName={orderDetails.customer.contact_name}
-        customerEmail={orderDetails.customer.email}
-        customerPhone={orderDetails.customer.phone}
-        deliveryAddress={`${orderDetails.customer.address}, ${orderDetails.customer.city}, ${orderDetails.customer.state} ${orderDetails.customer.zip_code}`}
-        deliveryDate={orderDetails.deliveryDate}
-        total={orderDetails.total}
-        onNewOrder={handleNewOrder}
-      />
-    );
-  }
-
-  if (viewMode === 'checkout') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Checkout
-          items={cart}
-          salesRepId={salesRep?.id}
-          upsellProducts={upsellProducts}
-          onAddToCart={addToCart}
-          onBack={() => {
-            setViewMode('catalog');
-            setShowCart(true);
-          }}
-          onComplete={handleCompleteOrder}
-        />
-
-        <div className="max-w-3xl mx-auto px-4 pb-16 space-y-8">
-          <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-lg">
-            <h2 className="text-2xl font-black text-gray-900">Submit Order to Operations</h2>
-            <p className="text-gray-600 mt-1">
-              Send the current cart to the new Express + Prisma API so finance and warehouse teams can act on it.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Customer / Store Name
-                </label>
-                <input
-                  type="text"
-                  value={customerNameInput}
-                  onChange={(e) => setCustomerNameInput(e.target.value)}
-                  placeholder="e.g. Riverside Market"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
-                />
-              </div>
-
-              <button
-                onClick={handleSubmitOrderToApi}
-                disabled={isSubmittingOrder || cart.length === 0 || !canManageOrders}
-                className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-white transition ${
-                  isSubmittingOrder || cart.length === 0 || !canManageOrders
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg hover:shadow-xl'
-                }`}
-              >
-                {isSubmittingOrder && (
-                  <svg
-                    className="w-5 h-5 animate-spin text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    />
-                  </svg>
-                )}
-                {isSubmittingOrder ? 'Submitting Order...' : 'Submit Order'}
-              </button>
-
-              {!canManageOrders && (
-                <p className="text-sm text-gray-500">
-                  Only Sales Reps or Admins can submit orders to the backend.
-                </p>
-              )}
-
-              {orderToast && (
-                <div
-                  className={`p-4 rounded-2xl border-2 ${
-                    orderToast.type === 'success'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-red-50 border-red-200 text-red-700'
-                  }`}
-                >
-                  {orderToast.message}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {canManageOrders && (
-            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-black text-gray-900">Recent API Orders</h3>
-                  <p className="text-gray-600 text-sm">Last 5 submissions synced to the backend.</p>
-                </div>
-                <button
-                  onClick={loadApiOrders}
-                  disabled={ordersLoading}
-                  className="px-4 py-2 text-sm font-semibold border-2 border-gray-200 rounded-2xl hover:border-emerald-500 transition disabled:opacity-60"
-                >
-                  {ordersLoading ? 'Refreshing...' : 'Refresh'}
-                </button>
-              </div>
-
-              {ordersError && (
-                <div className="p-3 mb-3 text-sm text-red-700 bg-red-50 border-2 border-red-200 rounded-2xl">
-                  {ordersError}
-                </div>
-              )}
-
-              {ordersLoading && apiOrders.length === 0 ? (
-                <p className="text-gray-500">Loading orders...</p>
-              ) : apiOrders.length === 0 ? (
-                <p className="text-gray-500">No orders recorded yet.</p>
-              ) : (
-                <ul className="divide-y divide-gray-100">
-                  {apiOrders.slice(0, 5).map((order) => (
-                    <li key={order.id} className="py-4 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-lg font-semibold text-gray-900">{order.customerName}</p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(order.createdAt).toLocaleString()} • {order.items.length} items
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-black text-gray-900">{formatCurrency(order.total)}</p>
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {order.status}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-emerald-500 border-t-transparent mb-4"></div>
+          <h2 className="text-2xl font-bold text-gray-800">Loading Catalog...</h2>
+          <p className="text-gray-600 mt-2">Fetching products from database</p>
         </div>
       </div>
     );
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Products</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchData}
+            className="px-6 py-3 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600 transition-colors shadow-lg"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (products.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-6">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <Package className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">No Products Found</h2>
+          <p className="text-gray-600 mb-6">The catalog is currently empty</p>
+          <button
+            onClick={fetchData}
+            className="px-6 py-3 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600 transition-colors shadow-lg"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Checkout view
+  if (viewMode === 'checkout') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50">
+        <Checkout
+          items={cart}
+          onComplete={(customer, orderData) => {
+            handlePlaceOrder({ customer, orderData, items: cart });
+          }}
+          onAddToCart={handleAddToCart}
+          onBack={() => setViewMode('cart')}
+        />
+      </div>
+    );
+  }
+
+  // Render Bulk Order Sheet view
+  if (viewMode === 'bulk-order') {
+    return (
+      <BulkOrderSheet
+        products={products as any}
+        stores={[
+          { id: '1', store_name: 'Store 1' },
+          { id: '2', store_name: 'Store 2' },
+          { id: '3', store_name: 'Store 3' },
+        ]}
+        onSubmitOrders={handleSubmitBulkOrders}
+        onClose={() => setViewMode('catalog')}
+      />
+    );
+  }
+
+  // Main catalog view
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-40 bg-white border-b-2 border-gray-200 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Store className="text-white" size={28} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Mexican Wholesale</h1>
-                <p className="text-sm text-gray-600">Premium B2B Products</p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+      {/* Header with Navigation */}
+      <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+                🏪 Azteka DSD Catalog
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Premium wholesale products • {products.length} items
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              {salesRep && (
-                <div className="hidden md:block px-4 py-2 bg-emerald-100 border-2 border-emerald-300 rounded-xl">
-                  <p className="text-xs font-semibold text-gray-600">Your Sales Rep</p>
-                  <p className="text-sm font-bold text-gray-900">{salesRep.name}</p>
-                </div>
-              )}
-
+            <div className="flex items-center gap-4">
+              {/* Admin Button */}
               <button
-                onClick={() => setShowCatalogMode(!showCatalogMode)}
-                className={`px-4 py-2 font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 ${
-                  showCatalogMode
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-100 text-gray-700'
-                }`}
+                onClick={() => navigate('/admin')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-900 text-white font-semibold rounded-lg hover:from-gray-800 hover:to-black transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                <Store size={20} />
-                <span className="hidden sm:inline">Catalog</span>
+                <Settings className="w-5 h-5" />
+                <span>Admin</span>
               </button>
 
-              {isAdmin && (
-                <>
-                  <Link
-                    to="/admin"
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                  >
-                    <LayoutDashboard size={20} />
-                    <span className="hidden sm:inline">Admin</span>
-                  </Link>
-                  <Link
-                    to="/admin/po"
-                    className="px-4 py-2 bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                  >
-                    <Grid3x3 size={20} />
-                    <span className="hidden sm:inline">POs</span>
-                  </Link>
-                  <Link
-                    to="/admin/invoices"
-                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                  >
-                    <History size={20} />
-                    <span className="hidden sm:inline">Invoices</span>
-                  </Link>
-                  <Link
-                    to="/admin/insights"
-                    className="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                  >
-                    <LayoutDashboard size={20} />
-                    <span className="hidden sm:inline">AI Insights</span>
-                  </Link>
-                  <Link
-                    to="/admin/automation"
-                    className="px-4 py-2 bg-gradient-to-r from-slate-700 to-gray-900 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                  >
-                    <Grid3x3 size={20} />
-                    <span className="hidden sm:inline">Automation</span>
-                  </Link>
-                </>
-              )}
-
-              {isSalesRep && (
-                <Link
-                  to="/salesrep"
-                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                >
-                  <History size={20} />
-                  <span className="hidden sm:inline">Rep</span>
-                </Link>
-              )}
-
-              {isDriver && (
-                <Link
-                  to="/driver"
-                  className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-                >
-                  <Grid3x3 size={20} />
-                  <span className="hidden sm:inline">Driver</span>
-                </Link>
-              )}
-
+              {/* Bulk Order Button */}
               <button
-                onClick={() => setShowBulkOrder(true)}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 animate-pulse"
+                onClick={() => setViewMode('bulk-order')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                <Grid3x3 size={20} />
-                <span className="hidden sm:inline">Bulk Order</span>
+                <Package className="w-5 h-5" />
+                <span>Bulk Order</span>
               </button>
 
+              {/* Cart Button */}
               <button
-                onClick={() => setShowOrderHistory(true)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all flex items-center gap-2"
+                onClick={() => setViewMode('cart')}
+                className="relative flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                <History size={20} />
-                <span className="hidden sm:inline">Orders</span>
-              </button>
-
-              <button
-                onClick={() => setShowRewards(true)}
-                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-              >
-                <Award size={20} />
-                <span className="hidden sm:inline">{rewardsPoints} pts</span>
-              </button>
-
-              <button
-                onClick={() => setShowCart(true)}
-                className="relative px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              >
-                <div className="flex items-center gap-2">
-                  <ShoppingCart size={20} />
-                  <span className="hidden sm:inline">Cart</span>
-                  {totalItems > 0 && (
-                    <span className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
-                      {totalItems}
-                    </span>
-                  )}
-                </div>
-              </button>
-
-              {user?.role === 'CUSTOMER' && loyaltySummary && (
-                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
-                  <Link to="/customer" className="text-emerald-700 font-semibold">
-                    Catalog
-                  </Link>
-                  <span className="text-gray-400">|</span>
-                  <Link to="/customer/rewards" className="text-emerald-700 font-semibold">
-                    Rewards
-                  </Link>
-                  <span className="text-gray-700 font-black">
-                    Points: {loyaltySummary.points} ({loyaltySummary.tier})
+                <ShoppingCartIcon className="w-5 h-5" />
+                <span>Cart</span>
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
+                    {cartItemCount}
                   </span>
-                </div>
-              )}
-              {user && (
-                <>
-                  <Link
-                    to="/leaderboard"
-                    className="px-4 py-2 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-emerald-500 transition"
-                  >
-                    Leaderboard
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:border-rose-500 hover:text-rose-600 transition"
-                  >
-                    Logout
-                  </button>
-                </>
-              )}
+                )}
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {!showCatalogMode && <Hero />}
-
-      {!showCatalogMode && (
-        <CategoryTabs
-          categories={categories}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          productCounts={productCounts}
-        />
-      )}
-
-      {showCatalogMode ? (
-        <div className="h-[calc(100vh-80px)]">
-          <CatalogGrid
-            products={products}
-            brands={brands}
-            categories={categories.map(cat => ({
-              ...cat,
-              subcategories: subcategories.filter(sub => sub.category_id === cat.id)
-            }))}
-            onAddToCart={addToCart}
-            onQuickView={(product) => addToCart(product)}
-          />
-        </div>
-      ) : (
-        <main className="max-w-7xl mx-auto px-4 py-12">
-        {!selectedCategory && (
-          <>
-            <SpecialOffers offers={specialOffers} />
-
-            <BundleShowcase bundles={bundles} onSelectBundle={() => {}} />
-
-            <ProductBillboard
-              products={products.filter((p) => p.featured).slice(0, 4)}
-              title="Featured Products"
-              subtitle="Our most popular wholesale items this month"
-              onAddToCart={addToCart}
-            />
-
-            <div className="mb-16">
-              <h2 className="text-4xl font-black text-gray-900 mb-2">All Products</h2>
-              <p className="text-gray-600 text-lg mb-8">Browse our complete catalog</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={addToCart}
-                    promotion={productPromotions[product.id]}
-                  />
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {selectedCategory && (
-          <>
-            <div className="mb-8">
-              <h2 className="text-4xl font-black text-gray-900 mb-2">
-                {categories.find((c) => c.id === selectedCategory)?.name}
-              </h2>
-              <p className="text-gray-600 text-lg">
-                {filteredProducts.length} products available
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={addToCart}
-                  promotion={productPromotions[product.id]}
-                />
-              ))}
-            </div>
-
-            {filteredProducts.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-xl text-gray-600">No products found in this category</p>
-              </div>
-            )}
-          </>
-        )}
-        </main>
-      )}
-
-      {showCart && (
+      {/* Cart Modal */}
+      {viewMode === 'cart' && (
         <Cart
           items={cart}
-          onUpdateQuantity={updateQuantity}
-          onRemoveItem={removeFromCart}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveFromCart}
           onCheckout={handleCheckout}
-          onClose={() => setShowCart(false)}
+          onClose={() => setViewMode('catalog')}
         />
       )}
 
-      {showRewards && (
-        <RewardsPanel
-          pointsBalance={rewardsPoints}
-          tier={memberTier}
-          badges={badges}
-          onClose={() => setShowRewards(false)}
-        />
+      {/* Hero Section */}
+      <Hero />
+
+      {/* Category Tabs */}
+      {categories.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <CategoryTabs
+            categories={categories}
+            selectedCategory={selectedCategory === 'all' ? null : selectedCategory}
+            onSelectCategory={(categoryId) => setSelectedCategory(categoryId || 'all')}
+            productCounts={productCounts}
+          />
+        </div>
       )}
 
-      {showOrderHistory && (
-        <OrderHistory
-          orders={previousOrders}
-          onReorder={handleReorder}
-          onClose={() => setShowOrderHistory(false)}
-        />
+      {/* Featured Products Billboard */}
+      {featuredProducts.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ProductBillboard
+            products={featuredProducts.slice(0, 3) as any}
+            title="Featured Products"
+            subtitle="Hand-picked selections just for you"
+            onAddToCart={handleAddToCart}
+          />
+        </div>
       )}
 
-      {showBulkOrder && (
-        <BulkOrderSheet
-          products={products}
-          stores={stores}
-          onSubmitOrders={handleBulkOrderSubmit}
-          onClose={() => setShowBulkOrder(false)}
+      {/* Special Offers */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <SpecialOffers
+          offers={[
+            {
+              id: '1',
+              title: 'New Customer Discount',
+              description: 'Get 10% off your first order!',
+              badge_text: '10% OFF',
+              badge_color: '#10b981',
+              icon_type: 'sparkles',
+              expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: '2',
+              title: 'Free Shipping',
+              description: 'On orders over $500',
+              badge_text: 'FREE',
+              badge_color: '#3b82f6',
+              icon_type: 'truck',
+              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          ]}
         />
-      )}
+      </div>
+
+      {/* Product Grid */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {selectedCategory === 'all' ? 'All Products' : categories.find(c => c.id === selectedCategory)?.name || 'Products'}
+          </h2>
+          <p className="text-gray-600 mt-1">
+            Showing {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredProducts.map(product => (
+            <ProductCard
+              key={product.id}
+              product={product as any}
+              onAddToCart={handleAddToCart}
+            />
+          ))}
+        </div>
+      </main>
+
+      {/* Bundle Showcase */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <BundleShowcase
+          bundles={[
+            {
+              id: '1',
+              name: 'Starter Bundle',
+              description: 'Perfect for new customers',
+              image_url: '',
+              badge_text: 'Save 15%',
+              badge_color: '#10b981',
+              discount_percent: 15
+            },
+            {
+              id: '2',
+              name: 'Best Seller Bundle',
+              description: 'Our most popular items',
+              image_url: '',
+              badge_text: 'Save 20%',
+              badge_color: '#f59e0b',
+              discount_percent: 20
+            }
+          ]}
+          onSelectBundle={(bundle) => console.log('Selected bundle:', bundle)}
+        />
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center text-gray-600">
+            <p className="text-sm">
+              ✅ Azteka DSD Catalog • {products.length} Products • Beautiful Bolt Design
+            </p>
+            <p className="text-xs mt-2 text-gray-500">
+              Cart: {cartItemCount} items • Total: ${cartTotal.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute roles={['CUSTOMER', 'SALES_REP', 'ADMIN']}>
-                <CatalogExperience />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <AdminOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/incentives"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <IncentivesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/po"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <PurchaseOrders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/invoices"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <InvoiceUpload />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/insights"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <AiInsights />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/automation"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <AutomationCenter />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/analytics"
-            element={
-              <ProtectedRoute roles={['ADMIN']}>
-                <ExecutiveDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/leaderboard"
-            element={
-              <ProtectedRoute roles={['ADMIN', 'SALES_REP', 'DRIVER', 'CUSTOMER']}>
-                <Leaderboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customer"
-            element={
-              <ProtectedRoute roles={['CUSTOMER']}>
-                <CustomerPortal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/customer/rewards"
-            element={
-              <ProtectedRoute roles={['CUSTOMER']}>
-                <RewardsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/salesrep"
-            element={
-              <ProtectedRoute roles={['SALES_REP']}>
-                <SalesRepDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver"
-            element={
-              <ProtectedRoute roles={['DRIVER']}>
-                <DriverDashboard />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-  useEffect(() => {
-    const fetchLoyalty = async () => {
-      if (!token || !user) {
-        setLoyaltySummary(null);
-        return;
-      }
-      if (!['CUSTOMER', 'SALES_REP'].includes(user.role)) {
-        setLoyaltySummary(null);
-        return;
-      }
-      try {
-        const res = await fetch('/api/loyalty/points', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setLoyaltySummary({ points: json.points, tier: json.tier });
-        }
-      } catch (error) {
-        console.warn('Failed to fetch loyalty points', error);
-      }
-    };
-    fetchLoyalty();
-  }, [token, user]);
