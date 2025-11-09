@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Settings, Package as PackageIcon, FileText, BarChart3, Zap, ShoppingBag, Home,
-  TrendingUp, Users, Truck, Award, Grid3x3, Menu, X
+  TrendingUp, Users, Truck, Award, Grid3x3, Menu, X, Image
 } from 'lucide-react';
 import { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
@@ -19,6 +19,7 @@ import Leaderboard from './pages/Leaderboard';
 import Incentives from './pages/Incentives';
 import Rewards from './pages/Rewards';
 import Login from './pages/Login';
+import ImageProcessing from './pages/ImageProcessing';
 
 // Main Navigation Component
 function MainNav() {
@@ -161,6 +162,14 @@ function AdminDashboard() {
       icon: BarChart3,
       color: 'from-indigo-500 to-purple-500',
       path: '/admin/executive'
+    },
+    {
+      title: 'AI Image Processing',
+      description: 'Auto-search, background removal, and splash images',
+      icon: Image,
+      color: 'from-pink-500 to-rose-500',
+      path: '/admin/images',
+      badge: 'NEW'
     }
   ];
 
@@ -367,6 +376,7 @@ export default function AppWithRouter() {
           <Route path="/admin/analytics" element={<AiInsights />} />
           <Route path="/admin/automation" element={<AutomationCenter />} />
           <Route path="/admin/executive" element={<ExecutiveDashboard />} />
+          <Route path="/admin/images" element={<ImageProcessing />} />
 
           {/* Sales Routes */}
           <Route path="/sales" element={<SalesDashboard />} />
