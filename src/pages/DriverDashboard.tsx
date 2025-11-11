@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? '';
-const SOCKET_URL = import.meta.env?.VITE_SOCKET_URL ?? 'http://localhost:4000';
 
 interface LeaderEntry {
   userId: string;
@@ -39,14 +37,6 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     if (!token || !user) return;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on('gamification:badge', (payload: { userId: string; badge: { name: string } }) => {
-      if (payload.userId === user.id) {
-        setToast(`🏅 ${payload.badge.name} badge unlocked!`);
-        setTimeout(() => setToast(null), 4000);
-      }
-    });
-    return () => socket.disconnect();
   }, [token, user]);
 
   return (

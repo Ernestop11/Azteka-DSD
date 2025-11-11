@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? '';
-const SOCKET_URL = import.meta.env?.VITE_SOCKET_URL ?? 'http://localhost:4000';
 
 interface AutomationLogEntry {
   type: 'success' | 'error';
@@ -31,7 +29,6 @@ export default function AutomationCenter() {
   const [meta, setMeta] = useState<Partial<LogResponse>>({});
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const socketRef = useRef<Socket | null>(null);
 
   const headers = token
     ? {
@@ -80,24 +77,6 @@ export default function AutomationCenter() {
 
   useEffect(() => {
     if (!token) return;
-    const socket = io(SOCKET_URL, {
-      auth: {
-        token,
-      },
-    });
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      // socket connected
-    });
-
-    socket.on('automation:update', (entry: AutomationLogEntry) => {
-      setLogs((prev) => [entry, ...prev.slice(0, 49)]);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, [token]);
 
   return (

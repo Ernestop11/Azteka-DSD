@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShoppingCart as ShoppingCartIcon, Package, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { mockProducts, mockCategories } from './lib/mockData';
 import Hero from './components/Hero';
 import CategoryTabs from './components/CategoryTabs';
 import ProductCard from './components/ProductCard';
@@ -76,50 +77,11 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      console.log('Fetching data from API...');
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Fetch products (required)
-      const productsRes = await fetch('/api/products');
-      if (!productsRes.ok) {
-        throw new Error(`Products API returned ${productsRes.status}: ${productsRes.statusText}`);
-      }
-      const productsData = await productsRes.json();
-      console.log('Products received:', productsData);
-
-      if (!Array.isArray(productsData)) {
-        throw new Error('Products API did not return an array');
-      }
-
-      const transformedProducts = productsData.map(transformProduct);
+      const transformedProducts = mockProducts.map(transformProduct);
       setProducts(transformedProducts);
-
-      // Fetch categories (optional)
-      try {
-        const categoriesRes = await fetch('/api/categories');
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json();
-          if (Array.isArray(categoriesData)) {
-            setCategories(categoriesData);
-            console.log('Categories received:', categoriesData);
-          }
-        }
-      } catch (err) {
-        console.warn('Categories not available:', err);
-      }
-
-      // Fetch brands (optional - not used currently but available)
-      try {
-        const brandsRes = await fetch('/api/brands');
-        if (brandsRes.ok) {
-          const brandsData = await brandsRes.json();
-          if (Array.isArray(brandsData)) {
-            console.log('Brands received:', brandsData);
-            // Could be used for filtering in the future
-          }
-        }
-      } catch (err) {
-        console.warn('Brands not available:', err);
-      }
+      setCategories(mockCategories);
 
       console.log(`Successfully loaded ${transformedProducts.length} products`);
 

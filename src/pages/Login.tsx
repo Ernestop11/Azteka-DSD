@@ -3,7 +3,7 @@ import { Location, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('sample.rep@azteka.local');
+  const [email, setEmail] = useState('demo@azteka.com');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +72,10 @@ export default function Login() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          <div className="mt-6 text-center text-sm text-gray-500">
+            Use any email and password (min 6 characters) to sign in
+          </div>
         </div>
       </div>
     </div>

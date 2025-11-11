@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { mockUser } from '../lib/mockData';
 
 interface AuthUser {
   id: string;
@@ -38,26 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const persist = (data: { token: string; user: AuthUser }) => {
-    setToken(data.token);
-    setUser(data.user);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  };
-
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || 'Login failed');
+    if (password.length < 6) {
+      throw new Error('Invalid credentials');
     }
 
-    const data = await res.json();
-    persist(data);
+    const mockToken = 'mock-jwt-token-' + Date.now();
+    const userData = { ...mockUser, email };
+
+    setToken(mockToken);
+    setUser(userData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: mockToken, user: userData }));
   };
 
   const logout = () => {

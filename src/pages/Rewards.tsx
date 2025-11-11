@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env?.VITE_API_URL ?? '';
-const SOCKET_URL = import.meta.env?.VITE_SOCKET_URL ?? 'http://localhost:4000';
 
 interface Reward {
   id: string;
@@ -38,13 +36,6 @@ export default function RewardsPage() {
 
   useEffect(() => {
     if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socket.on('loyalty:reward', (payload: { reward: Reward }) => {
-      setToast(`🎉 ${payload.reward.title} redeemed!`);
-      setTimeout(() => setToast(null), 4000);
-      load();
-    });
-    return () => socket.disconnect();
   }, [token]);
 
   const handleRedeem = async (rewardId: string) => {
