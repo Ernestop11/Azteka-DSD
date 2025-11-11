@@ -6,6 +6,7 @@ import {
 import { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
+import CatalogPage from './pages/CatalogPage';
 import InvoiceUpload from './pages/InvoiceUpload';
 import PurchaseOrders from './pages/PurchaseOrders';
 import AdminOrders from './pages/AdminOrders';
@@ -365,7 +366,8 @@ export default function AppWithRouter() {
         <MainNav />
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<App />} />
+          <Route path="/" element={<CatalogPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/login" element={<Login />} />
 
           {/* Admin Routes */}

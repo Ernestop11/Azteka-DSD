@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { mockUser } from '../lib/mockData';
+import { mockUsers } from '../lib/mockData';
 
 interface AuthUser {
   id: string;
@@ -42,12 +42,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (password.length < 6) {
-      throw new Error('Invalid credentials');
+    const foundUser = mockUsers.find(
+      (u) => u.email === email && u.password === password
+    );
+
+    if (!foundUser) {
+      throw new Error('Invalid email or password');
     }
 
     const mockToken = 'mock-jwt-token-' + Date.now();
-    const userData = { ...mockUser, email };
+    const userData = {
+      id: foundUser.id,
+      email: foundUser.email,
+      name: foundUser.name,
+      role: foundUser.role,
+    };
 
     setToken(mockToken);
     setUser(userData);
