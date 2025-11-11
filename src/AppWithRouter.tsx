@@ -21,6 +21,9 @@ import Incentives from './pages/Incentives';
 import Rewards from './pages/Rewards';
 import Login from './pages/Login';
 import ImageProcessing from './pages/ImageProcessing';
+import CatalogOnline from './pages/CatalogOnline';
+import CatalogCustomer from './pages/CatalogCustomer';
+import CatalogSalesRep from './pages/CatalogSalesRep';
 
 // Main Navigation Component
 function MainNav() {
@@ -368,6 +371,9 @@ export default function AppWithRouter() {
           {/* Public Routes */}
           <Route path="/" element={<CatalogPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/catalog/online" element={<CatalogOnline />} />
+          <Route path="/catalog/customer" element={<CatalogCustomer />} />
+          <Route path="/catalog/salesrep" element={<CatalogSalesRep />} />
           <Route path="/login" element={<Login />} />
 
           {/* Admin Routes */}
