@@ -88,7 +88,7 @@ export default function ProductCard({ product, onAddToCart, promotion }: Product
               <div>
                 <p className="text-sm text-gray-600 font-medium">Wholesale Price</p>
                 <p className="text-3xl font-bold text-gray-900">
-                  ${product.price.toFixed(2)}
+                  ${(Number(product.price) || 0).toFixed(2)}
                 </p>
                 <p className="text-xs text-gray-600">per {product.unit_type}</p>
               </div>
