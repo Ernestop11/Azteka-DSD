@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Settings, Package as PackageIcon, FileText, BarChart3, Zap, ShoppingBag, Home,
-  TrendingUp, Users, Truck, Award, Grid3x3, Menu, X, Image
+  TrendingUp, Users, Truck, Award, Grid3x3, Menu, X, Image, Edit3
 } from 'lucide-react';
 import { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
@@ -24,6 +24,7 @@ import ImageProcessing from './pages/ImageProcessing';
 import CatalogOnline from './pages/CatalogOnline';
 import CatalogCustomer from './pages/CatalogCustomer';
 import CatalogSalesRep from './pages/CatalogSalesRep';
+import CatalogEditor from './pages/CatalogEditor';
 
 // Main Navigation Component
 function MainNav() {
@@ -174,6 +175,14 @@ function AdminDashboard() {
       color: 'from-pink-500 to-rose-500',
       path: '/admin/images',
       badge: 'NEW'
+    },
+    {
+      title: 'Catalog Editor',
+      description: 'Edit products, layouts, bundles, and menus',
+      icon: Edit3,
+      color: 'from-cyan-500 to-blue-500',
+      path: '/admin/catalog-editor',
+      badge: 'ESSENTIAL'
     }
   ];
 
@@ -385,6 +394,7 @@ export default function AppWithRouter() {
           <Route path="/admin/automation" element={<AutomationCenter />} />
           <Route path="/admin/executive" element={<ExecutiveDashboard />} />
           <Route path="/admin/images" element={<ImageProcessing />} />
+          <Route path="/admin/catalog-editor" element={<CatalogEditor />} />
 
           {/* Sales Routes */}
           <Route path="/sales" element={<SalesDashboard />} />
