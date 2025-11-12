@@ -68,6 +68,8 @@ export default function CatalogCustomer() {
   const [modalCases, setModalCases] = useState(1);
   const [upsellQuantities, setUpsellQuantities] = useState<{[key: string]: number}>({});
   const [flyingItems, setFlyingItems] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'browse' | 'bulk'>('browse');
+  const [bulkOrders, setBulkOrders] = useState<{[key: string]: number}>({});
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
   const heroScale = useTransform(scrollY, [0, 300], [1, 0.8]);
@@ -602,10 +604,41 @@ export default function CatalogCustomer() {
         </div>
       </motion.section>
 
-      {/* Sticky Stats Bar */}
+      {/* Mode Switcher */}
       <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setViewMode('browse')}
+              className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
+                viewMode === 'browse'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              <Package className="w-4 h-4 inline mr-2" />
+              Browse Catalog
+            </button>
+            <button
+              onClick={() => setViewMode('bulk')}
+              className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
+                viewMode === 'bulk'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 inline mr-2" />
+              Bulk Order
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Stats Bar */}
+      {viewMode === 'browse' && (
+        <div className="bg-slate-900/95 backdrop-blur-xl border-b border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-4 overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-2 text-sm whitespace-nowrap">
               <Flame className="w-4 h-4 text-red-500" />
               <span className="font-bold text-red-400">{productSections[0].products.length} Hot Deals</span>
@@ -629,10 +662,12 @@ export default function CatalogCustomer() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Product Sections */}
-      <main className="max-w-7xl mx-auto px-2 md:px-4 py-8 md:py-12 space-y-12 md:space-y-20">
-        {productSections.map((section, sectionIndex) => (
+      {/* Browse Mode - Product Sections */}
+      {viewMode === 'browse' && (
+        <main className="max-w-7xl mx-auto px-2 md:px-4 py-8 md:py-12 space-y-12 md:space-y-20">
+          {productSections.map((section, sectionIndex) => (
           <div key={section.id}>
             <motion.section
               initial={{ opacity: 0, y: 50 }}
@@ -692,7 +727,173 @@ export default function CatalogCustomer() {
             )}
           </div>
         ))}
-      </main>
+        </main>
+      )}
+
+      {/* Bulk Order Mode */}
+      {viewMode === 'bulk' && (
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h2 className="text-4xl font-black text-white mb-2">Bulk Order Sheet</h2>
+            <p className="text-slate-400">Quickly order multiple products at once</p>
+          </div>
+
+          {/* Bulk Order Table */}
+          <div className="bg-slate-900 rounded-2xl border-2 border-slate-800 overflow-hidden">
+            {/* Table Header */}
+            <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 border-b-2 border-slate-800 p-4">
+              <div className="grid grid-cols-12 gap-4 font-black text-white text-sm">
+                <div className="col-span-1">Image</div>
+                <div className="col-span-4">Product</div>
+                <div className="col-span-2">Price</div>
+                <div className="col-span-2">Quantity</div>
+                <div className="col-span-2">Subtotal</div>
+                <div className="col-span-1">Action</div>
+              </div>
+            </div>
+
+            {/* Table Body */}
+            <div className="divide-y divide-slate-800 max-h-[600px] overflow-y-auto">
+              {products.map((product) => {
+                const qty = bulkOrders[product.id] || 0;
+                const caseCount = product.unitsPerCase || 12;
+                return (
+                  <div
+                    key={product.id}
+                    className={`grid grid-cols-12 gap-4 p-4 items-center transition-all ${
+                      qty > 0 ? 'bg-cyan-500/10 border-l-4 border-cyan-500' : 'hover:bg-slate-800/50'
+                    }`}
+                  >
+                    {/* Image */}
+                    <div className="col-span-1">
+                      <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <Package className="w-6 h-6 text-slate-600" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="col-span-4">
+                      <h3 className="font-bold text-white text-sm line-clamp-2 mb-1">{product.name}</h3>
+                      <p className="text-xs text-slate-400">{product.brand} • {caseCount} units/case</p>
+                    </div>
+
+                    {/* Price */}
+                    <div className="col-span-2">
+                      <p className="text-lg font-black text-cyan-400">${product.price.toFixed(2)}</p>
+                      <p className="text-xs text-slate-400">ea</p>
+                    </div>
+
+                    {/* Quantity Controls */}
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: Math.max(0, (prev[product.id] || 0) - 1) }))}
+                          className="w-8 h-8 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
+                          disabled={qty === 0}
+                        >
+                          <Minus className="w-4 h-4 text-white" />
+                        </button>
+                        <input
+                          type="number"
+                          value={qty}
+                          onChange={(e) => setBulkOrders(prev => ({ ...prev, [product.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center font-black text-white focus:border-cyan-500 outline-none"
+                        />
+                        <button
+                          onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: (prev[product.id] || 0) + 1 }))}
+                          className="w-8 h-8 bg-cyan-600 hover:bg-cyan-500 rounded-lg flex items-center justify-center transition-all"
+                        >
+                          <Plus className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                      <div className="flex gap-1 mt-1">
+                        <button
+                          onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: caseCount }))}
+                          className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-300"
+                        >
+                          1 Case
+                        </button>
+                        <button
+                          onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: caseCount * 5 }))}
+                          className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-300"
+                        >
+                          5 Cases
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Subtotal */}
+                    <div className="col-span-2">
+                      <p className="text-xl font-black text-white">${(product.price * qty).toFixed(2)}</p>
+                    </div>
+
+                    {/* Action */}
+                    <div className="col-span-1">
+                      {qty > 0 && (
+                        <button
+                          onClick={() => setBulkOrders(prev => {
+                            const newOrders = { ...prev };
+                            delete newOrders[product.id];
+                            return newOrders;
+                          })}
+                          className="p-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg transition-all"
+                        >
+                          <X className="w-4 h-4 text-red-400" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bulk Order Summary */}
+          <div className="mt-6 bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-2xl p-6 border-2 border-purple-500/30">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-slate-400 mb-1">Items Selected</p>
+                <p className="text-3xl font-black text-white">{Object.keys(bulkOrders).filter(id => bulkOrders[id] > 0).length}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-400 mb-1">Total Units</p>
+                <p className="text-3xl font-black text-cyan-400">{Object.values(bulkOrders).reduce((a, b) => a + b, 0)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-400 mb-1">Order Total</p>
+                <p className="text-3xl font-black text-green-400">
+                  ${Object.entries(bulkOrders).reduce((sum, [id, qty]) => {
+                    const product = products.find(p => p.id === id);
+                    return sum + (product ? product.price * qty : 0);
+                  }, 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="flex items-center">
+                <button
+                  onClick={() => {
+                    Object.entries(bulkOrders).forEach(([id, qty]) => {
+                      if (qty > 0) {
+                        const product = products.find(p => p.id === id);
+                        if (product) handleAddToCart(product, qty, false);
+                      }
+                    });
+                    setBulkOrders({});
+                    setViewMode('browse');
+                  }}
+                  disabled={Object.values(bulkOrders).every(q => q === 0)}
+                  className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-black text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add All to Cart
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      )}
 
       {/* Enhanced Quick Add Modal */}
       <AnimatePresence>
