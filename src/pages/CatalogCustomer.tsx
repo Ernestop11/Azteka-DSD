@@ -545,91 +545,157 @@ export default function CatalogCustomer() {
         ))}
       </AnimatePresence>
 
-      {/* Hero Section with 3D Carousel */}
+      {/* Premium Hero Section */}
       <motion.section
         style={{ opacity: heroOpacity, scale: heroScale }}
-        className="relative h-[60vh] flex items-center justify-center overflow-hidden"
+        className="relative h-[65vh] flex items-center justify-center overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-950" />
-        <div className="absolute inset-0 opacity-40">
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+        <div className="absolute inset-0 opacity-30">
           <Canvas camera={{ position: [0, 0, 10], fov: 50 }}>
             <Hero3DCarousel />
           </Canvas>
         </div>
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)]" />
+        {/* Gradient Overlays */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(6,182,212,0.15),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(168,85,247,0.1),transparent_50%)]" />
 
-        <div className="relative z-10 text-center px-4">
-          <button
-            onClick={() => navigate('/')}
-            className="absolute top-8 left-8 p-3 bg-slate-800/50 hover:bg-slate-700/50 backdrop-blur-sm rounded-full transition-all border border-slate-700"
-          >
-            <ArrowLeft className="w-6 h-6 text-cyan-400" />
-          </button>
+        {/* Top Navigation Bar */}
+        <div className="absolute top-0 left-0 right-0 z-20">
+          <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+            <button
+              onClick={() => navigate('/')}
+              className="group flex items-center gap-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 backdrop-blur-md rounded-xl transition-all border border-slate-700/50 hover:border-cyan-500/50"
+            >
+              <ArrowLeft className="w-4 h-4 text-cyan-400 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-bold text-sm text-slate-300">Back</span>
+            </button>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-7xl md:text-8xl font-black mb-4 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-              WHOLESALE
-            </h1>
-            <p className="text-2xl md:text-3xl font-bold text-slate-300 mb-8">
-              Direct Store Delivery • 600+ Products
-            </p>
-
-            <div className="flex items-center justify-center gap-6 flex-wrap">
-              <div className="flex items-center gap-2 px-6 py-3 bg-slate-800/80 backdrop-blur-sm rounded-full border border-slate-700">
-                <Crown className="w-5 h-5 text-yellow-400" />
-                <span className="font-black text-2xl text-yellow-400">{loyaltyPoints}</span>
-                <span className="text-slate-400">points</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 backdrop-blur-md rounded-xl border border-yellow-500/30">
+                <Crown className="w-4 h-4 text-yellow-400" />
+                <span className="font-black text-lg text-yellow-400">{loyaltyPoints.toLocaleString()}</span>
+                <span className="text-xs text-yellow-300/70 font-bold">PTS</span>
               </div>
 
               <button
                 id="cart-icon"
                 onClick={() => alert('Cart coming soon!')}
-                className="relative flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-full font-black text-lg shadow-2xl hover:shadow-cyan-500/50 transition-all"
+                className="relative group flex items-center gap-3 px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl font-black text-sm shadow-lg hover:shadow-cyan-500/30 transition-all"
               >
-                <ShoppingCart className="w-6 h-6" />
+                <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 <span>${cartTotal.toFixed(2)}</span>
                 {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black w-8 h-8 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1.5 -right-1.5 bg-gradient-to-br from-red-500 to-red-600 text-white text-xs font-black min-w-[24px] h-6 px-1.5 rounded-full flex items-center justify-center shadow-lg"
+                  >
                     {cartCount}
-                  </span>
+                  </motion.span>
                 )}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Hero Content */}
+        <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1, delay: 0.2 }}
+              className="mb-6"
+            >
+              <h1 className="text-7xl md:text-9xl font-black mb-3 tracking-tight">
+                <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-2xl">
+                  WHOLESALE
+                </span>
+              </h1>
+              <div className="flex items-center justify-center gap-4 text-slate-400 text-sm font-bold">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span>Direct Store Delivery</span>
+                </div>
+                <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                <span>600+ Products</span>
+                <div className="w-1 h-1 bg-slate-600 rounded-full" />
+                <span>Same-Day Available</span>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </motion.section>
 
-      {/* Mode Switcher */}
-      <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-center gap-3">
+      {/* Premium Mode Switcher & Quick Stats */}
+      <div className="sticky top-0 z-40 bg-slate-950/98 backdrop-blur-2xl border-b border-slate-800/50 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          {/* Mode Tabs */}
+          <div className="flex items-center justify-center gap-2 mb-4">
             <button
               onClick={() => setViewMode('browse')}
-              className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
+              className={`relative px-8 py-3.5 rounded-2xl font-black text-sm transition-all overflow-hidden group ${
                 viewMode === 'browse'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? 'text-white shadow-xl shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-slate-300'
               }`}
             >
-              <Package className="w-4 h-4 inline mr-2" />
-              Browse Catalog
+              {viewMode === 'browse' && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-600"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Browse Catalog
+              </span>
             </button>
+
             <button
               onClick={() => setViewMode('bulk')}
-              className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
+              className={`relative px-8 py-3.5 rounded-2xl font-black text-sm transition-all overflow-hidden group ${
                 viewMode === 'bulk'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? 'text-white shadow-xl shadow-purple-500/20'
+                  : 'text-slate-400 hover:text-slate-300'
               }`}
             >
-              <BarChart3 className="w-4 h-4 inline mr-2" />
-              Bulk Order
+              {viewMode === 'bulk' && (
+                <motion.div
+                  layoutId="activeTab"
+                  className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Bulk Order
+              </span>
             </button>
+          </div>
+
+          {/* Quick Stats Bar */}
+          <div className="flex items-center justify-center gap-6 text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg">
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              <span className="font-bold text-orange-300">Hot Deals Active</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg">
+              <Zap className="w-3.5 h-3.5 text-yellow-400" />
+              <span className="font-bold text-yellow-300">Fast Checkout</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg">
+              <Star className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="font-bold text-cyan-300">Loyalty Rewards</span>
+            </div>
           </div>
         </div>
       </div>
@@ -732,23 +798,44 @@ export default function CatalogCustomer() {
 
       {/* Bulk Order Mode */}
       {viewMode === 'bulk' && (
-        <main className="max-w-7xl mx-auto px-4 py-8">
-          <div className="mb-8">
-            <h2 className="text-4xl font-black text-white mb-2">Bulk Order Sheet</h2>
-            <p className="text-slate-400">Quickly order multiple products at once</p>
-          </div>
+        <main className="max-w-7xl mx-auto px-6 py-10">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-10"
+          >
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-2 h-12 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full" />
+              <div>
+                <h2 className="text-5xl font-black text-white">Bulk Order Sheet</h2>
+                <p className="text-slate-400 font-medium mt-1">Efficiently order multiple products at once</p>
+              </div>
+            </div>
+          </motion.div>
 
-          {/* Bulk Order Table */}
-          <div className="bg-slate-900 rounded-2xl border-2 border-slate-800 overflow-hidden">
+          {/* Premium Table */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-to-br from-slate-900 to-slate-950 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl"
+          >
             {/* Table Header */}
-            <div className="bg-gradient-to-r from-purple-900/50 to-pink-900/50 border-b-2 border-slate-800 p-4">
-              <div className="grid grid-cols-12 gap-4 font-black text-white text-sm">
-                <div className="col-span-1">Image</div>
-                <div className="col-span-4">Product</div>
-                <div className="col-span-2">Price</div>
-                <div className="col-span-2">Quantity</div>
-                <div className="col-span-2">Subtotal</div>
-                <div className="col-span-1">Action</div>
+            <div className="bg-gradient-to-r from-purple-600/30 via-pink-600/30 to-purple-600/30 backdrop-blur-xl border-b border-slate-800/50 p-5">
+              <div className="grid grid-cols-12 gap-4 font-black text-white text-xs uppercase tracking-wider">
+                <div className="col-span-1 flex items-center">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Package className="w-4 h-4 text-purple-400" />
+                  </div>
+                </div>
+                <div className="col-span-4 flex items-center">Product Details</div>
+                <div className="col-span-2 flex items-center">Unit Price</div>
+                <div className="col-span-2 flex items-center">Order Quantity</div>
+                <div className="col-span-2 flex items-center">Line Total</div>
+                <div className="col-span-1 flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 text-pink-400" />
+                </div>
               </div>
             </div>
 
@@ -758,17 +845,21 @@ export default function CatalogCustomer() {
                 const qty = bulkOrders[product.id] || 0;
                 const caseCount = product.unitsPerCase || 12;
                 return (
-                  <div
+                  <motion.div
                     key={product.id}
-                    className={`grid grid-cols-12 gap-4 p-4 items-center transition-all ${
-                      qty > 0 ? 'bg-cyan-500/10 border-l-4 border-cyan-500' : 'hover:bg-slate-800/50'
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className={`grid grid-cols-12 gap-4 p-5 items-center transition-all group ${
+                      qty > 0
+                        ? 'bg-gradient-to-r from-cyan-500/15 to-blue-500/10 border-l-4 border-cyan-400 shadow-lg shadow-cyan-500/5'
+                        : 'hover:bg-slate-800/30'
                     }`}
                   >
                     {/* Image */}
                     <div className="col-span-1">
-                      <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
+                      <div className="w-14 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center border border-slate-700 group-hover:border-slate-600 transition-all overflow-hidden">
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-1" />
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-2" />
                         ) : (
                           <Package className="w-6 h-6 text-slate-600" />
                         )}
@@ -777,22 +868,26 @@ export default function CatalogCustomer() {
 
                     {/* Product Info */}
                     <div className="col-span-4">
-                      <h3 className="font-bold text-white text-sm line-clamp-2 mb-1">{product.name}</h3>
-                      <p className="text-xs text-slate-400">{product.brand} • {caseCount} units/case</p>
+                      <h3 className="font-bold text-white text-sm line-clamp-2 mb-1.5 group-hover:text-cyan-400 transition-colors">{product.name}</h3>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-400 font-medium">{product.brand}</span>
+                        <span className="text-slate-500">•</span>
+                        <span className="text-slate-400 font-medium">{caseCount} units/case</span>
+                      </div>
                     </div>
 
                     {/* Price */}
                     <div className="col-span-2">
-                      <p className="text-lg font-black text-cyan-400">${product.price.toFixed(2)}</p>
-                      <p className="text-xs text-slate-400">ea</p>
+                      <p className="text-xl font-black text-cyan-400">${product.price.toFixed(2)}</p>
+                      <p className="text-xs text-slate-500 font-medium">per unit</p>
                     </div>
 
                     {/* Quantity Controls */}
                     <div className="col-span-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mb-2">
                         <button
                           onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: Math.max(0, (prev[product.id] || 0) - 1) }))}
-                          className="w-8 h-8 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
+                          className="w-9 h-9 bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 rounded-xl flex items-center justify-center transition-all border border-slate-600 disabled:opacity-30"
                           disabled={qty === 0}
                         >
                           <Minus className="w-4 h-4 text-white" />
@@ -801,25 +896,25 @@ export default function CatalogCustomer() {
                           type="number"
                           value={qty}
                           onChange={(e) => setBulkOrders(prev => ({ ...prev, [product.id]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                          className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-center font-black text-white focus:border-cyan-500 outline-none"
+                          className="flex-1 bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700 rounded-xl px-3 py-2 text-center font-black text-white text-lg focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none transition-all"
                         />
                         <button
                           onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: (prev[product.id] || 0) + 1 }))}
-                          className="w-8 h-8 bg-cyan-600 hover:bg-cyan-500 rounded-lg flex items-center justify-center transition-all"
+                          className="w-9 h-9 bg-gradient-to-br from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl flex items-center justify-center transition-all shadow-lg shadow-cyan-500/20"
                         >
                           <Plus className="w-4 h-4 text-white" />
                         </button>
                       </div>
-                      <div className="flex gap-1 mt-1">
+                      <div className="flex gap-1.5">
                         <button
                           onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: caseCount }))}
-                          className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-300"
+                          className="flex-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all border border-slate-700"
                         >
                           1 Case
                         </button>
                         <button
                           onClick={() => setBulkOrders(prev => ({ ...prev, [product.id]: caseCount * 5 }))}
-                          className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-slate-300"
+                          className="flex-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all border border-slate-700"
                         >
                           5 Cases
                         </button>
@@ -828,11 +923,16 @@ export default function CatalogCustomer() {
 
                     {/* Subtotal */}
                     <div className="col-span-2">
-                      <p className="text-xl font-black text-white">${(product.price * qty).toFixed(2)}</p>
+                      <p className="text-2xl font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                        ${(product.price * qty).toFixed(2)}
+                      </p>
+                      {qty > 0 && (
+                        <p className="text-xs text-slate-500 font-medium">{qty} units</p>
+                      )}
                     </div>
 
                     {/* Action */}
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       {qty > 0 && (
                         <button
                           onClick={() => setBulkOrders(prev => {
@@ -840,39 +940,62 @@ export default function CatalogCustomer() {
                             delete newOrders[product.id];
                             return newOrders;
                           })}
-                          className="p-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg transition-all"
+                          className="p-2.5 bg-gradient-to-br from-red-600/20 to-red-700/20 hover:from-red-600/30 hover:to-red-700/30 rounded-xl transition-all border border-red-500/20 hover:border-red-500/40 group"
                         >
-                          <X className="w-4 h-4 text-red-400" />
+                          <X className="w-4 h-4 text-red-400 group-hover:rotate-90 transition-transform" />
                         </button>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Bulk Order Summary */}
-          <div className="mt-6 bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-2xl p-6 border-2 border-purple-500/30">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Premium Summary Panel */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-8 bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-purple-600/20 backdrop-blur-xl rounded-3xl p-8 border border-purple-500/30 shadow-2xl shadow-purple-500/10"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              {/* Items Selected */}
               <div className="text-center">
-                <p className="text-sm text-slate-400 mb-1">Items Selected</p>
-                <p className="text-3xl font-black text-white">{Object.keys(bulkOrders).filter(id => bulkOrders[id] > 0).length}</p>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl mb-3 border border-purple-500/30">
+                  <Package className="w-8 h-8 text-purple-400" />
+                </div>
+                <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-bold">Items Selected</p>
+                <p className="text-4xl font-black text-white">{Object.keys(bulkOrders).filter(id => bulkOrders[id] > 0).length}</p>
               </div>
+
+              {/* Total Units */}
               <div className="text-center">
-                <p className="text-sm text-slate-400 mb-1">Total Units</p>
-                <p className="text-3xl font-black text-cyan-400">{Object.values(bulkOrders).reduce((a, b) => a + b, 0)}</p>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-2xl mb-3 border border-cyan-500/30">
+                  <Box className="w-8 h-8 text-cyan-400" />
+                </div>
+                <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-bold">Total Units</p>
+                <p className="text-4xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  {Object.values(bulkOrders).reduce((a, b) => a + b, 0)}
+                </p>
               </div>
+
+              {/* Order Total */}
               <div className="text-center">
-                <p className="text-sm text-slate-400 mb-1">Order Total</p>
-                <p className="text-3xl font-black text-green-400">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-2xl mb-3 border border-green-500/30">
+                  <DollarSign className="w-8 h-8 text-green-400" />
+                </div>
+                <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 font-bold">Order Total</p>
+                <p className="text-4xl font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                   ${Object.entries(bulkOrders).reduce((sum, [id, qty]) => {
                     const product = products.find(p => p.id === id);
                     return sum + (product ? product.price * qty : 0);
-                  }, 0).toFixed(2)}
+                  }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
-              <div className="flex items-center">
+
+              {/* Action Button */}
+              <div className="flex flex-col justify-center">
                 <button
                   onClick={() => {
                     Object.entries(bulkOrders).forEach(([id, qty]) => {
@@ -885,13 +1008,26 @@ export default function CatalogCustomer() {
                     setViewMode('browse');
                   }}
                   disabled={Object.values(bulkOrders).every(q => q === 0)}
-                  className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-black text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="group relative w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl font-black text-lg shadow-2xl shadow-purple-500/30 hover:shadow-purple-500/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed overflow-hidden"
                 >
-                  Add All to Cart
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    Add All to Cart
+                  </span>
                 </button>
+                {Object.values(bulkOrders).some(q => q > 0) && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs text-center text-slate-400 mt-3 font-medium"
+                  >
+                    Ready to add {Object.keys(bulkOrders).filter(id => bulkOrders[id] > 0).length} products
+                  </motion.p>
+                )}
               </div>
             </div>
-          </div>
+          </motion.div>
         </main>
       )}
 
