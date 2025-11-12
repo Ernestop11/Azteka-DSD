@@ -162,6 +162,26 @@ export default function CatalogCustomer() {
     const casePrice = product.price * caseCount * 0.85;
     const deliveryDate = new Date(Date.now() + (3 + index % 3) * 24 * 60 * 60 * 1000);
 
+    const glassGradients = [
+      'from-cyan-500/20 via-blue-500/10 to-purple-500/20',
+      'from-pink-500/20 via-rose-500/10 to-orange-500/20',
+      'from-green-500/20 via-emerald-500/10 to-teal-500/20',
+      'from-yellow-500/20 via-amber-500/10 to-orange-500/20',
+      'from-violet-500/20 via-purple-500/10 to-fuchsia-500/20',
+      'from-red-500/20 via-pink-500/10 to-rose-500/20',
+    ];
+
+    const neonBorders = [
+      'hover:shadow-[0_0_30px_rgba(6,182,212,0.6),0_0_60px_rgba(6,182,212,0.3),inset_0_0_20px_rgba(6,182,212,0.1)]',
+      'hover:shadow-[0_0_30px_rgba(236,72,153,0.6),0_0_60px_rgba(236,72,153,0.3),inset_0_0_20px_rgba(236,72,153,0.1)]',
+      'hover:shadow-[0_0_30px_rgba(16,185,129,0.6),0_0_60px_rgba(16,185,129,0.3),inset_0_0_20px_rgba(16,185,129,0.1)]',
+      'hover:shadow-[0_0_30px_rgba(251,191,36,0.6),0_0_60px_rgba(251,191,36,0.3),inset_0_0_20px_rgba(251,191,36,0.1)]',
+      'hover:shadow-[0_0_30px_rgba(139,92,246,0.6),0_0_60px_rgba(139,92,246,0.3),inset_0_0_20px_rgba(139,92,246,0.1)]',
+      'hover:shadow-[0_0_30px_rgba(239,68,68,0.6),0_0_60px_rgba(239,68,68,0.3),inset_0_0_20px_rgba(239,68,68,0.1)]',
+    ];
+
+    const patternIndex = index % glassGradients.length;
+
     return (
       <motion.div
         key={product.id}
@@ -169,105 +189,106 @@ export default function CatalogCustomer() {
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
         transition={{ delay: index * 0.05 }}
-        className="group relative bg-slate-900 rounded-2xl overflow-hidden border border-slate-700 hover:border-cyan-500 transition-all duration-300"
+        className={`group relative rounded-2xl overflow-hidden border-2 border-slate-700/50 hover:border-cyan-400 transition-all duration-500 ${neonBorders[patternIndex]}`}
         style={{
-          boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)',
-        }}
-        onMouseEnter={() => {
-          const el = document.getElementById(`card-${product.id}`);
-          if (el) el.style.boxShadow = `0 0 40px rgba(6, 182, 212, 0.4)`;
-        }}
-        onMouseLeave={() => {
-          const el = document.getElementById(`card-${product.id}`);
-          if (el) el.style.boxShadow = '0 0 20px rgba(0, 0, 0, 0.5)';
+          background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
         }}
         id={`card-${product.id}`}
       >
         <div
-          className="h-48 flex items-center justify-center p-4 relative overflow-hidden"
+          className={`h-48 flex items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br ${glassGradients[patternIndex]}`}
           style={{
-            background: `linear-gradient(135deg, ${product.backgroundColor || '#1e293b'} 0%, #0f172a 100%)`
+            backgroundImage: `
+              radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
+              linear-gradient(135deg, ${product.backgroundColor || '#1e293b'} 0%, rgba(15, 23, 42, 0.8) 100%)
+            `,
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
-          <div className="absolute top-3 left-3 flex gap-2">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/80" />
+
+          <div className="absolute top-3 left-3 flex gap-2 z-20">
             {product.featured && (
-              <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-black rounded-full animate-pulse">
-                HOT
+              <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-black text-xs font-black rounded-full shadow-lg shadow-yellow-500/50 animate-pulse">
+                🔥 HOT
               </span>
             )}
             {index % 3 === 0 && (
-              <span className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-black rounded-full">
-                -15%
+              <span className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-emerald-500 text-black text-xs font-black rounded-full shadow-lg shadow-green-500/50">
+                -15% OFF
               </span>
             )}
           </div>
+
           {product.imageUrl ? (
             <img
               src={product.imageUrl}
               alt={product.name}
-              className="h-full w-full object-contain relative z-10 group-hover:scale-110 transition-transform duration-500"
+              className="h-full w-full object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 group-hover:drop-shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all duration-500"
             />
           ) : (
-            <Package className="w-20 h-20 text-cyan-400/50" />
+            <Package className="w-24 h-24 text-cyan-400/30" />
           )}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_20px_rgba(6,182,212,0.8)]" />
         </div>
 
-        <div className="p-4 space-y-3">
-          <h3 className="font-black text-white text-sm line-clamp-2 group-hover:text-cyan-400 transition-colors">
+        <div className="p-4 space-y-3 bg-gradient-to-b from-slate-800/40 to-slate-900/60 backdrop-blur-sm">
+          <h3 className="font-black text-white text-sm line-clamp-2 group-hover:text-cyan-400 transition-colors drop-shadow-lg">
             {product.name}
           </h3>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Truck className="w-3 h-3" />
+          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-800/50 px-2 py-1.5 rounded-lg">
+            <Truck className="w-3 h-3 text-green-400" />
             <span>Delivers: {deliveryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-cyan-400">
+              <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
                 ${product.price.toFixed(2)}
               </span>
-              <span className="text-xs text-slate-500">/ unit</span>
+              <span className="text-xs text-slate-400">/ unit</span>
             </div>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
               <Box className="w-3 h-3 text-blue-400" />
-              <span className="text-slate-300">
-                Case ({caseCount}): <span className="font-bold text-blue-400">${casePrice.toFixed(2)}</span>
+              <span className="text-slate-200">
+                Case ({caseCount}): <span className="font-black text-blue-400">${casePrice.toFixed(2)}</span>
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Target className="w-3 h-3" />
-              <span>MOQ: {product.minOrderQty || 1} units</span>
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <Target className="w-3 h-3 text-purple-400" />
+              <span>MOQ: <span className="font-bold text-purple-400">{product.minOrderQty || 1}</span> units</span>
             </div>
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={() => handleAddToCart(product, 1)}
-              className="flex-1 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-bold text-sm transition-all shadow-lg hover:shadow-cyan-500/50"
+              className="flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/60 border border-cyan-400/20 hover:border-cyan-400/40"
             >
               <Plus className="w-4 h-4 inline mr-1" />
-              Add
+              Add to Cart
             </button>
             <button
               onClick={() => {
                 setSelectedProduct(product);
                 setShowQuickAdd(true);
               }}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg font-bold text-sm transition-all border border-slate-700"
+              className="px-4 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-cyan-400 rounded-xl font-black text-sm transition-all border-2 border-cyan-500/30 hover:border-cyan-400 shadow-lg hover:shadow-cyan-500/40"
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-green-400 font-semibold flex items-center gap-1">
+          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-700/50">
+            <span className="text-green-400 font-black flex items-center gap-1 bg-green-500/10 px-2 py-1 rounded-lg">
               <Award className="w-3 h-3" />
               +{Math.floor(product.price)} pts
             </span>
-            <span className="text-slate-500">{product.stock} in stock</span>
+            <span className="text-slate-400 font-semibold">{product.stock} in stock</span>
           </div>
         </div>
       </motion.div>
