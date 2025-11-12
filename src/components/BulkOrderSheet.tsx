@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 import { Search, Copy, Upload, Download, Zap, Truck, TrendingUp, X, Plus, Minus } from 'lucide-react';
 
 interface BulkOrderSheetProps {

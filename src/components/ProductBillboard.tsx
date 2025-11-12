@@ -1,4 +1,4 @@
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 import { Star, TrendingUp, Zap } from 'lucide-react';
 
 interface ProductBillboardProps {

@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String   @default("")
+  role      String   @default("CUSTOMER")
+  orders    Order[]
+  badges    UserBadge[]
+  loyalty   LoyaltyAccount?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id              String               @id @default(uuid())
+  name            String
+  sku             String               @unique
+  description     String?
+  price           Decimal              @db.Decimal(10, 2)
+  cost            Decimal?             @db.Decimal(10, 2)
+  margin          Decimal?             @db.Decimal(5, 2)
+  imageUrl        String?              @default("")
+  inStock         Boolean              @default(true)
+  stock           Int                  @default(0)
+  minStock        Int                  @default(10)
+  supplier        String?              @default("Default Supplier")
+  featured        Boolean              @default(false)
+  unitType        String               @default("case")
+  unitsPerCase    Int                  @default(1)
+  minOrderQty     Int                  @default(1)
+  backgroundColor String?              @default("#f3f4f6")
+
+  // Relations
+  category        Category?            @relation("CategoryProducts", fields: [categoryId], references: [id])
+  categoryId      String?
+  brand           Brand?               @relation("BrandProducts", fields: [brandId], references: [id])
+  brandId         String?
+  subcategory     Subcategory?         @relation("SubcategoryProducts", fields: [subcategoryId], references: [id])
+  subcategoryId   String?
+
+  orderItems      OrderItem[]
+  purchaseItems   PurchaseOrderItem[]
+  promotions      Promotion[]          @relation("PromotionProducts")
+  bundles         ProductBundle[]      @relation("BundleProducts")
+  specialOffers   SpecialOffer[]       @relation("OfferProducts")
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model Order {
+  id           String      @id @default(uuid())
+  status       String      @default("pending")
+  customerName String
+  total        Decimal     @db.Decimal(10, 2)
+  user         User?       @relation(fields: [userId], references: [id])
+  userId       String?
+  driverId     String?
+  notes        String?
+  items        OrderItem[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrder {
+  id        String               @id @default(uuid())
+  supplier  String
+  status    String               @default("pending")
+  total     Decimal              @db.Decimal(10, 2) @default(0)
+  items     PurchaseOrderItem[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model PurchaseOrderItem {
+  id              String         @id @default(uuid())
+  product         Product        @relation(fields: [productId], references: [id])
+  productId       String
+  quantity        Int
+  cost            Decimal        @db.Decimal(10, 2)
+  purchaseOrder   PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  supplier    String
+  invoiceDate DateTime?
+  fileUrl     String
+  status      String   @default("processed")
+  total       Decimal  @db.Decimal(10, 2) @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  points      Int         @default(0)
+  iconUrl     String?
+  userBadges  UserBadge[]
+}
+
+model Incentive {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  threshold   Int
+  reward      Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+}
+
+model UserBadge {
+  id       String   @id @default(uuid())
+  user     User     @relation(fields: [userId], references: [id])
+  userId   String
+  badge    Badge    @relation(fields: [badgeId], references: [id])
+  badgeId  String
+  earnedAt DateTime @default(now())
+}
+
+model LoyaltyAccount {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique
+  points    Int      @default(0)
+  tier      String   @default("Bronze")
+  updatedAt DateTime @updatedAt
+}
+
+model Reward {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  cost        Int
+  imageUrl    String?
+  active      Boolean  @default(true)
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String        @unique
+  description   String?
+  imageUrl      String?
+  displayOrder  Int           @default(0)
+  products      Product[]     @relation("CategoryProducts")
+  subcategories Subcategory[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Brand {
+  id           String    @id @default(uuid())
+  name         String
+  logoUrl      String?
+  description  String?
+  isFeatured   Boolean   @default(false)
+  displayOrder Int       @default(0)
+  products     Product[] @relation("BrandProducts")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Subcategory {
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  displayOrder Int       @default(0)
+  category     Category  @relation(fields: [categoryId], references: [id])
+  categoryId   String
+  products     Product[] @relation("SubcategoryProducts")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Promotion {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  discountPercent Decimal   @db.Decimal(5, 2)
+  startDate       DateTime
+  endDate         DateTime
+  active          Boolean   @default(true)
+  products        Product[] @relation("PromotionProducts")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ProductBundle {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  description     String?
+  imageUrl        String?
+  badgeText       String?
+  badgeColor      String?   @default("#10b981")
+  discountPercent Decimal   @db.Decimal(5, 2) @default(0)
+  price           Decimal   @db.Decimal(10, 2)
+  active          Boolean   @default(true)
+  products        Product[] @relation("BundleProducts")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model SpecialOffer {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  imageUrl    String?
+  ctaText     String    @default("Shop Now")
+  ctaLink     String?
+  validUntil  DateTime?
+  active      Boolean   @default(true)
+  products    Product[] @relation("OfferProducts")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SalesRep {
+  id             String   @id @default(uuid())
+  name           String
+  email          String   @unique
+  phone          String?
+  territory      String?
+  uniqueLinkCode String   @unique
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Customer {
+  id           String   @id @default(uuid())
+  businessName String
+  contactName  String
+  email        String   @unique
+  phone        String
+  address      String
+  city         String
+  state        String
+  zipCode      String
+  salesRepId   String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

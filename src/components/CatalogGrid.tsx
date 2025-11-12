@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, SlidersHorizontal, Grid3x3, List } from 'lucide-react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 
 interface Brand {
   id: string;

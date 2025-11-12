@@ -1,4 +1,4 @@
-import { CartItem } from '../lib/supabase';
+import { CartItem } from '../types';
 import { X, Plus, Minus, ShoppingBag, Trash2 } from 'lucide-react';
 
 interface CartProps {

@@ -1,4 +1,4 @@
-import { Category } from '../lib/supabase';
+import { Category } from '../types';
 import { Package, Candy, Cookie, Zap } from 'lucide-react';
 
 interface CategoryTabsProps {

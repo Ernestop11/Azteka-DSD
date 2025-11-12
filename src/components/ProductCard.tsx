@@ -1,4 +1,4 @@
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 import { ShoppingCart, Package, Sparkles, Zap, Award, Trophy } from 'lucide-react';
 
 interface ProductCardProps {

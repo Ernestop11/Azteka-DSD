@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CartItem, Customer, Product } from '../lib/supabase';
+import { CartItem, Customer, Product } from '../types';
 import { ArrowLeft, Building2, User, Mail, Phone, MapPin, Sparkles, Plus } from 'lucide-react';
 
 interface CheckoutProps {
