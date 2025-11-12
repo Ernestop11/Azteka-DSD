@@ -60,6 +60,8 @@ export default function CatalogCustomer() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState(1250);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showAddedConfirmation, setShowAddedConfirmation] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [flyingItems, setFlyingItems] = useState<any[]>([]);
@@ -67,7 +69,7 @@ export default function CatalogCustomer() {
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
   const heroScale = useTransform(scrollY, [0, 300], [1, 0.8]);
 
-  const handleAddToCart = (product: any, quantity: number = 1) => {
+  const handleAddToCart = (product: any, quantity: number = 1, showConfirmation: boolean = true) => {
     const cartIcon = document.getElementById('cart-icon');
     if (cartIcon) {
       const rect = cartIcon.getBoundingClientRect();
@@ -96,6 +98,11 @@ export default function CatalogCustomer() {
     });
     setLoyaltyPoints(prev => prev + Math.floor(product.price * quantity));
     setShowQuickAdd(false);
+
+    if (showConfirmation) {
+      setLastAddedProduct({ ...product, addedQuantity: quantity });
+      setShowAddedConfirmation(true);
+    }
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -103,58 +110,115 @@ export default function CatalogCustomer() {
 
   const productSections = [
     {
+      id: 'brand-jumex',
+      title: 'Jumex',
+      subtitle: 'Premium Juice & Nectars',
+      products: products.filter(p => p.brand === 'Jumex' || p.name?.includes('Jumex')).slice(0, 12),
+      layout: 'netflix-curtain',
+      color: 'from-orange-600 to-red-600',
+      brandLogo: '🧃',
+      accentColor: 'orange',
+    },
+    {
       id: 'hot-deals',
-      title: '🔥 Hot Deals',
-      subtitle: 'Limited Time Only',
-      products: products.slice(0, 8),
-      layout: 'grid-4',
+      title: '🔥 Flash Deals',
+      subtitle: 'Ends in 6 hours',
+      products: products.slice(0, 6),
+      layout: 'hero-grid',
       color: 'from-red-600 to-orange-600',
       accentColor: 'red',
     },
     {
       id: 'best-sellers',
-      title: '⭐ Best Sellers',
-      subtitle: 'Most Popular This Week',
+      title: '⭐ Trending Now',
+      subtitle: 'What others are buying',
       products: products.slice(8, 14),
-      layout: 'carousel',
+      layout: 'carousel-snap',
       color: 'from-yellow-500 to-amber-600',
       accentColor: 'yellow',
     },
     {
+      id: 'brand-coca-cola',
+      title: 'Coca-Cola',
+      subtitle: 'The World\'s Favorite',
+      products: products.filter(p => p.brand === 'Coca-Cola' || p.name?.includes('Coke') || p.name?.includes('Sprite')).slice(0, 10),
+      layout: 'brand-spotlight',
+      color: 'from-red-700 to-red-900',
+      brandLogo: '🥤',
+      accentColor: 'red',
+    },
+    {
       id: 'bulk-savers',
-      title: '📦 Bulk Savers',
-      subtitle: 'Save More, Buy More',
-      products: products.slice(14, 22),
-      layout: 'grid-2-big',
+      title: '📦 Case Deals',
+      subtitle: 'Buy More, Save More',
+      products: products.slice(14, 20),
+      layout: 'pricing-cards',
       color: 'from-blue-600 to-cyan-600',
       accentColor: 'blue',
     },
     {
       id: 'new-arrivals',
-      title: '✨ New Arrivals',
-      subtitle: 'Just Added',
-      products: products.slice(22, 30),
-      layout: 'masonry',
+      title: '✨ Just Arrived',
+      subtitle: 'Fresh inventory',
+      products: products.slice(22, 28),
+      layout: 'staggered-grid',
       color: 'from-pink-600 to-purple-600',
       accentColor: 'purple',
     },
     {
+      id: 'snacks',
+      title: '🍿 Snacks & Chips',
+      subtitle: 'Best sellers',
+      products: products.filter(p => p.categoryId === 'snacks').slice(0, 8),
+      layout: 'compact-tiles',
+      color: 'from-amber-600 to-yellow-600',
+      accentColor: 'amber',
+    },
+    {
+      id: 'brand-pepsi',
+      title: 'Pepsi Collection',
+      subtitle: 'All your favorites',
+      products: products.filter(p => p.brand === 'Pepsi' || p.name?.includes('Pepsi')).slice(0, 8),
+      layout: 'brand-wall',
+      color: 'from-blue-700 to-blue-900',
+      brandLogo: '🥤',
+      accentColor: 'blue',
+    },
+    {
+      id: 'beverages',
+      title: '🥤 Cold Beverages',
+      subtitle: 'Refreshment station',
+      products: products.filter(p => p.categoryId === 'beverages').slice(0, 12),
+      layout: 'wide-cards',
+      color: 'from-cyan-600 to-blue-600',
+      accentColor: 'cyan',
+    },
+    {
       id: 'quick-reorder',
       title: '⚡ Quick Reorder',
-      subtitle: 'Your Favorites',
+      subtitle: 'From your history',
       products: products.slice(5, 17),
-      layout: 'compact-grid',
+      layout: 'list-view',
       color: 'from-green-600 to-emerald-600',
       accentColor: 'green',
     },
     {
-      id: 'wholesale-specials',
-      title: '💎 Wholesale Specials',
-      subtitle: 'Case Pricing Available',
-      products: products.slice(30, 42),
-      layout: 'feature-cards',
-      color: 'from-indigo-600 to-violet-600',
-      accentColor: 'indigo',
+      id: 'candy',
+      title: '🍬 Candy & Sweets',
+      subtitle: 'Popular picks',
+      products: products.filter(p => p.categoryId === 'candy').slice(0, 16),
+      layout: 'dense-grid',
+      color: 'from-pink-500 to-rose-600',
+      accentColor: 'pink',
+    },
+    {
+      id: 'wholesale-bundles',
+      title: '💎 Bundle Deals',
+      subtitle: 'Curated collections',
+      products: products.slice(30, 36),
+      layout: 'bundle-cards',
+      color: 'from-purple-600 to-indigo-600',
+      accentColor: 'purple',
     },
   ];
 
@@ -309,54 +373,149 @@ export default function CatalogCustomer() {
 
   const renderSection = (section: any) => {
     switch (section.layout) {
-      case 'grid-4':
+      case 'netflix-curtain':
         return (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+          <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 overflow-hidden">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djItMnptMC00djJ6bTAtNHYyem0wLTR2MnptMC00djJ6bTAtNHYyem0wLTR2MnptMC00djJ6bTAtNHYyem0wLTJ2MnptLTIgMGgyem0tNCAwaDJ6bS00IDBoMnptLTQgMGgyem0tNCAwaDJ6bS00IDBoMnptLTQgMGgyem0tNCAwaDJ6bS00IDBoMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40" />
+            <div className="relative z-10">
+              <div className="text-6xl mb-4">{section.brandLogo}</div>
+              <h3 className="text-5xl font-black mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                {section.title}
+              </h3>
+              <p className="text-slate-400 mb-6">Complete {section.title} Collection</p>
+              <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                {section.products.map((p: any, i: number) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex-shrink-0 w-48"
+                  >
+                    {renderProductCard(p, i, section.accentColor)}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
         );
 
-      case 'carousel':
+      case 'hero-grid':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 md:row-span-2">
+              {section.products[0] && renderProductCard(section.products[0], 0, section.accentColor)}
+            </div>
+            {section.products.slice(1).map((p: any, i: number) => renderProductCard(p, i + 1, section.accentColor))}
+          </div>
+        );
+
+      case 'carousel-snap':
         return (
           <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
             {section.products.map((p: any, i: number) => (
-              <div key={p.id} className="flex-shrink-0 w-80 snap-center">
+              <div key={p.id} className="flex-shrink-0 w-64 snap-start">
                 {renderProductCard(p, i, section.accentColor)}
               </div>
             ))}
           </div>
         );
 
-      case 'grid-2-big':
+      case 'brand-spotlight':
+        return (
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 border-2 border-slate-700">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="text-5xl">{section.brandLogo}</div>
+              <div>
+                <h4 className="text-2xl font-black text-white">{section.title}</h4>
+                <p className="text-slate-400">{section.subtitle}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+            </div>
+          </div>
+        );
+
+      case 'pricing-cards':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+          </div>
+        );
+
+      case 'staggered-grid':
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {section.products.map((p: any, i: number) => (
+              <div key={p.id} className={i % 3 === 0 ? 'md:col-span-2' : ''}>
+                {renderProductCard(p, i, section.accentColor)}
+              </div>
+            ))}
+          </div>
+        );
+
+      case 'compact-tiles':
+        return (
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+            {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+          </div>
+        );
+
+      case 'brand-wall':
+        return (
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 border border-slate-700">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+            </div>
+          </div>
+        );
+
+      case 'wide-cards':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
-      case 'masonry':
+      case 'list-view':
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
-      case 'compact-grid':
+      case 'dense-grid':
         return (
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
-      case 'feature-cards':
+      case 'bundle-cards':
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+            {section.products.map((p: any, i: number) => (
+              <div key={p.id} className="bg-gradient-to-br from-purple-900/30 to-slate-900/30 rounded-2xl p-4 border border-purple-500/30">
+                {renderProductCard(p, i, section.accentColor)}
+                <div className="mt-3 p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                  <p className="text-xs text-purple-300 font-bold mb-2">Bundle with 2 more items</p>
+                  <button className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-xs font-black">
+                    Save 30% on Bundle
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         );
 
       default:
-        return null;
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
+          </div>
+        );
     }
   };
 
@@ -675,6 +834,122 @@ export default function CatalogCustomer() {
                     </div>
                   </div>
                 )}
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Added to Cart Confirmation Modal */}
+      <AnimatePresence>
+        {showAddedConfirmation && lastAddedProduct && (() => {
+          const caseCount = lastAddedProduct.unitsPerCase || 12;
+          const relatedProducts = products.filter(p => p.categoryId === lastAddedProduct.categoryId && p.id !== lastAddedProduct.id).slice(0, 3);
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+              onClick={() => setShowAddedConfirmation(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 50 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 50 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 max-w-lg w-full border-2 border-green-500/30 shadow-2xl shadow-green-500/20"
+              >
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-3xl font-black text-white mb-2">Added to Cart!</h3>
+                  <p className="text-slate-400">
+                    {lastAddedProduct.addedQuantity}x {lastAddedProduct.name}
+                  </p>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <button
+                    onClick={() => {
+                      handleAddToCart(lastAddedProduct, 1, false);
+                    }}
+                    className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-sm transition-all"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    +1
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleAddToCart(lastAddedProduct, caseCount, false);
+                    }}
+                    className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm transition-all"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    Case
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleAddToCart(lastAddedProduct, caseCount * 5, false);
+                    }}
+                    className="py-3 bg-purple-600 hover:bg-purple-500 rounded-xl text-white font-bold text-sm transition-all"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    5 Cases
+                  </button>
+                </div>
+
+                {/* Related Products Upsell */}
+                {relatedProducts.length > 0 && (
+                  <div className="mb-6">
+                    <h5 className="font-bold text-white mb-3">Others also added:</h5>
+                    <div className="grid grid-cols-3 gap-2">
+                      {relatedProducts.map((rp) => (
+                        <button
+                          key={rp.id}
+                          onClick={() => {
+                            handleAddToCart(rp, 1, false);
+                          }}
+                          className="bg-slate-800/50 hover:bg-slate-700 rounded-xl p-2 transition-all text-left group border border-slate-700 hover:border-cyan-500"
+                        >
+                          <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                            {rp.imageUrl ? (
+                              <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-1" />
+                            ) : (
+                              <Package className="w-6 h-6 text-slate-600" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-white font-bold line-clamp-2 mb-1">{rp.name}</p>
+                          <p className="text-xs text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
+                          <div className="mt-1 py-1 bg-cyan-600 rounded text-white text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
+                            +ADD
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAddedConfirmation(false)}
+                    className="flex-1 py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all"
+                  >
+                    Keep Shopping
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddedConfirmation(false);
+                      alert('View cart coming soon!');
+                    }}
+                    className="flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black shadow-lg shadow-cyan-500/30 transition-all"
+                  >
+                    View Cart ({cartCount})
+                  </button>
+                </div>
               </motion.div>
             </motion.div>
           );
