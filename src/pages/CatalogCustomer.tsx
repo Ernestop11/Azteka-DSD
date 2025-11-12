@@ -64,6 +64,7 @@ export default function CatalogCustomer() {
   const [lastAddedProduct, setLastAddedProduct] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
+  const [upsellQuantities, setUpsellQuantities] = useState<{[key: string]: number}>({});
   const [flyingItems, setFlyingItems] = useState<any[]>([]);
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
@@ -403,8 +404,8 @@ export default function CatalogCustomer() {
 
       case 'hero-grid':
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 md:row-span-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+            <div className="col-span-2 md:row-span-2">
               {section.products[0] && renderProductCard(section.products[0], 0, section.accentColor)}
             </div>
             {section.products.slice(1).map((p: any, i: number) => renderProductCard(p, i + 1, section.accentColor))}
@@ -413,9 +414,9 @@ export default function CatalogCustomer() {
 
       case 'carousel-snap':
         return (
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+          <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-2 px-2 md:mx-0">
             {section.products.map((p: any, i: number) => (
-              <div key={p.id} className="flex-shrink-0 w-64 snap-start">
+              <div key={p.id} className="flex-shrink-0 w-48 md:w-64 snap-start">
                 {renderProductCard(p, i, section.accentColor)}
               </div>
             ))}
@@ -424,15 +425,15 @@ export default function CatalogCustomer() {
 
       case 'brand-spotlight':
         return (
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 border-2 border-slate-700">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="text-5xl">{section.brandLogo}</div>
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-6 border-2 border-slate-700">
+            <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
+              <div className="text-3xl md:text-5xl">{section.brandLogo}</div>
               <div>
-                <h4 className="text-2xl font-black text-white">{section.title}</h4>
-                <p className="text-slate-400">{section.subtitle}</p>
+                <h4 className="text-lg md:text-2xl font-black text-white">{section.title}</h4>
+                <p className="text-xs md:text-base text-slate-400">{section.subtitle}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
               {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
             </div>
           </div>
@@ -440,16 +441,16 @@ export default function CatalogCustomer() {
 
       case 'pricing-cards':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
       case 'staggered-grid':
         return (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
             {section.products.map((p: any, i: number) => (
-              <div key={p.id} className={i % 3 === 0 ? 'md:col-span-2' : ''}>
+              <div key={p.id} className={i % 3 === 0 ? 'col-span-2' : ''}>
                 {renderProductCard(p, i, section.accentColor)}
               </div>
             ))}
@@ -458,15 +459,15 @@ export default function CatalogCustomer() {
 
       case 'compact-tiles':
         return (
-          <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 md:gap-2">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
       case 'brand-wall':
         return (
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 border border-slate-700">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl md:rounded-3xl p-4 md:p-8 border border-slate-700">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
               {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
             </div>
           </div>
@@ -474,21 +475,21 @@ export default function CatalogCustomer() {
 
       case 'wide-cards':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
       case 'list-view':
         return (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1.5 md:gap-3">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
 
       case 'dense-grid':
         return (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 md:gap-2">
             {section.products.map((p: any, i: number) => renderProductCard(p, i, section.accentColor))}
           </div>
         );
@@ -625,26 +626,66 @@ export default function CatalogCustomer() {
       </div>
 
       {/* Product Sections */}
-      <main className="max-w-7xl mx-auto px-4 py-12 space-y-20">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-8 md:py-12 space-y-12 md:space-y-20">
         {productSections.map((section, sectionIndex) => (
-          <motion.section
-            key={section.id}
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: sectionIndex * 0.1 }}
-            className="relative"
-          >
-            <div className="flex items-center gap-4 mb-8">
-              <div className={`h-12 w-2 rounded-full bg-gradient-to-b ${section.color}`} />
-              <div>
-                <h2 className="text-4xl md:text-5xl font-black">{section.title}</h2>
-                <p className="text-slate-400 font-semibold">{section.subtitle}</p>
+          <div key={section.id}>
+            <motion.section
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: sectionIndex * 0.1 }}
+              className="relative"
+            >
+              <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 px-2">
+                <div className={`h-8 md:h-12 w-1.5 md:w-2 rounded-full bg-gradient-to-b ${section.color}`} />
+                <div>
+                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-black">{section.title}</h2>
+                  <p className="text-xs md:text-base text-slate-400 font-semibold">{section.subtitle}</p>
+                </div>
               </div>
-            </div>
 
-            {renderSection(section)}
-          </motion.section>
+              {renderSection(section)}
+            </motion.section>
+
+            {/* Commercial GIF Spots - Every 3rd section */}
+            {(sectionIndex + 1) % 3 === 0 && sectionIndex < productSections.length - 1 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="my-8 md:my-12 rounded-2xl md:rounded-3xl overflow-hidden border-2 border-cyan-500/30 shadow-2xl shadow-cyan-500/20 cursor-pointer group"
+              >
+                <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 md:p-16 flex items-center justify-center min-h-[200px] md:min-h-[300px]">
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10" />
+                  <div className="relative text-center">
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.05, 1],
+                        rotate: [0, 2, -2, 0]
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="text-6xl md:text-8xl mb-4"
+                    >
+                      🎬
+                    </motion.div>
+                    <h3 className="text-2xl md:text-4xl font-black text-white mb-2 bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                      Featured Deal
+                    </h3>
+                    <p className="text-sm md:text-lg text-slate-400 mb-4">Exclusive promotional content</p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-purple-600 rounded-full text-white font-bold text-sm md:text-base group-hover:shadow-lg group-hover:shadow-cyan-500/50 transition-all">
+                      <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                      <span>See More</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
         ))}
       </main>
 
@@ -844,109 +885,197 @@ export default function CatalogCustomer() {
       <AnimatePresence>
         {showAddedConfirmation && lastAddedProduct && (() => {
           const caseCount = lastAddedProduct.unitsPerCase || 12;
+          const currentQtyInCart = cart.find(item => item.id === lastAddedProduct.id)?.quantity || 0;
           const relatedProducts = products.filter(p => p.categoryId === lastAddedProduct.categoryId && p.id !== lastAddedProduct.id).slice(0, 3);
+
           return (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-              onClick={() => setShowAddedConfirmation(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 overflow-y-auto"
+              onClick={() => {
+                setShowAddedConfirmation(false);
+                setUpsellQuantities({});
+              }}
             >
               <motion.div
-                initial={{ scale: 0.8, y: 50 }}
+                initial={{ scale: 0.9, y: 30 }}
                 animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.8, y: 50 }}
+                exit={{ scale: 0.9, y: 30 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 max-w-lg w-full border-2 border-green-500/30 shadow-2xl shadow-green-500/20"
+                className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-4 md:p-6 max-w-2xl w-full border-2 border-green-500/30 shadow-2xl shadow-green-500/20 my-4"
               >
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Check className="w-10 h-10 text-white" />
+                {/* Success Header */}
+                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-700">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-7 h-7 md:w-10 md:h-10 text-white" />
                   </div>
-                  <h3 className="text-3xl font-black text-white mb-2">Added to Cart!</h3>
-                  <p className="text-slate-400">
-                    {lastAddedProduct.addedQuantity}x {lastAddedProduct.name}
-                  </p>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <div className="flex-1">
+                    <h3 className="text-xl md:text-3xl font-black text-white mb-1">Added to Cart!</h3>
+                    <p className="text-sm md:text-base text-green-400 font-bold">{lastAddedProduct.addedQuantity} units added</p>
+                  </div>
                   <button
                     onClick={() => {
-                      handleAddToCart(lastAddedProduct, 1, false);
+                      setShowAddedConfirmation(false);
+                      setUpsellQuantities({});
                     }}
-                    className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-sm transition-all"
+                    className="p-2 hover:bg-slate-700 rounded-full transition-all"
                   >
-                    <Plus className="w-4 h-4 inline mr-1" />
-                    +1
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleAddToCart(lastAddedProduct, caseCount, false);
-                    }}
-                    className="py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-sm transition-all"
-                  >
-                    <Plus className="w-4 h-4 inline mr-1" />
-                    Case
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleAddToCart(lastAddedProduct, caseCount * 5, false);
-                    }}
-                    className="py-3 bg-purple-600 hover:bg-purple-500 rounded-xl text-white font-bold text-sm transition-all"
-                  >
-                    <Plus className="w-4 h-4 inline mr-1" />
-                    5 Cases
+                    <X className="w-5 h-5 md:w-6 md:h-6 text-slate-400" />
                   </button>
                 </div>
 
-                {/* Related Products Upsell */}
-                {relatedProducts.length > 0 && (
-                  <div className="mb-6">
-                    <h5 className="font-bold text-white mb-3">Others also added:</h5>
-                    <div className="grid grid-cols-3 gap-2">
-                      {relatedProducts.map((rp) => (
-                        <button
-                          key={rp.id}
-                          onClick={() => {
-                            handleAddToCart(rp, 1, false);
-                          }}
-                          className="bg-slate-800/50 hover:bg-slate-700 rounded-xl p-2 transition-all text-left group border border-slate-700 hover:border-cyan-500"
-                        >
-                          <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                            {rp.imageUrl ? (
-                              <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-1" />
-                            ) : (
-                              <Package className="w-6 h-6 text-slate-600" />
-                            )}
-                          </div>
-                          <p className="text-[10px] text-white font-bold line-clamp-2 mb-1">{rp.name}</p>
-                          <p className="text-xs text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
-                          <div className="mt-1 py-1 bg-cyan-600 rounded text-white text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
-                            +ADD
-                          </div>
-                        </button>
-                      ))}
+                {/* Product Info with Image */}
+                <div className="bg-slate-800/50 rounded-2xl p-4 mb-6">
+                  <div className="flex gap-4">
+                    <div className="w-20 h-20 md:w-28 md:h-28 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-cyan-500/20">
+                      {lastAddedProduct.imageUrl ? (
+                        <img src={lastAddedProduct.imageUrl} alt={lastAddedProduct.name} className="w-full h-full object-contain p-2" />
+                      ) : (
+                        <Package className="w-12 h-12 text-cyan-400/50" />
+                      )}
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-black text-white text-base md:text-lg mb-2 line-clamp-2">{lastAddedProduct.name}</h4>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl md:text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                          ${lastAddedProduct.price.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-slate-400">/ unit</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <ShoppingCart className="w-4 h-4 text-green-400" />
+                        <span className="text-sm font-bold text-green-400">{currentQtyInCart} in cart</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prominent Quantity Controls for This Product */}
+                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-2xl p-4 md:p-6 border border-cyan-500/20 mb-6">
+                  <h4 className="font-black text-white mb-4 text-center text-base md:text-lg">Add More?</h4>
+                  <div className="grid grid-cols-3 gap-2 md:gap-3">
+                    <button
+                      onClick={() => handleAddToCart(lastAddedProduct, 1, false)}
+                      className="py-3 md:py-4 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-sm md:text-base transition-all border-2 border-slate-600 hover:border-cyan-500 shadow-lg"
+                    >
+                      <Plus className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs md:text-sm">Add 1</div>
+                    </button>
+                    <button
+                      onClick={() => handleAddToCart(lastAddedProduct, caseCount, false)}
+                      className="py-3 md:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-bold text-sm md:text-base transition-all shadow-lg border-2 border-blue-400"
+                    >
+                      <Plus className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs md:text-sm">Case ({caseCount})</div>
+                    </button>
+                    <button
+                      onClick={() => handleAddToCart(lastAddedProduct, caseCount * 5, false)}
+                      className="py-3 md:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold text-sm md:text-base transition-all shadow-lg border-2 border-purple-400"
+                    >
+                      <Plus className="w-5 h-5 mx-auto mb-1" />
+                      <div className="text-xs md:text-sm">5 Cases</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Separator */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
+                  <span className="text-slate-400 font-bold text-sm">BUNDLE & SAVE</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
+                </div>
+
+                {/* Enhanced Upsell Bundle */}
+                {relatedProducts.length > 0 && (
+                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-400" />
+                        <h5 className="font-black text-white text-sm md:text-base">Add These Together</h5>
+                      </div>
+                      <span className="px-3 py-1 bg-purple-500 text-white text-xs font-black rounded-full">-30% BUNDLE</span>
+                    </div>
+
+                    <div className="space-y-2 mb-4">
+                      {relatedProducts.map((rp) => {
+                        const qty = upsellQuantities[rp.id] || 0;
+                        return (
+                          <div key={rp.id} className={`bg-slate-800/50 rounded-xl p-3 border-2 transition-all ${qty > 0 ? 'border-cyan-500' : 'border-slate-700'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                {rp.imageUrl ? (
+                                  <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-1" />
+                                ) : (
+                                  <Package className="w-6 h-6 text-slate-600" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs md:text-sm text-white font-bold line-clamp-1">{rp.name}</p>
+                                <p className="text-sm md:text-base text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setUpsellQuantities(prev => ({ ...prev, [rp.id]: Math.max(0, (prev[rp.id] || 0) - 1) }))}
+                                  className="w-8 h-8 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
+                                  disabled={qty === 0}
+                                >
+                                  <Minus className="w-4 h-4 text-white" />
+                                </button>
+                                <span className="w-8 text-center font-black text-white text-sm md:text-base">{qty}</span>
+                                <button
+                                  onClick={() => setUpsellQuantities(prev => ({ ...prev, [rp.id]: (prev[rp.id] || 0) + 1 }))}
+                                  className="w-8 h-8 bg-cyan-600 hover:bg-cyan-500 rounded-lg flex items-center justify-center transition-all"
+                                >
+                                  <Plus className="w-4 h-4 text-white" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        Object.entries(upsellQuantities).forEach(([id, qty]) => {
+                          if (qty > 0) {
+                            const product = relatedProducts.find(p => p.id === id);
+                            if (product) handleAddToCart(product, qty, false);
+                          }
+                        });
+                        setUpsellQuantities({});
+                      }}
+                      className="w-full py-3 md:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-black text-sm md:text-base shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={Object.values(upsellQuantities).every(q => q === 0)}
+                    >
+                      <Gift className="w-5 h-5 inline mr-2" />
+                      Add All Bundle Items
+                    </button>
                   </div>
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={() => setShowAddedConfirmation(false)}
-                    className="flex-1 py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all"
+                    onClick={() => {
+                      setShowAddedConfirmation(false);
+                      setUpsellQuantities({});
+                    }}
+                    className="flex-1 py-3 md:py-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-all"
                   >
                     Keep Shopping
                   </button>
                   <button
                     onClick={() => {
                       setShowAddedConfirmation(false);
+                      setUpsellQuantities({});
                       alert('View cart coming soon!');
                     }}
-                    className="flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black shadow-lg shadow-cyan-500/30 transition-all"
+                    className="flex-1 py-3 md:py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black shadow-lg shadow-cyan-500/30 transition-all"
                   >
+                    <ShoppingCart className="w-5 h-5 inline mr-2" />
                     View Cart ({cartCount})
                   </button>
                 </div>
