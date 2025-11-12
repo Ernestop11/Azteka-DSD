@@ -1,4 +1,4 @@
-import { Category } from '../types';
+import { Category } from '../lib/supabase';
 import { ChevronRight } from 'lucide-react';
 
 interface CategorySectionProps {
