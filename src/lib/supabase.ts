@@ -1,20 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+// Supabase removed - using local API at http://77.243.85.8:3000/api/
+// TODO: integrate local auth
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables!');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl ? '✓ Set' : '✗ Missing');
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓ Set' : '✗ Missing');
-  console.error('Please create a .env file with:');
-  console.error('  VITE_SUPABASE_URL=your_supabase_url');
-  console.error('  VITE_SUPABASE_ANON_KEY=your_supabase_anon_key');
-  throw new Error('Missing required Supabase environment variables. Check console for details.');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Stub supabase object for backwards compatibility during migration
+export const supabase = {
+  from: () => ({
+    select: () => ({ data: [], error: null }),
+    insert: () => ({ data: null, error: null }),
+    update: () => ({ data: null, error: null }),
+    delete: () => ({ data: null, error: null }),
+  }),
+};
 
 export interface Category {
   id: string;

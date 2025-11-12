@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ShoppingCart, Store, Award, History, Grid3x3, LayoutDashboard } from 'lucide-react';
-import { supabase, Category, Product, CartItem, Customer, SalesRep, Brand, Subcategory } from './lib/supabase';
+import { Category, Product, CartItem, Customer, SalesRep, Brand, Subcategory } from './lib/supabase';
 import Hero from './components/Hero';
 import CategoryTabs from './components/CategoryTabs';
 import ProductCard from './components/ProductCard';
@@ -113,65 +113,71 @@ export default function App() {
     const repCode = params.get('rep');
 
     if (repCode) {
-      const { data } = await supabase
-        .from('sales_reps')
-        .select('*')
-        .eq('unique_link_code', repCode)
-        .eq('active', true)
-        .maybeSingle();
-
-      if (data) {
-        setSalesRep(data);
+      try {
+        const response = await fetch(`http://77.243.85.8:3000/api/sales-reps?code=${repCode}`);
+        const data = await response.json();
+        if (data) {
+          setSalesRep(data);
+        }
+      } catch (error) {
+        console.error('Error fetching sales rep:', error);
       }
     }
   };
 
   const loadData = async () => {
-    const [categoriesRes, productsRes, bundlesRes, promotionsRes, offersRes, badgesRes, brandsRes, subcategoriesRes] =
-      await Promise.all([
-        supabase.from('categories').select('*').order('display_order'),
-        supabase.from('products').select('*').eq('in_stock', true),
-        supabase.from('product_bundles').select('*'),
-        supabase.from('promotions').select('*').eq('active', true),
-        supabase.from('special_offers').select('*').eq('active', true),
-        supabase.from('rewards_badges').select('*').eq('active', true),
-        supabase.from('brands').select('*').order('display_order'),
-        supabase.from('subcategories').select('*').order('display_order'),
-      ]);
+    try {
+      const [categoriesRes, productsRes, bundlesRes, promotionsRes, offersRes, badgesRes, brandsRes, subcategoriesRes] =
+        await Promise.all([
+          fetch('http://77.243.85.8:3000/api/categories').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/products').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/product-bundles').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/promotions').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/special-offers').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/rewards-badges').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/brands').then(r => r.json()),
+          fetch('http://77.243.85.8:3000/api/subcategories').then(r => r.json()),
+        ]);
 
-    if (categoriesRes.data) setCategories(categoriesRes.data);
-    if (productsRes.data) setProducts(productsRes.data);
-    if (bundlesRes.data) setBundles(bundlesRes.data);
-    if (offersRes.data) setSpecialOffers(offersRes.data);
-    if (brandsRes.data) setBrands(brandsRes.data);
-    if (subcategoriesRes.data) setSubcategories(subcategoriesRes.data);
-    if (badgesRes.data) {
-      const badgesWithEarned = badgesRes.data.map((badge, idx) => ({
-        ...badge,
-        earned: idx < 2,
-      }));
-      setBadges(badgesWithEarned);
-    }
-    if (promotionsRes.data) {
-      setPromotions(promotionsRes.data);
-      loadProductPromotions(promotionsRes.data);
+      if (categoriesRes) setCategories(categoriesRes);
+      if (productsRes) setProducts(productsRes);
+      if (bundlesRes) setBundles(bundlesRes);
+      if (offersRes) setSpecialOffers(offersRes);
+      if (brandsRes) setBrands(brandsRes);
+      if (subcategoriesRes) setSubcategories(subcategoriesRes);
+      if (badgesRes) {
+        const badgesWithEarned = badgesRes.map((badge: any, idx: number) => ({
+          ...badge,
+          earned: idx < 2,
+        }));
+        setBadges(badgesWithEarned);
+      }
+      if (promotionsRes) {
+        setPromotions(promotionsRes);
+        loadProductPromotions(promotionsRes);
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
   const loadProductPromotions = async (promos: Promotion[]) => {
-    const { data } = await supabase
-      .from('product_promotions')
-      .select('product_id, promotion_id');
+    try {
+      const response = await fetch('http://77.243.85.8:3000/api/product-promotions');
+      const data = await response.json();
 
-    if (data) {
-      const mapping: Record<string, Promotion> = {};
-      data.forEach((pp) => {
-        const promo = promos.find((p) => p.id === pp.promotion_id);
-        if (promo) {
-          mapping[pp.product_id] = promo;
-        }
-      });
-      setProductPromotions(mapping);
+      if (data) {
+        const mapping: Record<string, Promotion> = {};
+        data.forEach((pp: any) => {
+          const promo = promos.find((p) => p.id === pp.promotion_id);
+          if (promo) {
+            mapping[pp.product_id] = promo;
+          }
+        });
+        setProductPromotions(mapping);
+      }
+    } catch (error) {
+      console.error('Error loading product promotions:', error);
     }
   };
 
@@ -249,45 +255,39 @@ export default function App() {
     customer: Customer,
     orderData: { notes?: string; delivery_date?: string }
   ) => {
-    const orderNumber = `ORD-${Date.now()}`;
-    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    try {
+      const orderNumber = `ORD-${Date.now()}`;
+      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    const { data: customerData } = await supabase
-      .from('customers')
-      .insert({
-        ...customer,
-        sales_rep_id: salesRep?.id || null,
-      })
-      .select()
-      .single();
-
-    if (customerData) {
-      const { data: orderData_ } = await supabase
-        .from('orders')
-        .insert({
+      const orderPayload = {
+        customer: {
+          ...customer,
+          sales_rep_id: salesRep?.id || null,
+        },
+        order: {
           order_number: orderNumber,
-          customer_id: customerData.id,
           sales_rep_id: salesRep?.id || null,
           status: 'pending',
           subtotal,
           total: subtotal,
           notes: orderData.notes,
           delivery_date: orderData.delivery_date,
-        })
-        .select()
-        .single();
-
-      if (orderData_) {
-        const orderItems = cart.map((item) => ({
-          order_id: orderData_.id,
+        },
+        items: cart.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
           unit_price: item.price,
           subtotal: item.price * item.quantity,
-        }));
+        })),
+      };
 
-        await supabase.from('order_items').insert(orderItems);
+      const response = await fetch('http://77.243.85.8:3000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      });
 
+      if (response.ok) {
         const earnedPoints = Math.floor(subtotal);
         setRewardsPoints(rewardsPoints + earnedPoints);
 
@@ -301,6 +301,8 @@ export default function App() {
         setCart([]);
         setViewMode('confirmation');
       }
+    } catch (error) {
+      console.error('Error completing order:', error);
     }
   };
 
