@@ -64,6 +64,8 @@ export default function CatalogCustomer() {
   const [lastAddedProduct, setLastAddedProduct] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
+  const [modalQuantity, setModalQuantity] = useState(1);
+  const [modalCases, setModalCases] = useState(1);
   const [upsellQuantities, setUpsellQuantities] = useState<{[key: string]: number}>({});
   const [flyingItems, setFlyingItems] = useState<any[]>([]);
   const { scrollY } = useScroll();
@@ -103,6 +105,9 @@ export default function CatalogCustomer() {
     if (showConfirmation) {
       setLastAddedProduct({ ...product, addedQuantity: quantity });
       setShowAddedConfirmation(true);
+      setModalQuantity(1);
+      setModalCases(1);
+      setUpsellQuantities({});
     }
   };
 
@@ -952,31 +957,95 @@ export default function CatalogCustomer() {
                   </div>
                 </div>
 
-                {/* Prominent Quantity Controls for This Product */}
-                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-2xl p-4 md:p-6 border border-cyan-500/20 mb-6">
-                  <h4 className="font-black text-white mb-4 text-center text-base md:text-lg">Add More?</h4>
-                  <div className="grid grid-cols-3 gap-2 md:gap-3">
-                    <button
-                      onClick={() => handleAddToCart(lastAddedProduct, 1, false)}
-                      className="py-3 md:py-4 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-sm md:text-base transition-all border-2 border-slate-600 hover:border-cyan-500 shadow-lg"
-                    >
-                      <Plus className="w-5 h-5 mx-auto mb-1" />
-                      <div className="text-xs md:text-sm">Add 1</div>
-                    </button>
-                    <button
-                      onClick={() => handleAddToCart(lastAddedProduct, caseCount, false)}
-                      className="py-3 md:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-bold text-sm md:text-base transition-all shadow-lg border-2 border-blue-400"
-                    >
-                      <Plus className="w-5 h-5 mx-auto mb-1" />
-                      <div className="text-xs md:text-sm">Case ({caseCount})</div>
-                    </button>
-                    <button
-                      onClick={() => handleAddToCart(lastAddedProduct, caseCount * 5, false)}
-                      className="py-3 md:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold text-sm md:text-base transition-all shadow-lg border-2 border-purple-400"
-                    >
-                      <Plus className="w-5 h-5 mx-auto mb-1" />
-                      <div className="text-xs md:text-sm">5 Cases</div>
-                    </button>
+                {/* Enhanced Quantity Controls */}
+                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-2xl p-4 md:p-6 border border-cyan-500/20 mb-6 space-y-4">
+                  <h4 className="font-black text-white text-center text-base md:text-lg">Add More?</h4>
+
+                  {/* Individual Units */}
+                  <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-300">Individual Units</span>
+                      <span className="text-xs text-cyan-400">${lastAddedProduct.price.toFixed(2)} ea</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setModalQuantity(Math.max(1, modalQuantity - 1))}
+                        className="w-12 h-12 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-center transition-all"
+                      >
+                        <Minus className="w-5 h-5 text-white" />
+                      </button>
+                      <div className="flex-1 bg-slate-700 rounded-xl py-3 text-center">
+                        <span className="text-2xl font-black text-white">{modalQuantity}</span>
+                        <span className="text-xs text-slate-400 block">units</span>
+                      </div>
+                      <button
+                        onClick={() => setModalQuantity(modalQuantity + 1)}
+                        className="w-12 h-12 bg-cyan-600 hover:bg-cyan-500 rounded-xl flex items-center justify-center transition-all"
+                      >
+                        <Plus className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleAddToCart(lastAddedProduct, modalQuantity, false);
+                          setModalQuantity(1);
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-xl font-black text-sm transition-all shadow-lg"
+                      >
+                        ADD
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cases */}
+                  <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-300">By Case</span>
+                      <span className="text-xs text-blue-400">{caseCount} units/case • ${(lastAddedProduct.price * caseCount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setModalCases(Math.max(1, modalCases - 1))}
+                        className="w-12 h-12 bg-slate-700 hover:bg-slate-600 rounded-xl flex items-center justify-center transition-all"
+                      >
+                        <Minus className="w-5 h-5 text-white" />
+                      </button>
+                      <div className="flex-1 bg-slate-700 rounded-xl py-3 text-center">
+                        <span className="text-2xl font-black text-white">{modalCases}</span>
+                        <span className="text-xs text-slate-400 block">{modalCases * caseCount} units</span>
+                      </div>
+                      <button
+                        onClick={() => setModalCases(Math.min(10, modalCases + 1))}
+                        className="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center transition-all"
+                      >
+                        <Plus className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleAddToCart(lastAddedProduct, modalCases * caseCount, false);
+                          setModalCases(1);
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-xl font-black text-sm transition-all shadow-lg"
+                      >
+                        ADD
+                      </button>
+                    </div>
+
+                    {/* Case Range Selector */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {[1, 2, 3, 5, 10].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setModalCases(num)}
+                          className={`py-2 rounded-lg font-bold text-xs transition-all ${
+                            modalCases === num
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -989,44 +1058,51 @@ export default function CatalogCustomer() {
 
                 {/* Enhanced Upsell Bundle */}
                 {relatedProducts.length > 0 && (
-                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 mb-6">
+                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 md:p-6 border border-purple-500/20 mb-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-purple-400" />
-                        <h5 className="font-black text-white text-sm md:text-base">Add These Together</h5>
+                        <h5 className="font-black text-white text-sm md:text-base">Frequently Bought Together</h5>
                       </div>
-                      <span className="px-3 py-1 bg-purple-500 text-white text-xs font-black rounded-full">-30% BUNDLE</span>
+                      <span className="px-3 py-1 bg-purple-500 text-white text-xs font-black rounded-full">SAVE 30%</span>
                     </div>
 
-                    <div className="space-y-2 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                       {relatedProducts.map((rp) => {
                         const qty = upsellQuantities[rp.id] || 0;
                         return (
-                          <div key={rp.id} className={`bg-slate-800/50 rounded-xl p-3 border-2 transition-all ${qty > 0 ? 'border-cyan-500' : 'border-slate-700'}`}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div
+                            key={rp.id}
+                            className={`bg-slate-800/50 rounded-xl p-3 border-2 transition-all ${
+                              qty > 0 ? 'border-cyan-500 shadow-lg shadow-cyan-500/20' : 'border-slate-700'
+                            }`}
+                          >
+                            <div className="flex flex-col gap-3">
+                              <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center overflow-hidden">
                                 {rp.imageUrl ? (
-                                  <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-1" />
+                                  <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-2" />
                                 ) : (
-                                  <Package className="w-6 h-6 text-slate-600" />
+                                  <Package className="w-12 h-12 text-slate-600" />
                                 )}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs md:text-sm text-white font-bold line-clamp-1">{rp.name}</p>
-                                <p className="text-sm md:text-base text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
+                              <div>
+                                <p className="text-xs text-white font-bold line-clamp-2 mb-1">{rp.name}</p>
+                                <p className="text-lg text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => setUpsellQuantities(prev => ({ ...prev, [rp.id]: Math.max(0, (prev[rp.id] || 0) - 1) }))}
-                                  className="w-8 h-8 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all"
+                                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
                                   disabled={qty === 0}
                                 >
                                   <Minus className="w-4 h-4 text-white" />
                                 </button>
-                                <span className="w-8 text-center font-black text-white text-sm md:text-base">{qty}</span>
+                                <div className="flex-1 py-2 bg-slate-700 rounded-lg text-center">
+                                  <span className="font-black text-white text-lg">{qty}</span>
+                                </div>
                                 <button
                                   onClick={() => setUpsellQuantities(prev => ({ ...prev, [rp.id]: (prev[rp.id] || 0) + 1 }))}
-                                  className="w-8 h-8 bg-cyan-600 hover:bg-cyan-500 rounded-lg flex items-center justify-center transition-all"
+                                  className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg flex items-center justify-center transition-all"
                                 >
                                   <Plus className="w-4 h-4 text-white" />
                                 </button>
@@ -1036,6 +1112,29 @@ export default function CatalogCustomer() {
                         );
                       })}
                     </div>
+
+                    {/* Bundle Summary */}
+                    {Object.values(upsellQuantities).some(q => q > 0) && (
+                      <div className="bg-slate-800/50 rounded-xl p-3 mb-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-400">Bundle Total:</span>
+                          <div className="text-right">
+                            <div className="text-slate-400 line-through">
+                              ${Object.entries(upsellQuantities).reduce((sum, [id, qty]) => {
+                                const p = relatedProducts.find(rp => rp.id === id);
+                                return sum + (p ? p.price * qty : 0);
+                              }, 0).toFixed(2)}
+                            </div>
+                            <div className="text-purple-400 font-black text-lg">
+                              ${(Object.entries(upsellQuantities).reduce((sum, [id, qty]) => {
+                                const p = relatedProducts.find(rp => rp.id === id);
+                                return sum + (p ? p.price * qty : 0);
+                              }, 0) * 0.7).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => {
@@ -1051,7 +1150,7 @@ export default function CatalogCustomer() {
                       disabled={Object.values(upsellQuantities).every(q => q === 0)}
                     >
                       <Gift className="w-5 h-5 inline mr-2" />
-                      Add All Bundle Items
+                      Add Bundle to Cart {Object.values(upsellQuantities).some(q => q > 0) && `(${Object.values(upsellQuantities).reduce((a, b) => a + b, 0)} items)`}
                     </button>
                   </div>
                 )}
