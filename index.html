@@ -2,61 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-
-    <!-- Prevent index.html from being cached -->
-    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="expires" content="0" />
-    <meta http-equiv="pragma" content="no-cache" />
-
-    <!-- Primary Meta Tags -->
-    <title>Azteka DSD - Direct Store Delivery Management</title>
-    <meta name="title" content="Azteka DSD - Direct Store Delivery Management" />
-    <meta name="description" content="Modern Direct Store Delivery and Wholesale Management System with AI-powered insights, real-time tracking, and comprehensive order management." />
-
-    <!-- PWA Configuration -->
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#10b981" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Azteka DSD" />
-    <link rel="apple-touch-icon" href="/logo.png" />
-
-    <!-- Mobile Optimizations -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="format-detection" content="telephone=no" />
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://aztekafoods.com/" />
-    <meta property="og:title" content="Azteka DSD - Direct Store Delivery Management" />
-    <meta property="og:description" content="Modern Direct Store Delivery and Wholesale Management System" />
-    <meta property="og:image" content="/logo.png" />
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://aztekafoods.com/" />
-    <meta property="twitter:title" content="Azteka DSD - Direct Store Delivery Management" />
-    <meta property="twitter:description" content="Modern Direct Store Delivery and Wholesale Management System" />
-    <meta property="twitter:image" content="/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wholesale DSD Visual Catalog App</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // TEMPORARILY DISABLED: Service Worker was causing caching issues
-      // Once app is stable, re-enable for PWA features
-
-      // Unregister any existing service workers
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (let registration of registrations) {
-            registration.unregister();
-            console.log('Unregistered SW:', registration.scope);
-          }
-        });
-      }
-    </script>
   </body>
 </html>
