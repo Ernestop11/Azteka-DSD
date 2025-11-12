@@ -61,6 +61,7 @@ export default function CatalogCustomer() {
   const [loyaltyPoints, setLoyaltyPoints] = useState(1250);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [orderQuantity, setOrderQuantity] = useState(1);
   const [flyingItems, setFlyingItems] = useState<any[]>([]);
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
@@ -160,7 +161,22 @@ export default function CatalogCustomer() {
   const renderProductCard = (product: any, index: number, accentColor: string) => {
     const caseCount = product.unitsPerCase || 12;
     const casePrice = product.price * caseCount * 0.85;
-    const deliveryDate = new Date(Date.now() + (3 + index % 3) * 24 * 60 * 60 * 1000);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const productImages = [
+      product.imageUrl,
+      product.imageUrl,
+      product.imageUrl
+    ].filter(Boolean);
+
+    useEffect(() => {
+      if (productImages.length > 1) {
+        const interval = setInterval(() => {
+          setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
+        }, 3000);
+        return () => clearInterval(interval);
+      }
+    }, [productImages.length]);
 
     const glassGradients = [
       'from-cyan-500/20 via-blue-500/10 to-purple-500/20',
@@ -197,7 +213,7 @@ export default function CatalogCustomer() {
         id={`card-${product.id}`}
       >
         <div
-          className={`h-48 flex items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br ${glassGradients[patternIndex]}`}
+          className={`h-40 flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br ${glassGradients[patternIndex]} cursor-pointer`}
           style={{
             backgroundImage: `
               radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
@@ -205,90 +221,86 @@ export default function CatalogCustomer() {
               linear-gradient(135deg, ${product.backgroundColor || '#1e293b'} 0%, rgba(15, 23, 42, 0.8) 100%)
             `,
           }}
+          onClick={() => {
+            setSelectedProduct(product);
+            setShowQuickAdd(true);
+          }}
         >
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/60" />
 
-          <div className="absolute top-3 left-3 flex gap-2 z-20">
+          <div className="absolute top-2 left-2 flex gap-1 z-20">
             {product.featured && (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 text-black text-xs font-black rounded-full shadow-lg shadow-yellow-500/50 animate-pulse">
-                🔥 HOT
+              <span className="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-[10px] font-black rounded-full shadow-lg animate-pulse">
+                HOT
               </span>
             )}
             {index % 3 === 0 && (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-emerald-500 text-black text-xs font-black rounded-full shadow-lg shadow-green-500/50">
-                -15% OFF
+              <span className="px-2 py-1 bg-gradient-to-r from-green-400 to-emerald-500 text-black text-[10px] font-black rounded-full shadow-lg">
+                -15%
               </span>
             )}
           </div>
 
-          {product.imageUrl ? (
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="h-full w-full object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 group-hover:drop-shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all duration-500"
-            />
-          ) : (
-            <Package className="w-24 h-24 text-cyan-400/30" />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentImageIndex}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full flex items-center justify-center"
+            >
+              {productImages[currentImageIndex] ? (
+                <img
+                  src={productImages[currentImageIndex]}
+                  alt={product.name}
+                  className="h-full w-full object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 group-hover:drop-shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all duration-500"
+                />
+              ) : (
+                <Package className="w-16 h-16 text-cyan-400/30" />
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {productImages.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+              {productImages.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${
+                    i === currentImageIndex ? 'bg-cyan-400 w-3' : 'bg-slate-500'
+                  }`}
+                />
+              ))}
+            </div>
           )}
 
-          <div className="absolute bottom-0 left-0 right-0 h-2 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_20px_rgba(6,182,212,0.8)]" />
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
         </div>
 
-        <div className="p-4 space-y-3 bg-gradient-to-b from-slate-800/40 to-slate-900/60 backdrop-blur-sm">
-          <h3 className="font-black text-white text-sm line-clamp-2 group-hover:text-cyan-400 transition-colors drop-shadow-lg">
+        <div className="p-3 space-y-2 bg-gradient-to-b from-slate-800/40 to-slate-900/60 backdrop-blur-sm">
+          <h3 className="font-black text-white text-xs line-clamp-1 group-hover:text-cyan-400 transition-colors">
             {product.name}
           </h3>
 
-          <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-800/50 px-2 py-1.5 rounded-lg">
-            <Truck className="w-3 h-3 text-green-400" />
-            <span>Delivers: {deliveryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-          </div>
-
-          <div className="space-y-2 bg-slate-800/30 p-3 rounded-xl border border-slate-700/50">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                 ${product.price.toFixed(2)}
               </span>
-              <span className="text-xs text-slate-400">/ unit</span>
+              <span className="text-[10px] text-blue-400 font-bold">Case: ${casePrice.toFixed(2)}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
-              <Box className="w-3 h-3 text-blue-400" />
-              <span className="text-slate-200">
-                Case ({caseCount}): <span className="font-black text-blue-400">${casePrice.toFixed(2)}</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-300">
-              <Target className="w-3 h-3 text-purple-400" />
-              <span>MOQ: <span className="font-bold text-purple-400">{product.minOrderQty || 1}</span> units</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
             <button
-              onClick={() => handleAddToCart(product, 1)}
-              className="flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/60 border border-cyan-400/20 hover:border-cyan-400/40"
-            >
-              <Plus className="w-4 h-4 inline mr-1" />
-              Add to Cart
-            </button>
-            <button
-              onClick={() => {
-                setSelectedProduct(product);
-                setShowQuickAdd(true);
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddToCart(product, 1);
               }}
-              className="px-4 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-cyan-400 rounded-xl font-black text-sm transition-all border-2 border-cyan-500/30 hover:border-cyan-400 shadow-lg hover:shadow-cyan-500/40"
+              className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg font-black text-xs transition-all shadow-lg hover:shadow-cyan-500/50"
             >
-              <Zap className="w-5 h-5" />
+              <Plus className="w-3 h-3 inline mr-1" />
+              ADD
             </button>
-          </div>
-
-          <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-700/50">
-            <span className="text-green-400 font-black flex items-center gap-1 bg-green-500/10 px-2 py-1 rounded-lg">
-              <Award className="w-3 h-3" />
-              +{Math.floor(product.price)} pts
-            </span>
-            <span className="text-slate-400 font-semibold">{product.stock} in stock</span>
           </div>
         </div>
       </motion.div>
@@ -477,83 +489,196 @@ export default function CatalogCustomer() {
         ))}
       </main>
 
-      {/* Quick Add Modal */}
+      {/* Enhanced Quick Add Modal */}
       <AnimatePresence>
-        {showQuickAdd && selectedProduct && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setShowQuickAdd(false)}
-          >
+        {showQuickAdd && selectedProduct && (() => {
+          const caseCount = selectedProduct.unitsPerCase || 12;
+          const relatedProducts = products.filter(p => p.categoryId === selectedProduct.categoryId && p.id !== selectedProduct.id).slice(0, 3);
+          return (
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-700 shadow-2xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
+              onClick={() => {
+                setShowQuickAdd(false);
+                setOrderQuantity(1);
+              }}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-black text-cyan-400">Quick Add</h3>
-                <button
-                  onClick={() => setShowQuickAdd(false)}
-                  className="p-2 hover:bg-slate-800 rounded-full transition-all"
-                >
-                  <X className="w-6 h-6 text-slate-400" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-bold text-white mb-2">{selectedProduct.name}</h4>
-                  <p className="text-slate-400 text-sm">{selectedProduct.description}</p>
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 max-w-2xl w-full border-2 border-cyan-500/30 shadow-2xl shadow-cyan-500/20 my-8"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-black text-cyan-400">Quick Order</h3>
+                  <button
+                    onClick={() => {
+                      setShowQuickAdd(false);
+                      setOrderQuantity(1);
+                    }}
+                    className="p-2 hover:bg-slate-700 rounded-full transition-all"
+                  >
+                    <X className="w-6 h-6 text-slate-400" />
+                  </button>
                 </div>
 
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleAddToCart(selectedProduct, 1)}
-                    className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl text-left px-6 transition-all border border-slate-700"
-                  >
+                {/* Product Info */}
+                <div className="bg-slate-800/50 rounded-2xl p-4 mb-4">
+                  <div className="flex gap-4">
+                    <div className="w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl flex items-center justify-center">
+                      {selectedProduct.imageUrl ? (
+                        <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="w-full h-full object-contain p-2" />
+                      ) : (
+                        <Package className="w-12 h-12 text-cyan-400/50" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-black text-white text-lg mb-1">{selectedProduct.name}</h4>
+                      <p className="text-slate-400 text-sm line-clamp-2">{selectedProduct.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quantity Selector */}
+                <div className="bg-slate-800/30 rounded-2xl p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-white font-bold">Quantity</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all"
+                      >
+                        <Minus className="w-5 h-5 text-white" />
+                      </button>
+                      <span className="text-2xl font-black text-cyan-400 w-16 text-center">{orderQuantity}</span>
+                      <button
+                        onClick={() => setOrderQuantity(orderQuantity + 1)}
+                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-all"
+                      >
+                        <Plus className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setOrderQuantity(1)}
+                      className={`py-2 rounded-lg font-bold transition-all ${orderQuantity === 1 ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                    >
+                      1 unit
+                    </button>
+                    <button
+                      onClick={() => setOrderQuantity(caseCount)}
+                      className={`py-2 rounded-lg font-bold transition-all ${orderQuantity === caseCount ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                    >
+                      1 Case
+                    </button>
+                    <button
+                      onClick={() => setOrderQuantity(caseCount * 5)}
+                      className={`py-2 rounded-lg font-bold transition-all ${orderQuantity === caseCount * 5 ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                    >
+                      5 Cases
+                    </button>
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-2xl p-4 border border-cyan-500/20 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-slate-300">Unit Price:</span>
+                    <span className="text-white font-bold">${selectedProduct.price.toFixed(2)}</span>
+                  </div>
+                  {orderQuantity >= caseCount && (
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-green-400 text-sm">Bulk Discount:</span>
+                      <span className="text-green-400 font-bold text-sm">-{orderQuantity >= caseCount * 5 ? '25' : '15'}%</span>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-700 pt-2 mt-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-white">1 Unit</span>
-                      <span className="text-cyan-400 font-black">${selectedProduct.price.toFixed(2)}</span>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleAddToCart(selectedProduct, selectedProduct.unitsPerCase || 12)}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-xl text-left px-6 transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white">1 Case ({selectedProduct.unitsPerCase || 12} units)</span>
-                      <span className="text-white font-black">
-                        ${(selectedProduct.price * (selectedProduct.unitsPerCase || 12) * 0.85).toFixed(2)}
+                      <span className="text-white font-bold">Total:</span>
+                      <span className="text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                        ${(selectedProduct.price * orderQuantity * (orderQuantity >= caseCount * 5 ? 0.75 : orderQuantity >= caseCount ? 0.85 : 1)).toFixed(2)}
                       </span>
                     </div>
-                    <div className="text-xs text-white/70">Save 15%</div>
-                  </button>
+                    <div className="text-right text-xs text-green-400 font-semibold">
+                      +{Math.floor(selectedProduct.price * orderQuantity)} loyalty pts
+                    </div>
+                  </div>
+                </div>
 
+                {/* Add to Cart Button */}
+                <button
+                  onClick={() => {
+                    handleAddToCart(selectedProduct, orderQuantity);
+                    setOrderQuantity(1);
+                  }}
+                  className="w-full py-4 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 hover:from-cyan-500 hover:via-blue-500 hover:to-purple-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/60 transition-all mb-4"
+                >
+                  <ShoppingCart className="w-5 h-5 inline mr-2" />
+                  Add {orderQuantity} to Cart
+                </button>
+
+                {/* Bundle Deal */}
+                <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-4 border border-purple-500/20 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Gift className="w-5 h-5 text-purple-400" />
+                    <span className="font-black text-white">Bundle & Save</span>
+                    <span className="px-2 py-0.5 bg-purple-500 text-white text-xs font-black rounded-full">-30%</span>
+                  </div>
+                  <p className="text-slate-300 text-sm mb-3">Get this product + 2 related items</p>
                   <button
-                    onClick={() => handleAddToCart(selectedProduct, (selectedProduct.unitsPerCase || 12) * 5)}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl text-left px-6 transition-all"
+                    onClick={() => {
+                      handleAddToCart(selectedProduct, caseCount);
+                      relatedProducts.slice(0, 2).forEach(p => handleAddToCart(p, 1));
+                      setOrderQuantity(1);
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold transition-all"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white">5 Cases ({(selectedProduct.unitsPerCase || 12) * 5} units)</span>
-                      <span className="text-white font-black">
-                        ${(selectedProduct.price * (selectedProduct.unitsPerCase || 12) * 5 * 0.75).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-white/70 flex items-center gap-2">
-                      <Star className="w-3 h-3 fill-current" />
-                      Save 25% • Best Value
-                    </div>
+                    Add Bundle - Save 30%
                   </button>
                 </div>
-              </div>
+
+                {/* Related Products */}
+                {relatedProducts.length > 0 && (
+                  <div className="border-t border-slate-700 pt-4">
+                    <h5 className="font-bold text-white mb-3 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-yellow-400" />
+                      Customers also ordered
+                    </h5>
+                    <div className="grid grid-cols-3 gap-2">
+                      {relatedProducts.map((rp) => (
+                        <button
+                          key={rp.id}
+                          onClick={() => {
+                            handleAddToCart(rp, 1);
+                          }}
+                          className="bg-slate-800/50 hover:bg-slate-700/50 rounded-xl p-2 transition-all group border border-slate-700 hover:border-cyan-500"
+                        >
+                          <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-2 flex items-center justify-center">
+                            {rp.imageUrl ? (
+                              <img src={rp.imageUrl} alt={rp.name} className="w-full h-full object-contain p-2" />
+                            ) : (
+                              <Package className="w-8 h-8 text-slate-600" />
+                            )}
+                          </div>
+                          <p className="text-xs text-white font-bold line-clamp-2 mb-1">{rp.name}</p>
+                          <p className="text-xs text-cyan-400 font-black">${rp.price.toFixed(2)}</p>
+                          <div className="mt-1 py-1 bg-cyan-600 rounded text-white text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
+                            +ADD
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* Floating Action Button */}
