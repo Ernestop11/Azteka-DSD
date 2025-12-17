@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/api/**/*.ts",
+    "app/api/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "types/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "app/api/**/__tests__/*"]
+}

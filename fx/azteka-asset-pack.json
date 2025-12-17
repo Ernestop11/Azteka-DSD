@@ -1,0 +1,52 @@
+{
+  "version": "2024.12-lap3",
+  "fxLayers": [
+    "fx-confetti",
+    "fx-snow-drift",
+    "fx-sparkle-glow",
+    "fx-papel-picado",
+    "fx-string-lights",
+    "fx-neon-tube"
+  ],
+  "backgrounds": [
+    "bg-retail-orange",
+    "bg-catalog-blue",
+    "bg-holiday-red-deep",
+    "bg-foil-green",
+    "bg-posada-purple",
+    "bg-latin-fiesta",
+    "bg-gradient-radial-spotlight",
+    "bg-summer-splash"
+  ],
+  "frames": [
+    "FestiveFrameOutline",
+    "GoldFrameEmboss",
+    "NeonFrame",
+    "FloatingPanelFrame"
+  ],
+  "helpers": [
+    "gpu-boost",
+    "gradient-mobile-fix",
+    "tab-s9-scroll-boost",
+    "shine-sweep",
+    "glossy-card-surface",
+    "product-pop-hover"
+  ],
+  "examples": [
+    {
+      "name": "Holiday Hero Stack",
+      "jsx": "<section className=\"relative bg-holiday-red-deep rounded-[2.5rem] text-white overflow-hidden\"><div className=\"fx-confetti\" aria-hidden /><div className=\"fx-sparkle-glow\" aria-hidden /><div className=\"relative z-10 p-12 space-y-4\"><p className=\"fx-neon-tube inline-flex\">POSADAS 2024</p><h1 className=\"text-5xl font-black\">Inventario Festivo</h1></div></section>",
+      "notes": "Stack confetti + sparkles on top of deep red gradient, keep GPU boost if layering more than two FX."
+    },
+    {
+      "name": "Brand Scroll Gold Rail",
+      "jsx": "<BrandGoldScroll brands={brands} className=\"bg-foil-green\" />",
+      "notes": "Use gold foil background + glow-edge drop shadow for prestige brands."
+    }
+  ],
+  "styleNotes": [
+    "Limit to two simultaneous FX layers per section on tablet.",
+    "Combine bg-latin-fiesta with fx-papel-picado for Día de Muertos narratives.",
+    "NeonFrame accent prop: cyan | rose | amber."
+  ]
+}

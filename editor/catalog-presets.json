@@ -1,0 +1,384 @@
+{
+  "visualPresets": {
+    "shineIntensity": {
+      "label": "Intensidad del Brillo",
+      "description": "Controla qué tan brillantes son los efectos de reflejo en las tarjetas",
+      "options": [
+        {
+          "id": "none",
+          "label": "Sin Brillo",
+          "value": "none",
+          "cssClass": "",
+          "animationDuration": "0ms",
+          "opacity": 0
+        },
+        {
+          "id": "subtle",
+          "label": "Sutil",
+          "value": "subtle",
+          "cssClass": "shine-subtle",
+          "animationDuration": "1500ms",
+          "opacity": 0.3
+        },
+        {
+          "id": "medium",
+          "label": "Medio",
+          "value": "medium",
+          "cssClass": "shine-medium",
+          "animationDuration": "1000ms",
+          "opacity": 0.5
+        },
+        {
+          "id": "high",
+          "label": "Alto",
+          "value": "high",
+          "cssClass": "shine-high",
+          "animationDuration": "800ms",
+          "opacity": 0.7
+        }
+      ],
+      "default": "medium"
+    },
+    "glowIntensity": {
+      "label": "Intensidad del Resplandor",
+      "description": "Controla el resplandor alrededor de tarjetas y elementos destacados",
+      "options": [
+        {
+          "id": "none",
+          "label": "Sin Resplandor",
+          "value": "none",
+          "shadowClass": "",
+          "blurRadius": "0px",
+          "spreadRadius": "0px"
+        },
+        {
+          "id": "subtle",
+          "label": "Sutil",
+          "value": "subtle",
+          "shadowClass": "glow-subtle",
+          "blurRadius": "20px",
+          "spreadRadius": "5px",
+          "opacity": 0.3
+        },
+        {
+          "id": "medium",
+          "label": "Medio",
+          "value": "medium",
+          "shadowClass": "glow-medium",
+          "blurRadius": "40px",
+          "spreadRadius": "10px",
+          "opacity": 0.5
+        },
+        {
+          "id": "high",
+          "label": "Alto",
+          "value": "high",
+          "shadowClass": "glow-high",
+          "blurRadius": "60px",
+          "spreadRadius": "15px",
+          "opacity": 0.7
+        }
+      ],
+      "default": "medium"
+    }
+  },
+
+  "modePresets": {
+    "wholesaleMode": {
+      "id": "wholesale",
+      "label": "Modo Mayoreo",
+      "description": "Diseño optimizado para clientes mayoristas con información de precio por volumen",
+      "icon": "📦",
+      "settings": {
+        "shineIntensity": "subtle",
+        "glowIntensity": "subtle",
+        "animationSpeed": "normal",
+        "showTierPricing": true,
+        "showBulkDiscounts": true,
+        "showRewardsPoints": false,
+        "showRatings": false,
+        "emphasizePrice": true,
+        "emphasizeBrand": true,
+        "cardDensity": "compact",
+        "colorScheme": "professional"
+      },
+      "visualSettings": {
+        "primaryColor": "#2563eb",
+        "accentColor": "#1d4ed8",
+        "backgroundColor": "#f8fafc",
+        "borderRadius": "12px",
+        "fontWeight": "600"
+      }
+    },
+    "retailMode": {
+      "id": "retail",
+      "label": "Modo Retail",
+      "description": "Diseño vibrante y premium para venta al detalle con énfasis en promociones",
+      "icon": "🛍️",
+      "settings": {
+        "shineIntensity": "high",
+        "glowIntensity": "high",
+        "animationSpeed": "fast",
+        "showTierPricing": false,
+        "showBulkDiscounts": false,
+        "showRewardsPoints": true,
+        "showRatings": true,
+        "emphasizePrice": true,
+        "emphasizeBrand": false,
+        "cardDensity": "spacious",
+        "colorScheme": "vibrant"
+      },
+      "visualSettings": {
+        "primaryColor": "#a855f7",
+        "accentColor": "#ec4899",
+        "backgroundColor": "#faf5ff",
+        "borderRadius": "24px",
+        "fontWeight": "800"
+      }
+    }
+  },
+
+  "performancePresets": {
+    "premiumMode": {
+      "id": "premium",
+      "label": "Modo Premium",
+      "description": "Todas las animaciones y efectos visuales activados para máxima experiencia",
+      "icon": "✨",
+      "enabled": true,
+      "settings": {
+        "enableAnimations": true,
+        "enableParallax": true,
+        "enableGlossyEffects": true,
+        "enableShineEffects": true,
+        "enableHoverEffects": true,
+        "enableParticles": true,
+        "framerMotionEnabled": true,
+        "transitionDuration": "normal",
+        "staggerDelay": 80,
+        "animationQuality": "high"
+      },
+      "performanceImpact": "high",
+      "recommendedFor": ["Desktop", "High-end tablets", "Modern browsers"]
+    },
+    "speedMode": {
+      "id": "speed",
+      "label": "Modo Rápido",
+      "description": "Animaciones ligeras optimizadas para rendimiento y velocidad",
+      "icon": "⚡",
+      "enabled": true,
+      "settings": {
+        "enableAnimations": true,
+        "enableParallax": false,
+        "enableGlossyEffects": true,
+        "enableShineEffects": false,
+        "enableHoverEffects": true,
+        "enableParticles": false,
+        "framerMotionEnabled": true,
+        "transitionDuration": "fast",
+        "staggerDelay": 30,
+        "animationQuality": "medium"
+      },
+      "performanceImpact": "low",
+      "recommendedFor": ["Mobile devices", "Older devices", "Slow connections"]
+    },
+    "accessibilityMode": {
+      "id": "accessibility",
+      "label": "Modo Accesibilidad",
+      "description": "Sin animaciones, respeta prefers-reduced-motion",
+      "icon": "♿",
+      "enabled": true,
+      "settings": {
+        "enableAnimations": false,
+        "enableParallax": false,
+        "enableGlossyEffects": false,
+        "enableShineEffects": false,
+        "enableHoverEffects": false,
+        "enableParticles": false,
+        "framerMotionEnabled": false,
+        "transitionDuration": "none",
+        "staggerDelay": 0,
+        "animationQuality": "none"
+      },
+      "performanceImpact": "minimal",
+      "recommendedFor": ["Screen readers", "Motion sensitivity", "Low vision users"]
+    }
+  },
+
+  "layoutPresets": {
+    "standardGrid": {
+      "id": "standard-grid",
+      "label": "Cuadrícula Estándar",
+      "description": "Layout de cuadrícula clásico con productos uniformes",
+      "component": "ProductGrid",
+      "columns": {
+        "mobile": 2,
+        "tablet": 3,
+        "desktop": 4
+      },
+      "gap": "md"
+    },
+    "masonryLayout": {
+      "id": "masonry",
+      "label": "Estilo Pinterest",
+      "description": "Layout tipo masonry con alturas variables",
+      "component": "MasonryGrid",
+      "columns": {
+        "mobile": 1,
+        "tablet": 2,
+        "desktop": 3
+      },
+      "gap": "lg"
+    },
+    "spotlightLayout": {
+      "id": "spotlight",
+      "label": "Producto Destacado",
+      "description": "Un producto grande destacado con productos secundarios",
+      "component": "WideSpotlight"
+    },
+    "storyLayout": {
+      "id": "story",
+      "label": "Historia Comprable",
+      "description": "Paneles verticales estilo historia de Instagram",
+      "component": "ShoppableStory"
+    },
+    "mixedPromoLayout": {
+      "id": "mixed-promo",
+      "label": "Grid con Promos",
+      "description": "Productos intercalados con paneles promocionales",
+      "component": "MidPromoRow",
+      "columns": 4,
+      "promoFrequency": 8
+    }
+  },
+
+  "editorToggles": {
+    "visualEffects": {
+      "label": "Efectos Visuales",
+      "toggles": [
+        {
+          "id": "glossy-cards",
+          "label": "Tarjetas Brillosas",
+          "description": "Efecto de brillo en las tarjetas de producto",
+          "default": true,
+          "category": "visual"
+        },
+        {
+          "id": "shine-sweep",
+          "label": "Barrido de Luz",
+          "description": "Efecto de luz que pasa sobre las tarjetas al hacer hover",
+          "default": true,
+          "category": "visual"
+        },
+        {
+          "id": "glow-effect",
+          "label": "Resplandor",
+          "description": "Resplandor alrededor de elementos destacados",
+          "default": true,
+          "category": "visual"
+        },
+        {
+          "id": "product-pop",
+          "label": "Efecto Pop en Hover",
+          "description": "Los productos se elevan ligeramente al pasar el mouse",
+          "default": true,
+          "category": "interaction"
+        },
+        {
+          "id": "sparkle-icons",
+          "label": "Iconos Flotantes",
+          "description": "Iconos decorativos animados en fondos",
+          "default": true,
+          "category": "decoration"
+        }
+      ]
+    },
+    "contentDisplay": {
+      "label": "Visualización de Contenido",
+      "toggles": [
+        {
+          "id": "show-tier-pricing",
+          "label": "Mostrar Precios por Categoría",
+          "description": "Muestra precios diferentes según categoría A/B/C",
+          "default": false,
+          "category": "pricing"
+        },
+        {
+          "id": "show-rewards",
+          "label": "Mostrar Puntos de Recompensa",
+          "description": "Muestra puntos ganados por cada producto",
+          "default": true,
+          "category": "loyalty"
+        },
+        {
+          "id": "show-ratings",
+          "label": "Mostrar Calificaciones",
+          "description": "Muestra estrellas de calificación de productos",
+          "default": true,
+          "category": "social-proof"
+        },
+        {
+          "id": "show-badges",
+          "label": "Mostrar Insignias",
+          "description": "Muestra insignias como NUEVO, OFERTA, HOT, etc.",
+          "default": true,
+          "category": "promotion"
+        },
+        {
+          "id": "show-brand-logos",
+          "label": "Mostrar Logos de Marca",
+          "description": "Muestra el logo de la marca en cada producto",
+          "default": true,
+          "category": "branding"
+        }
+      ]
+    }
+  },
+
+  "quickPresets": {
+    "highImpactSale": {
+      "name": "Venta de Alto Impacto",
+      "description": "Configuración para promociones especiales y ventas flash",
+      "applies": {
+        "shineIntensity": "high",
+        "glowIntensity": "high",
+        "mode": "retail",
+        "performance": "premium",
+        "layout": "mixed-promo",
+        "theme": "christmas"
+      }
+    },
+    "cleanWholesale": {
+      "name": "Mayoreo Limpio",
+      "description": "Diseño profesional para clientes de volumen",
+      "applies": {
+        "shineIntensity": "subtle",
+        "glowIntensity": "subtle",
+        "mode": "wholesale",
+        "performance": "speed",
+        "layout": "standard-grid"
+      }
+    },
+    "premiumShowcase": {
+      "name": "Exhibición Premium",
+      "description": "Muestra productos de alta gama con efectos premium",
+      "applies": {
+        "shineIntensity": "high",
+        "glowIntensity": "medium",
+        "mode": "retail",
+        "performance": "premium",
+        "layout": "spotlight"
+      }
+    },
+    "mobileFriendly": {
+      "name": "Optimizado Móvil",
+      "description": "Rendimiento rápido para dispositivos móviles",
+      "applies": {
+        "shineIntensity": "subtle",
+        "glowIntensity": "subtle",
+        "mode": "retail",
+        "performance": "speed",
+        "layout": "standard-grid"
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Scrollbar Hide Utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth Scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for Desktop (optional) */
+@media (min-width: 1024px) {
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+}
+
+/* Design Studio Animation Effects - GPU-optimized for smooth performance */
+@keyframes shimmer {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes aurora {
+  0%, 100% {
+    opacity: 0.08;
+  }
+  33% {
+    opacity: 0.15;
+  }
+  66% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 4s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 6s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-aurora {
+  animation: aurora 8s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+  will-change: opacity;
+}

@@ -1,4 +1,4 @@
-import { Category } from '../lib/supabase';
+import { Category } from '../types';
 import { Package, Candy, Cookie, Zap } from 'lucide-react';
 
 interface CategoryTabsProps {
@@ -17,15 +17,15 @@ const categoryIcons: Record<string, any> = {
 
 export default function CategoryTabs({ categories, selectedCategory, onSelectCategory, productCounts }: CategoryTabsProps) {
   return (
-    <div className="sticky top-[73px] z-30 bg-white border-b-2 border-gray-200 shadow-md">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="sticky top-[73px] z-30 bg-slate-900/40 backdrop-blur-xl border-b border-white/10 shadow-[0_30px_60px_rgba(5,6,10,0.35)]">
+      <div className="max-w-7xl mx-auto px-4 tablet:px-6">
         <div className="flex items-center gap-3 overflow-x-auto py-4 scrollbar-hide">
           <button
             onClick={() => onSelectCategory(null)}
-            className={`flex-shrink-0 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+            className={`tablet-hit-target flex-shrink-0 rounded-2xl px-6 text-sm font-bold uppercase tracking-wide transition-all duration-300 ${
               selectedCategory === null
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg scale-105'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-xl scale-105'
+                : 'glass-bar text-slate-100 hover:bg-white/25'
             }`}
           >
             All Products
@@ -39,18 +39,18 @@ export default function CategoryTabs({ categories, selectedCategory, onSelectCat
               <button
                 key={category.id}
                 onClick={() => onSelectCategory(category.id)}
-                className={`flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                className={`tablet-hit-target flex-shrink-0 flex items-center gap-2 rounded-2xl px-6 text-sm font-bold uppercase tracking-wide transition-all duration-300 ${
                   selectedCategory === category.id
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-xl scale-105'
+                    : 'glass-bar text-slate-100 hover:bg-white/25 hover:scale-105'
                 }`}
               >
                 <Icon size={20} />
                 <span>{category.name}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
                   selectedCategory === category.id
-                    ? 'bg-white/30 text-white'
-                    : 'bg-gray-200 text-gray-700'
+                    ? 'bg-white/30 text-white shadow-md'
+                    : 'bg-white/20 text-white'
                 }`}>
                   {count}
                 </span>

@@ -1,4 +1,4 @@
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 import { Star, TrendingUp, Zap } from 'lucide-react';
 
 interface ProductBillboardProps {
@@ -56,7 +56,7 @@ export default function ProductBillboard({ products, title, subtitle, onAddToCar
                 <div>
                   <p className="text-sm text-gray-600 font-medium">Wholesale Price</p>
                   <p className="text-5xl font-black text-gray-900">
-                    ${featuredProduct.price.toFixed(2)}
+                    ${(Number(featuredProduct.price) || 0).toFixed(2)}
                   </p>
                 </div>
 
@@ -76,9 +76,17 @@ export default function ProductBillboard({ products, title, subtitle, onAddToCar
                   style={{ backgroundColor: featuredProduct.background_color }}
                 />
                 <img
-                  src={featuredProduct.image_url}
+                  src={
+                    featuredProduct.image_url?.startsWith('http')
+                      ? featuredProduct.image_url
+                      : `http://77.243.85.8:3000/uploads/${featuredProduct.image_url?.replace(/^\/?uploads\//, '')}`
+                  }
                   alt={featuredProduct.name}
                   className="relative w-80 h-80 object-cover rounded-3xl shadow-2xl transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-700"
+                  onError={(e) => {
+                    console.warn(`Failed to load featured image: ${featuredProduct.image_url}`);
+                    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f3f4f6" width="400" height="400"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="system-ui" font-size="20" fill="%239ca3af"%3ENo Image%3C/text%3E%3C/svg%3E';
+                  }}
                 />
               </div>
             </div>
@@ -100,9 +108,17 @@ export default function ProductBillboard({ products, title, subtitle, onAddToCar
               <div className="relative p-6 flex items-center gap-4">
                 <div className="w-20 h-20 rounded-xl bg-white/90 flex items-center justify-center flex-shrink-0 shadow-lg">
                   <img
-                    src={product.image_url}
+                    src={
+                      product.image_url?.startsWith('http')
+                        ? product.image_url
+                        : `http://77.243.85.8:3000/uploads/${product.image_url?.replace(/^\/?uploads\//, '')}`
+                    }
                     alt={product.name}
                     className="w-full h-full object-cover rounded-xl"
+                    onError={(e) => {
+                      console.warn(`Failed to load quick product image: ${product.image_url}`);
+                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f3f4f6" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="system-ui" font-size="12" fill="%239ca3af"%3ENo Image%3C/text%3E%3C/svg%3E';
+                    }}
                   />
                 </div>
 
@@ -111,7 +127,7 @@ export default function ProductBillboard({ products, title, subtitle, onAddToCar
                     {product.name}
                   </h4>
                   <p className="text-2xl font-black text-gray-900">
-                    ${product.price.toFixed(2)}
+                    ${(Number(product.price) || 0).toFixed(2)}
                   </p>
                 </div>
 

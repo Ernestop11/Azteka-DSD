@@ -1,0 +1,71 @@
+{
+  "bundles": [
+    {
+      "id": "fiesta-favorites-pack",
+      "name": "Fiesta Favorites Beverage Flight",
+      "type": "seasonal",
+      "description": "Top-selling Jarritos flavors curated for weekend promotions and tailgate displays.",
+      "price": 119.4,
+      "savingsPercent": 12,
+      "triggerProducts": ["jarritos-mango", "jarritos-guava", "sku:JR-GUA"],
+      "heroImage": "/images/bundles/fiesta-flight.png",
+      "tags": ["beverage", "summer", "mexican"],
+      "items": [
+        { "sku": "JR-MANGO", "quantity": 4 },
+        { "sku": "JR-GUAVA", "quantity": 4 },
+        { "sku": "JR-TAMARIND", "quantity": 4 }
+      ]
+    },
+    {
+      "id": "panaderia-snack-stack",
+      "name": "Panadería Snack Stack",
+      "type": "category",
+      "description": "Sweet + salty mix built for countertop upsells next to the register.",
+      "price": 82.75,
+      "savingsPercent": 9,
+      "triggerProducts": ["sku:GM-PAN-DULCE", "pan-dulce-classic"],
+      "heroImage": "/images/bundles/panaderia-stack.png",
+      "tags": ["snacks", "panaderia", "impulse"],
+      "items": [
+        { "sku": "GM-PAN-DULCE", "quantity": 6 },
+        { "sku": "GM-CHURRO-BITES", "quantity": 4 },
+        { "sku": "GM-MANGUITO", "quantity": 3 }
+      ]
+    },
+    {
+      "id": "corner-store-starter",
+      "name": "Corner Store Starter Grid",
+      "type": "brand",
+      "description": "Balanced mix of beverages + spicy snacks for new store openings or resets.",
+      "price": 214.99,
+      "savingsPercent": 15,
+      "triggerProducts": ["starter-kit", "new-store-kit"],
+      "heroImage": "/images/bundles/corner-store-starter.png",
+      "tags": ["starter", "planogram", "fast-mover"],
+      "items": [
+        { "sku": "JR-MANGO", "quantity": 4 },
+        { "sku": "JR-GRAPEFRUIT", "quantity": 4 },
+        { "sku": "SB-TAKIS-FUEGO", "quantity": 5 },
+        { "sku": "SB-TAKIS-BLUE", "quantity": 5 },
+        { "sku": "SNK-PULPARINDO", "quantity": 6 }
+      ]
+    },
+    {
+      "id": "winter-posada-pack",
+      "name": "Winter Posada Pack",
+      "type": "seasonal",
+      "description": "Holiday-ready mix featuring ponche flavors, canela sweets, and warm beverage pairings.",
+      "price": 169.5,
+      "savingsPercent": 11,
+      "triggerProducts": ["winter-menu", "ponche-mix"],
+      "heroImage": "/images/bundles/winter-posada.png",
+      "tags": ["holiday", "winter", "posada"],
+      "items": [
+        { "sku": "JR-PLUM", "quantity": 3 },
+        { "sku": "JR-PONCHE", "quantity": 3 },
+        { "sku": "SNK-BUÑUELOS", "quantity": 6 },
+        { "sku": "SNK-CANELA-ROLLS", "quantity": 4 }
+      ]
+    }
+  ]
+}

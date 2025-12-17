@@ -46,14 +46,14 @@ export default function SpecialOffers({ offers }: SpecialOffersProps) {
         <p className="text-gray-600 text-lg">Limited time deals - don't miss out!</p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 tablet:grid-cols-2 laptop:grid-cols-4">
         {offers.map((offer) => {
           const Icon = offerIcons[offer.icon_type] || Sparkles;
 
           return (
             <div
               key={offer.id}
-              className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group cursor-pointer"
+              className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.03] laptop:hover:scale-[1.05] group cursor-pointer"
               style={{ backgroundColor: offer.badge_color }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

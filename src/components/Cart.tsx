@@ -1,4 +1,4 @@
-import { CartItem } from '../lib/supabase';
+import { CartItem } from '../types';
 import { X, Plus, Minus, ShoppingBag, Trash2 } from 'lucide-react';
 
 interface CartProps {
@@ -78,7 +78,7 @@ export default function Cart({ items, onUpdateQuantity, onRemoveItem, onCheckout
                       </div>
 
                       <p className="text-sm text-gray-600 mb-3">
-                        ${item.price.toFixed(2)} per {item.unit_type}
+                        ${(Number(item.price) || 0).toFixed(2)} per {item.unit_type}
                       </p>
 
                       <div className="flex items-center justify-between">

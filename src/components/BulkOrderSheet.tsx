@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Product } from '../lib/supabase';
+import { Product } from '../types';
 import { Search, Copy, Upload, Download, Zap, Truck, TrendingUp, X, Plus, Minus } from 'lucide-react';
 
 interface BulkOrderSheetProps {
@@ -223,7 +223,7 @@ export default function BulkOrderSheet({ products, stores, onSubmitOrders, onClo
                           </td>
 
                           <td className="px-6 py-4 text-center">
-                            <p className="text-2xl font-black text-emerald-600">${product.price.toFixed(2)}</p>
+                            <p className="text-2xl font-black text-emerald-600">${(Number(product.price) || 0).toFixed(2)}</p>
                           </td>
 
                           <td className="px-6 py-4">

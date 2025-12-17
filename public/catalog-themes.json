@@ -1,0 +1,52 @@
+[
+  {
+    "id": "christmas",
+    "name": "Navidad Premium",
+    "description": "Deep red gradients with snow drift and sparkle overlays.",
+    "recommendedBackground": "bg-holiday-red-deep",
+    "fxLayers": ["snowDriftLayer", "sparkleGlowLayer", "confettiLayer"],
+    "preset": "premiumSeasonal",
+    "palette": ["#3d0000", "#7a0400", "#ffffff"],
+    "highPerformance": false
+  },
+  {
+    "id": "posadas",
+    "name": "Posadas Fiesta",
+    "description": "Papel picado overlay with fiesta gradients.",
+    "recommendedBackground": "bg-latin-fiesta",
+    "fxLayers": ["papelPicadoLayer", "confettiLayer"],
+    "preset": "fiestaLatina",
+    "palette": ["#f72585", "#ffb703", "#06d6a0"],
+    "highPerformance": false
+  },
+  {
+    "id": "walmartBlue",
+    "name": "Walmart Blue Calm",
+    "description": "Calm catalog blues with subtle sparkle glow.",
+    "recommendedBackground": "bg-catalog-blue",
+    "fxLayers": ["sparkleGlowLayer"],
+    "preset": "walmartBlue",
+    "palette": ["#051937", "#1c64f2", "#ffffff"],
+    "highPerformance": true
+  },
+  {
+    "id": "wholesaleMode",
+    "name": "Wholesale Mode",
+    "description": "Minimal animation for high-volume wholesale teams.",
+    "recommendedBackground": "bg-gradient-radial-spotlight",
+    "fxLayers": [],
+    "preset": "wholesaleMode",
+    "palette": ["#04070e", "#f8fafc"],
+    "highPerformance": true
+  },
+  {
+    "id": "speedMode",
+    "name": "Speed Mode",
+    "description": "Low GPU, static shimmer for rapid browsing.",
+    "recommendedBackground": "bg-foil-green",
+    "fxLayers": ["goldDustLayer"],
+    "preset": "speedMode",
+    "palette": ["#0b3d20", "#9ef01a"],
+    "highPerformance": true
+  }
+]

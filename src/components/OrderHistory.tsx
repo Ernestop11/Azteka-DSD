@@ -1,5 +1,5 @@
 import { Package, Calendar, DollarSign, RefreshCw } from 'lucide-react';
-import { CartItem } from '../lib/supabase';
+import { CartItem } from '../types';
 
 interface Order {
   id: string;

@@ -30,12 +30,12 @@ export default function BundleShowcase({ bundles, onSelectBundle }: BundleShowca
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid gap-6 tablet:grid-cols-2 laptop:grid-cols-3">
         {bundles.map((bundle, index) => (
           <div
             key={bundle.id}
             onClick={() => onSelectBundle(bundle)}
-            className="group relative overflow-hidden rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:scale-105"
+            className="group relative overflow-hidden rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:scale-[1.03] laptop:hover:scale-[1.05]"
             style={{ animationDelay: `${index * 100}ms` }}
           >
             <div className="aspect-[4/3] relative">
@@ -74,7 +74,7 @@ export default function BundleShowcase({ bundles, onSelectBundle }: BundleShowca
                 <p className="text-white/90 text-sm leading-relaxed">
                   {bundle.description}
                 </p>
-                <button className="flex items-center gap-2 px-6 py-3 bg-white text-gray-900 font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group/btn">
+                <button className="tablet-hit-target flex items-center gap-2 px-6 bg-white text-gray-900 font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 group/btn">
                   <span>View Bundle</span>
                   <ArrowRight size={18} className="transform group-hover/btn:translate-x-1 transition-transform" />
                 </button>

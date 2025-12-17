@@ -96,7 +96,7 @@ export default function RewardsPanel({ pointsBalance, tier, badges, onClose }: R
                 return (
                   <div
                     key={badge.id}
-                    className={`rounded-xl p-4 border-2 transition-all ${
+                    className={`rewards-badge rounded-xl p-4 border-2 transition-all ${
                       badge.earned
                         ? 'bg-white/20 border-white/30'
                         : 'bg-white/5 border-white/10 opacity-50'

@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ShoppingCart, Store, Award, History, Grid3x3, LayoutDashboard } from 'lucide-react';
-import { Category, Product, CartItem, Customer, SalesRep, Brand, Subcategory } from './lib/supabase';
+import { Category, Product, CartItem, Customer, SalesRep, Brand, Subcategory } from './types';
+import { fetchFromAPI } from './lib/apiClient';
+import { io } from 'socket.io-client';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useCart, saveLastOrder, getLastOrder } from './contexts/CartContext';
 import Hero from './components/Hero';
 import CategoryTabs from './components/CategoryTabs';
 import ProductCard from './components/ProductCard';
@@ -57,6 +61,10 @@ interface Badge {
 }
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { cart, addToCart: addToCartContext, removeFromCart, updateQuantity, addMultipleToCart, totalItems, subtotal, clearCart } = useCart();
+  
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -69,13 +77,12 @@ export default function App() {
   const [productPromotions, setProductPromotions] = useState<Record<string, Promotion>>({});
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [showBulkOrder, setShowBulkOrder] = useState(false);
-  const [showAdminDash, setShowAdminDash] = useState(false);
-  const [stores, setStores] = useState([
+  const [handOffMode, setHandOffMode] = useState(false);
+  const [stores] = useState([
     { id: '1', store_name: 'Downtown Location' },
     { id: '2', store_name: 'North Plaza' },
     { id: '3', store_name: 'West Side Market' },
@@ -96,12 +103,102 @@ export default function App() {
   } | null>(null);
   const [salesRep, setSalesRep] = useState<SalesRep | null>(null);
   const [rewardsPoints, setRewardsPoints] = useState(1250);
-  const [memberTier, setMemberTier] = useState('bronze');
+  const [memberTier] = useState('bronze');
   const [previousOrders, setPreviousOrders] = useState<any[]>([]);
+  const macyThemeEnabled = true;
+  const macySnowIntensity: 'light' | 'medium' = 'medium';
+
+  // Handle route changes
+  useEffect(() => {
+    if (location.pathname === '/checkout') {
+      setViewMode('checkout');
+    } else if (location.pathname === '/catalog' || location.pathname === '/') {
+      setViewMode('catalog');
+    }
+  }, [location.pathname]);
+
+  // Load last order from localStorage for reorder
+  useEffect(() => {
+    const lastOrder = getLastOrder();
+    if (lastOrder) {
+      // Convert last order to order history format
+      const orderHistoryItem = {
+        id: lastOrder.orderNumber,
+        order_number: lastOrder.orderNumber,
+        created_at: new Date().toISOString(),
+        total: lastOrder.total,
+        status: 'delivered',
+        items: lastOrder.items.map((item: CartItem) => ({
+          product_id: item.id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: Number(item.price) || 0,
+        })),
+      };
+      setPreviousOrders([orderHistoryItem]);
+    }
+  }, []);
+
+  const normalizeCategory = (category: Category): Category => ({
+    ...category,
+    image_url: category.image_url ?? category.imageUrl,
+    display_order: category.display_order ?? category.displayOrder ?? 0,
+  });
+
+  const normalizeBrand = (brand: Brand): Brand => ({
+    ...brand,
+    logo_url: brand.logo_url ?? brand.logoUrl,
+    is_featured: brand.is_featured ?? brand.isFeatured,
+    display_order: brand.display_order ?? brand.displayOrder ?? 0,
+  });
+
+  const normalizeSubcategory = (subcategory: Subcategory): Subcategory => ({
+    ...subcategory,
+    category_id: subcategory.category_id ?? subcategory.categoryId ?? '',
+    display_order: subcategory.display_order ?? subcategory.displayOrder ?? 0,
+  });
+
+  const normalizeProduct = (product: Product): Product => ({
+    ...product,
+    category_id: product.category_id ?? product.categoryId ?? '',
+    brand_id: product.brand_id ?? product.brandId,
+    subcategory_id: product.subcategory_id ?? product.subcategoryId,
+    image_url: product.image_url ?? product.imageUrl ?? '/product-placeholder.svg',
+    background_color: product.background_color ?? product.backgroundColor ?? '#f3f4f6',
+    unit_type: product.unit_type ?? product.unitType ?? 'case',
+    units_per_case: product.units_per_case ?? product.unitsPerCase ?? 1,
+    min_order_quantity: product.min_order_quantity ?? product.minOrderQty ?? 1,
+    in_stock: product.in_stock ?? product.inStock ?? true,
+  });
 
   useEffect(() => {
     loadData();
     checkSalesRepLink();
+  }, []);
+
+  useEffect(() => {
+    // Connect to Socket.IO server
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const socketUrl = apiUrl.replace('/api', '');
+    const socket = io(socketUrl);
+
+    socket.on('connect', () => {
+      console.log('✅ Connected to Socket.IO server');
+    });
+
+    socket.on('products-updated', () => {
+      console.log('📡 Products updated, refreshing catalog...');
+      loadData();
+    });
+
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from Socket.IO server');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -114,7 +211,8 @@ export default function App() {
 
     if (repCode) {
       try {
-        const response = await fetch(`http://77.243.85.8:3000/api/sales-reps?code=${repCode}`);
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const response = await fetch(`${apiBase}/sales-reps?code=${repCode}`);
         const data = await response.json();
         if (data) {
           setSalesRep(data);
@@ -127,58 +225,78 @@ export default function App() {
 
   const loadData = async () => {
     try {
-      const [categoriesRes, productsRes, bundlesRes, promotionsRes, offersRes, badgesRes, brandsRes, subcategoriesRes] =
-        await Promise.all([
-          fetch('http://77.243.85.8:3000/api/categories').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/products').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/product-bundles').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/promotions').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/special-offers').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/rewards-badges').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/brands').then(r => r.json()),
-          fetch('http://77.243.85.8:3000/api/subcategories').then(r => r.json()),
-        ]);
+      const [
+        categoriesData,
+        productsData,
+        bundlesData,
+        promotionsData,
+        offersData,
+        badgesData,
+        brandsData,
+        subcategoriesData,
+        productPromotionsData,
+      ] = await Promise.all([
+        fetchFromAPI<Category>('categories'),
+        fetchFromAPI<Product>('products?all=true'),
+        (async () => {
+          try {
+            const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+            const response = await fetch(`${apiBase}/admin/bundles`);
+            if (!response.ok) return [];
+            const data = await response.json();
+            // Handle object response with bundles property
+            if (data?.bundles && Array.isArray(data.bundles)) return data.bundles;
+            if (Array.isArray(data)) return data;
+            return [];
+          } catch (error) {
+            console.error('Error fetching bundles:', error);
+            return [];
+          }
+        })(),
+        fetchFromAPI<Promotion>('promotions'),
+        fetchFromAPI<SpecialOffer>('special-offers'),
+        fetchFromAPI<any>('rewards-badges'),
+        fetchFromAPI<Brand>('brands'),
+        fetchFromAPI<Subcategory>('subcategories'),
+        fetchFromAPI<{ product_id: string; promotion_id: string }>('product-promotions'),
+      ]);
 
-      if (categoriesRes) setCategories(categoriesRes);
-      if (productsRes) setProducts(productsRes);
-      if (bundlesRes) setBundles(bundlesRes);
-      if (offersRes) setSpecialOffers(offersRes);
-      if (brandsRes) setBrands(brandsRes);
-      if (subcategoriesRes) setSubcategories(subcategoriesRes);
-      if (badgesRes) {
-        const badgesWithEarned = badgesRes.map((badge: any, idx: number) => ({
+      setCategories(categoriesData.map(normalizeCategory));
+      setProducts(productsData.map(normalizeProduct));
+      setBundles(bundlesData);
+      setSpecialOffers(offersData);
+      setBrands(brandsData.map(normalizeBrand));
+      setSubcategories(subcategoriesData.map(normalizeSubcategory));
+
+      if (badgesData.length) {
+        const badgesWithEarned = badgesData.map((badge: any, idx: number) => ({
           ...badge,
           earned: idx < 2,
         }));
         setBadges(badgesWithEarned);
+      } else {
+        setBadges([]);
       }
-      if (promotionsRes) {
-        setPromotions(promotionsRes);
-        loadProductPromotions(promotionsRes);
-      }
+
+      setPromotions(promotionsData);
+      loadProductPromotions(promotionsData, productPromotionsData);
     } catch (error) {
       console.error('Error loading data:', error);
     }
   };
 
-  const loadProductPromotions = async (promos: Promotion[]) => {
-    try {
-      const response = await fetch('http://77.243.85.8:3000/api/product-promotions');
-      const data = await response.json();
-
-      if (data) {
-        const mapping: Record<string, Promotion> = {};
-        data.forEach((pp: any) => {
-          const promo = promos.find((p) => p.id === pp.promotion_id);
-          if (promo) {
-            mapping[pp.product_id] = promo;
-          }
-        });
-        setProductPromotions(mapping);
+  const loadProductPromotions = (
+    promos: Promotion[],
+    productPromotionRows: Array<{ product_id: string; promotion_id: string }> = []
+  ) => {
+    const mapping: Record<string, Promotion> = {};
+    productPromotionRows.forEach((pp) => {
+      const promo = promos.find((p) => p.id === pp.promotion_id);
+      if (promo) {
+        mapping[pp.product_id] = promo;
       }
-    } catch (error) {
-      console.error('Error loading product promotions:', error);
-    }
+    });
+    setProductPromotions(mapping);
   };
 
   const filterProducts = () => {
@@ -191,47 +309,19 @@ export default function App() {
     setFilteredProducts(filtered);
   };
 
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.id === product.id);
-
-    if (existingItem) {
-      setCart(
-        cart.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
-    }
-  };
-
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity < 1) {
-      removeFromCart(productId);
-      return;
-    }
-
-    setCart(
-      cart.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter((item) => item.id !== productId));
+  const addToCart = (product: Product, quantity: number = 1) => {
+    addToCartContext(product, quantity);
   };
 
   const handleCheckout = () => {
     setShowCart(false);
-    setViewMode('checkout');
+    navigate('/checkout');
   };
 
   const handleReorder = (items: CartItem[]) => {
     items.forEach((item) => addToCart(item));
     setShowOrderHistory(false);
+    setShowCart(true);
   };
 
   const handleBulkOrderSubmit = (orders: Record<string, Record<string, number>>) => {
@@ -257,7 +347,13 @@ export default function App() {
   ) => {
     try {
       const orderNumber = `ORD-${Date.now()}`;
-      const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      
+      // Save last order to localStorage
+      saveLastOrder({
+        items: cart,
+        total: subtotal,
+        orderNumber,
+      });
 
       const orderPayload = {
         customer: {
@@ -276,8 +372,8 @@ export default function App() {
         items: cart.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
-          unit_price: item.price,
-          subtotal: item.price * item.quantity,
+          unit_price: item.price ?? 0,
+          subtotal: (item.price ?? 0) * item.quantity,
         })),
       };
 
@@ -298,8 +394,16 @@ export default function App() {
           deliveryDate: orderData.delivery_date,
         });
 
-        setCart([]);
-        setViewMode('confirmation');
+        clearCart();
+        
+        if (handOffMode && salesRep) {
+          // Sales Rep Mode: Return to confirmation screen
+          setViewMode('confirmation');
+        } else {
+          // Customer Mode: Show success message
+          setViewMode('confirmation');
+          navigate('/');
+        }
       }
     } catch (error) {
       console.error('Error completing order:', error);
@@ -310,9 +414,8 @@ export default function App() {
     setOrderDetails(null);
     setViewMode('catalog');
     setSelectedCategory(null);
+    navigate('/');
   };
-
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const getProductCountByCategory = (categoryId: string) => {
     return products.filter((p) => p.category_id === categoryId).length;
@@ -329,7 +432,7 @@ export default function App() {
     return (
       <OrderConfirmation
         orderNumber={orderDetails.orderNumber}
-        customerName={orderDetails.customer.contact_name}
+        customerName={orderDetails.customer.contact_name ?? 'Guest'}
         customerEmail={orderDetails.customer.email}
         customerPhone={orderDetails.customer.phone}
         deliveryAddress={`${orderDetails.customer.address}, ${orderDetails.customer.city}, ${orderDetails.customer.state} ${orderDetails.customer.zip_code}`}
@@ -348,7 +451,7 @@ export default function App() {
         upsellProducts={upsellProducts}
         onAddToCart={addToCart}
         onBack={() => {
-          setViewMode('catalog');
+          navigate('/');
           setShowCart(true);
         }}
         onComplete={handleCompleteOrder}
@@ -392,7 +495,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setShowAdminDash(true)}
+                onClick={() => navigate('/admin')}
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
               >
                 <LayoutDashboard size={20} />
@@ -437,12 +540,49 @@ export default function App() {
                   )}
                 </div>
               </button>
+
+              <Link
+                to="/fulfillment"
+                className="px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              >
+                <Grid3x3 size={20} />
+                <span className="hidden sm:inline">Fulfillment</span>
+              </Link>
+
+              {salesRep && (
+                <>
+                  <button
+                    onClick={() => {
+                      setHandOffMode(!handOffMode);
+                      if (!handOffMode) {
+                        // Enter hand off mode - use customer UI
+                        navigate('/');
+                      }
+                    }}
+                    className={`px-4 py-2 font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 ${
+                      handOffMode
+                        ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
+                        : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
+                    }`}
+                  >
+                    <Grid3x3 size={20} />
+                    <span className="hidden sm:inline">{handOffMode ? 'Exit Hand Off' : 'Hand Off Mode'}</span>
+                  </button>
+                  <Link
+                    to="/salesrep"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                  >
+                    <Grid3x3 size={20} />
+                    <span className="hidden sm:inline">Sales Rep</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
       </header>
 
-      {!showCatalogMode && <Hero />}
+      {!showCatalogMode && <Hero enableMacyTheme={macyThemeEnabled} snowfallIntensity={macySnowIntensity} />}
 
       {!showCatalogMode && (
         <CategoryTabs
@@ -463,7 +603,7 @@ export default function App() {
               subcategories: subcategories.filter(sub => sub.category_id === cat.id)
             }))}
             onAddToCart={addToCart}
-            onQuickView={(product) => addToCart(product)}
+            onAddMultiple={addMultipleToCart}
           />
         </div>
       ) : (
@@ -485,14 +625,17 @@ export default function App() {
               <h2 className="text-4xl font-black text-gray-900 mb-2">All Products</h2>
               <p className="text-gray-600 text-lg mb-8">Browse our complete catalog</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={addToCart}
-                    promotion={productPromotions[product.id]}
-                  />
-                ))}
+                {products.map((product) => {
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onAddToCart={addToCart}
+                      onAddMultiple={addMultipleToCart}
+                      promotion={productPromotions[product.id]}
+                    />
+                  );
+                })}
               </div>
             </div>
           </>
@@ -510,14 +653,17 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={addToCart}
-                  promotion={productPromotions[product.id]}
-                />
-              ))}
+              {filteredProducts.map((product) => {
+                return (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={addToCart}
+                    onAddMultiple={addMultipleToCart}
+                    promotion={productPromotions[product.id]}
+                  />
+                );
+              })}
             </div>
 
             {filteredProducts.length === 0 && (

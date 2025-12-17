@@ -1,0 +1,17 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="reflection" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="20%" stop-color="#FFFFFF" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="bleed" cx="0.4" cy="0" r="0.8">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#bleed)" />
+  <path d="M-80 60L720 -40V220L-80 320V60Z" fill="url(#reflection)" />
+  <path d="M-120 340L720 260V500L-120 580V340Z" fill="url(#reflection)" opacity="0.45" />
+</svg>

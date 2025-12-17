@@ -1,0 +1,12 @@
+{
+  "theme": "posadas",
+  "preset": "fiestaLatina",
+  "fxLayers": ["papelPicadoLayer", "confettiLayer"],
+  "backgroundClass": "bg-posada-purple",
+  "gridVariant": "tablet-wide",
+  "animationBudget": "medium",
+  "performanceTier": "mid",
+  "isTablet": true,
+  "isSamsungTab": true,
+  "effectivePriceTier": "B"
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CartItem, Customer, Product } from '../lib/supabase';
+import { CartItem, Customer, Product } from '../types';
 import { ArrowLeft, Building2, User, Mail, Phone, MapPin, Sparkles, Plus } from 'lucide-react';
 
 interface CheckoutProps {
@@ -79,7 +79,7 @@ export default function Checkout({ items, salesRepId, upsellProducts = [], onBac
                         />
                       </div>
                       <h4 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2">{product.name}</h4>
-                      <p className="text-lg font-black text-emerald-600 mb-2">${product.price.toFixed(2)}</p>
+                      <p className="text-lg font-black text-emerald-600 mb-2">${(Number(product.price) || 0).toFixed(2)}</p>
                       <button
                         type="button"
                         onClick={() => onAddToCart(product)}

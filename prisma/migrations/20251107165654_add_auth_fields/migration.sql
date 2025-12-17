@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "password" TEXT NOT NULL DEFAULT '',
+ALTER COLUMN "role" SET DEFAULT 'CUSTOMER';

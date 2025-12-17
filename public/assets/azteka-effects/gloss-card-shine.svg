@@ -1,0 +1,37 @@
+<svg width="640" height="400" viewBox="0 0 640 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="metalSheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F9FBFF" stop-opacity="0.25" />
+      <stop offset="40%" stop-color="#C7D2E4" stop-opacity="0.35" />
+      <stop offset="70%" stop-color="#EEF2FF" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.2" />
+    </linearGradient>
+    <linearGradient id="primarySweep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0" />
+      <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="secondarySweep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#E0E7FF" stop-opacity="0" />
+      <stop offset="30%" stop-color="#F4F8FF" stop-opacity="0.7" />
+      <stop offset="60%" stop-color="#EEF2FF" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#E0E7FF" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="metalGlow" cx="0.6" cy="0.1" r="0.7">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#metalSheen)" />
+  <rect width="640" height="400" fill="url(#metalGlow)" />
+  <g opacity="0.9">
+    <path d="M-200 160L640 0V160L-200 320V160Z" fill="url(#primarySweep)" />
+    <path d="M-260 320L640 150V320L-260 490V320Z" fill="url(#secondarySweep)" />
+  </g>
+  <g opacity="0.5">
+    <path d="M-100 40L220 -20L180 140L-100 200V40Z" fill="#FFFFFF" fill-opacity="0.35" />
+    <path d="M520 360L840 300L800 460L520 520V360Z" fill="#FFFFFF" fill-opacity="0.2" />
+  </g>
+</svg>

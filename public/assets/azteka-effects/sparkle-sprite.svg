@@ -1,0 +1,22 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="220" height="220" fill="black" fill-opacity="0" />
+  <g filter="url(#glow)">
+    <circle cx="40" cy="60" r="3" fill="#FDE68A" />
+    <circle cx="90" cy="30" r="2" fill="#FECACA" />
+    <circle cx="170" cy="90" r="2.5" fill="#99F6E4" />
+    <circle cx="130" cy="150" r="3.2" fill="#F9A8D4" />
+    <circle cx="50" cy="170" r="2.2" fill="#FEF3C7" />
+    <circle cx="190" cy="40" r="2.8" fill="#BFDBFE" />
+    <circle cx="200" cy="180" r="2" fill="#FDBA74" />
+    <path d="M70 100L75 115L90 120L75 125L70 140L65 125L50 120L65 115L70 100Z" fill="#F0ABFC" />
+  </g>
+  <defs>
+    <filter id="glow" x="0" y="0" width="220" height="220" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+</svg>

@@ -1,89 +1,62 @@
-# Smoke Test Results & Migration Plan
+# Smoke Test Results - Internal Server Errors
 
-## Current State Analysis
+**Date:** 2025-12-11  
+**Status:** ❌ **CRITICAL - All endpoints returning 500 errors**
 
-### What We Found
+## Issues Found
 
-1. **Database Schema**: Migration file exists but is incomplete
-   - ✅ Has: categories, products, sales_reps, customers, orders, order_items
-   - ❌ Missing: product_bundles, promotions, product_promotions, special_offers, rewards_badges, brands, subcategories
+### 1. **Next.js Build Corruption**
+- **Error:** `TypeError: Cannot read properties of undefined (reading '/_error')`
+- **Error:** `TypeError: Cannot read properties of undefined (reading 'previewModeId')`
+- **Root Cause:** The `.next/server/app/_error` directory is missing after build
+- **Impact:** All pages return 500 Internal Server Error
 
-2. **Application Dependencies**:
-   - Currently uses Supabase client (`@supabase/supabase-js`)
-   - All database queries go through Supabase client
-   - Needs to be replaced with direct PostgreSQL connection
+### 2. **Database Connection**
+- ✅ **FIXED:** Updated `.env.production` with correct `DATABASE_URL`
+- ✅ Database connection test passes: `✅ DB OK`
 
-3. **Build Status**: Unknown - need to check VPS
+### 3. **Missing Build Artifacts**
+- ❌ `_error` page directory missing: `.next/server/app/_error/`
+- ❌ `_error/page.js` file missing
+- ✅ `_not-found` page exists: `.next/server/app/_not-found/page.js`
 
-## Missing Tables in Migration
+### 4. **API Endpoints Status**
+- ❌ `/api/admin/products` → 500 Internal Server Error
+- ❌ `/api/catalog/products` → 500 Internal Server Error
+- ❌ `/api/admin/catalog/layout` → 500 Internal Server Error
+- ❌ `/catalog` → 500 Internal Server Error
+- ❌ `/admin/menu-editor` → 500 Internal Server Error
 
-The app uses these tables that are NOT in the migration file:
+## Fixes Applied
 
-1. **brands** - Product brands
-2. **subcategories** - Subcategories within categories
-3. **product_bundles** - Product bundle packages
-4. **promotions** - Promotional offers
-5. **product_promotions** - Junction table linking products to promotions
-6. **special_offers** - Special offer campaigns
-7. **rewards_badges** - Customer reward badges
+1. ✅ Fixed all `toFixed()` errors in admin files
+2. ✅ Updated `.env.production` with correct database credentials
+3. ✅ Added `export const dynamic = 'force-dynamic'` to admin dashboard page
+4. ✅ Synced `app/error.tsx` to VPS
+5. ✅ Created `prerender-manifest.json` file
+6. ❌ **FAILED:** Rebuilding doesn't generate `_error` page directory
 
-## Next Steps
+## Next Steps Required
 
-### Step 1: Run Smoke Test on VPS
-```bash
-ssh root@77.243.85.8
-cd /path/to/project
-bash smoke-test.sh
-```
+### Immediate Actions:
+1. **Fix Next.js Build Issue:**
+   - The build is not generating the `_error` page properly
+   - Need to investigate why Next.js isn't creating error page during build
+   - May need to check if `app/error.tsx` is properly formatted
 
-This will tell us:
-- Where the project is located
-- If there are multiple build locations
-- Current web server configuration
-- PostgreSQL status
-- What's actually deployed
+2. **Verify Error Component:**
+   - Check if `ErrorBoundary` component exists
+   - Ensure `app/error.tsx` doesn't have import errors
 
-### Step 2: Complete Database Schema
-- Add missing tables to migration file
-- Create complete PostgreSQL schema
+3. **Alternative Solution:**
+   - Manually create the `_error` page structure
+   - Or use Next.js dev mode instead of production build
 
-### Step 3: Replace Supabase with PostgreSQL
-- Create API backend (Node.js/Express or similar)
-- Replace Supabase client calls with API calls
-- Or use direct PostgreSQL connection from frontend (less secure, not recommended)
+## Test URLs (All Currently Failing)
+- https://aztekafoods.com/catalog → 500
+- https://aztekafoods.com/admin/menu-editor → 500
+- https://aztekafoods.com/api/admin/products → 500
 
-### Step 4: Deploy and Test
-- Build the app
-- Set up PostgreSQL database
-- Configure web server
-- Test all functionality
-
-## Recommended Architecture
-
-Since you want everything in-house on your VPS:
-
-**Option 1: Full Stack with API Backend (Recommended)**
-```
-Frontend (React/Vite) → API Backend (Node.js/Express) → PostgreSQL
-```
-- More secure (database credentials stay on server)
-- Better for production
-- Can add authentication, rate limiting, etc.
-
-**Option 2: Direct PostgreSQL from Frontend (Not Recommended)**
-```
-Frontend (React/Vite) → PostgreSQL (direct connection)
-```
-- Less secure (exposes database connection)
-- Requires CORS setup
-- Not suitable for production
-
-## Action Items
-
-1. ✅ Run smoke test on VPS
-2. ⏳ Complete database schema
-3. ⏳ Create API backend
-4. ⏳ Replace Supabase calls
-5. ⏳ Test and deploy
-
-
+## PM2 Status
+- ✅ `azteka-nextjs` - Online (but serving 500 errors)
+- ✅ `azteka-worker` - Online

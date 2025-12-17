@@ -1,0 +1,37 @@
+{
+  "database": {
+    "status": "healthy",
+    "details": {
+      "totalProducts": 642,
+      "expectedProducts": 642,
+      "productsWithImages": 642,
+      "imageCompletionRate": "100.0%",
+      "categoryCount": 53,
+      "bundleCount": 4
+    }
+  },
+  "images": {
+    "status": "healthy",
+    "details": {
+      "originalImages": 0,
+      "thumbnailImages": 0,
+      "mediumImages": 0,
+      "bundleOriginalImages": 1,
+      "bundleThumbnailImages": 1,
+      "storageStructure": "complete"
+    }
+  },
+  "api": {
+    "status": "down",
+    "details": {
+      "error": ""
+    }
+  },
+  "performance": {
+    "status": "healthy",
+    "details": {
+      "queryTimeMs": 3,
+      "recommendation": "Excellent"
+    }
+  }
+}
