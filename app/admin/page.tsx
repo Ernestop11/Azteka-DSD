@@ -1,19 +1,28 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Package, Tag, Grid3x3, ShoppingBag, BarChart3, Settings, Layout, Image as ImageIcon, Sparkles } from 'lucide-react'
+import { Package, Tag, Grid3x3, ShoppingBag, BarChart3, Settings, Layout, Sparkles, Layers, ArrowRight } from 'lucide-react'
 
 export default function AdminDashboard() {
   const router = useRouter()
 
   const sections = [
     {
-      title: 'Catalog Layout',
-      description: 'Edit hero banners, marquee, and page sections that appear on the catalog',
+      title: 'Main Dashboard',
+      description: 'Full-featured admin dashboard with tabbed interface, barcode scanner, and product editor',
+      icon: Layers,
+      href: '/admin/dashboard',
+      color: 'from-emerald-500 to-teal-600',
+      stats: 'NEW - Recommended',
+      featured: true
+    },
+    {
+      title: 'Catalog Block Builder',
+      description: 'Visual drag-and-drop catalog builder with style presets and backgrounds',
       icon: Layout,
-      href: '/admin/catalog/layout',
+      href: '/admin/block-builder',
       color: 'from-indigo-500 to-purple-600',
-      stats: 'Frontend layout editor'
+      stats: 'Visual editor'
     },
     {
       title: 'Products',
@@ -77,8 +86,34 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-10">
+        {/* Featured Dashboard Link */}
+        <button
+          onClick={() => router.push('/admin/dashboard')}
+          className="w-full mb-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-left hover:shadow-xl transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                <Layers className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-white">Open Full Dashboard</h2>
+                  <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-semibold rounded-full">NEW</span>
+                </div>
+                <p className="text-white/80 mt-1">
+                  Tabbed interface with Products, Block Builder, Barcode Scanner, Customer Pricing & more
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-8 h-8 text-white group-hover:translate-x-2 transition-transform" />
+          </div>
+        </button>
+
+        {/* Quick Access Cards */}
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">Quick Access</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sections.map((section) => {
+          {sections.filter(s => !s.featured).map((section) => {
             const Icon = section.icon
             return (
               <button

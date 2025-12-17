@@ -52,7 +52,14 @@
       "Bash(./ root@77.243.85.8:/srv/azteka-api-live/)",
       "Bash(du:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git reset:*)",
+      "Bash(.next-azteka/ root@77.243.85.8:/srv/azteka-api-live/.next-azteka/)",
+      "Bash(app/ root@77.243.85.8:/srv/azteka-api-live/app/)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
