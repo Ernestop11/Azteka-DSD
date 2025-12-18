@@ -1,26 +1,39 @@
-// Azteka DSD Service Worker - PWA Support v3
-const CACHE_NAME = 'azteka-dsd-v3'
-const STATIC_CACHE = 'azteka-static-v3'
-const DYNAMIC_CACHE = 'azteka-dynamic-v3'
-const IMAGE_CACHE = 'azteka-images-v3'
+// Azteka DSD Service Worker - PWA Support v4
+const CACHE_NAME = 'azteka-dsd-v4'
+const STATIC_CACHE = 'azteka-static-v4'
+const DYNAMIC_CACHE = 'azteka-dynamic-v4'
+const IMAGE_CACHE = 'azteka-images-v4'
 
-// Static assets to cache on install
+// Static assets to cache on install - includes all main UI entry points
 const STATIC_ASSETS = [
   '/',
   '/catalog',
   '/cart',
+  '/employee',
+  '/employee/inventory',
+  '/employee/orders',
+  '/employee/delivery',
+  '/admin',
+  '/admin/products',
+  '/admin/categories',
+  '/admin/brands',
+  '/login',
   '/manifest.json',
 ]
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW v3] Installing service worker...')
+  console.log('[SW v4] Installing service worker...')
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      console.log('[SW v3] Caching static assets')
-      return cache.addAll(STATIC_ASSETS)
+      console.log('[SW v4] Caching static assets')
+      return cache.addAll(STATIC_ASSETS).catch(err => {
+        console.log('[SW v4] Some assets failed to cache, continuing...', err)
+        // Don't fail install if some assets aren't available
+        return Promise.resolve()
+      })
     }).catch(err => {
-      console.log('[SW v3] Cache install error:', err)
+      console.log('[SW v4] Cache install error:', err)
     })
   )
   self.skipWaiting()
@@ -28,14 +41,14 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW v3] Activating service worker...')
+  console.log('[SW v4] Activating service worker...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => !name.includes('-v3'))
+          .filter((name) => !name.includes('-v4'))
           .map((name) => {
-            console.log('[SW v3] Deleting old cache:', name)
+            console.log('[SW v4] Deleting old cache:', name)
             return caches.delete(name)
           })
       )
@@ -56,12 +69,12 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) return
 
-  // Skip API requests (don't cache)
+  // Skip API requests (don't cache) - they need fresh data
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request).catch(() => {
         return new Response(
-          JSON.stringify({ error: 'Offline', message: 'You are currently offline.' }),
+          JSON.stringify({ error: 'Offline', message: 'You are currently offline. Please check your connection.' }),
           { status: 503, headers: { 'Content-Type': 'application/json' } }
         )
       })
@@ -104,6 +117,13 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(request).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse
+            // Fallback to appropriate cached page based on URL
+            if (url.pathname.startsWith('/employee')) {
+              return caches.match('/employee') || caches.match('/')
+            }
+            if (url.pathname.startsWith('/admin')) {
+              return caches.match('/admin') || caches.match('/')
+            }
             return caches.match('/catalog') || caches.match('/')
           })
         })
@@ -145,7 +165,7 @@ self.addEventListener('push', (event) => {
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-72x72.png',
     vibrate: [100, 50, 100],
-    data: { url: data.url || '/catalog' },
+    data: { url: data.url || '/' },
     actions: [
       { action: 'open', title: 'Open' },
       { action: 'close', title: 'Close' }
@@ -163,7 +183,7 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'close') return
 
-  const url = event.notification.data?.url || '/catalog'
+  const url = event.notification.data?.url || '/'
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
@@ -184,10 +204,19 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-orders') {
     event.waitUntil(syncOfflineOrders())
   }
+  if (event.tag === 'sync-inventory') {
+    event.waitUntil(syncInventoryChanges())
+  }
 })
 
 async function syncOfflineOrders() {
-  console.log('[SW v3] Syncing offline orders...')
+  console.log('[SW v4] Syncing offline orders...')
+  // Future: retrieve orders from IndexedDB and POST to API
+}
+
+async function syncInventoryChanges() {
+  console.log('[SW v4] Syncing inventory changes...')
+  // Future: retrieve inventory updates from IndexedDB and PATCH to API
 }
 
 // Message handler for client communication
@@ -195,6 +224,11 @@ self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting()
   }
+  if (event.data === 'clearCache') {
+    caches.keys().then((names) => {
+      names.forEach((name) => caches.delete(name))
+    })
+  }
 })
 
-console.log('[SW v3] Service worker loaded')
+console.log('[SW v4] Service worker loaded')

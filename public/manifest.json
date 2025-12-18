@@ -1,8 +1,8 @@
 {
-  "name": "Azteka DSD - Wholesale Catalog",
+  "name": "Azteka DSD Platform",
   "short_name": "Azteka",
-  "description": "Direct Store Delivery and Wholesale Catalog System",
-  "start_url": "/catalog",
+  "description": "Direct Store Delivery platform - Catalog, Inventory, Orders & Fulfillment",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -91,25 +91,46 @@
   ],
   "shortcuts": [
     {
-      "name": "Browse Catalog",
+      "name": "Product Catalog",
       "short_name": "Catalog",
-      "description": "Browse wholesale products",
+      "description": "Browse and order products",
       "url": "/catalog",
       "icons": [{ "src": "/icons/catalog.png", "sizes": "192x192" }]
     },
     {
-      "name": "My Cart",
-      "short_name": "Cart",
-      "description": "View your cart",
-      "url": "/cart",
-      "icons": [{ "src": "/icons/cart.png", "sizes": "192x192" }]
+      "name": "Employee Dashboard",
+      "short_name": "Employee",
+      "description": "Warehouse inventory and order picking",
+      "url": "/employee",
+      "icons": [{ "src": "/icons/employee.png", "sizes": "192x192" }]
     },
     {
-      "name": "Orders",
-      "short_name": "Orders",
-      "description": "View order history",
-      "url": "/orders",
+      "name": "Inventory",
+      "short_name": "Inventory",
+      "description": "Manage stock, locations, and SKUs",
+      "url": "/employee/inventory",
+      "icons": [{ "src": "/icons/inventory.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Order Picking",
+      "short_name": "Picking",
+      "description": "Pick and pack orders",
+      "url": "/employee/orders",
       "icons": [{ "src": "/icons/orders.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Panel",
+      "short_name": "Admin",
+      "description": "Product and catalog management",
+      "url": "/admin",
+      "icons": [{ "src": "/icons/admin.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Cart",
+      "short_name": "Cart",
+      "description": "View shopping cart",
+      "url": "/cart",
+      "icons": [{ "src": "/icons/cart.png", "sizes": "192x192" }]
     }
   ],
   "prefer_related_applications": false,
