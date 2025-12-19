@@ -11,7 +11,7 @@ set -e  # Exit on error
 
 VPS_HOST="77.243.85.8"
 VPS_USER="root"
-VPS_PATH="/srv/azteka-dsd"
+VPS_PATH="/srv/azteka-api-live"
 APP_NAME="azteka-nextjs"
 PM2_NAME="azteka-nextjs"
 PORT=3002
@@ -124,10 +124,13 @@ rsync -avz \
   --exclude '*.log' \
   --exclude '.env.local' \
   --exclude '.env.development' \
+  --exclude '.env.production' \
   --exclude 'dist' \
   --exclude '.DS_Store' \
   --exclude 'coverage' \
   --exclude '.turbo' \
+  --exclude 'apps/' \
+  --exclude '_archived_apps/' \
   ./ "${VPS_USER}@${VPS_HOST}:${VPS_PATH}/"
 
 log_success "Files synced to VPS"
@@ -163,6 +166,22 @@ npx prisma migrate deploy || echo "⚠ Migrations failed (may need manual fix)"
 
 log_info "Building Next.js on VPS..."
 npm run build:next || echo "⚠ Build failed (check logs)"
+
+# CRITICAL: Ensure .next-azteka/package.json has correct module type
+# This prevents "require is not defined in ES module scope" errors
+log_info "Verifying .next-azteka/package.json module type..."
+if [ -f ".next-azteka/package.json" ]; then
+    # Check if it has the wrong type
+    if grep -q '"type": "module"' ".next-azteka/package.json"; then
+        echo '{"type": "commonjs"}' > .next-azteka/package.json
+        echo "⚠ Fixed .next-azteka/package.json (was 'module', now 'commonjs')"
+    else
+        echo "✅ .next-azteka/package.json is correct"
+    fi
+else
+    echo '{"type": "commonjs"}' > .next-azteka/package.json
+    echo "✅ Created .next-azteka/package.json with type: commonjs"
+fi
 
 log_success "VPS setup completed"
 EOF

@@ -3,8 +3,6 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { useCartStore } from '@/store/cart'
-import { resolveVisualPreset, applyCardTheme } from '@/lib/cards/resolvePresets'
-import { mapProductToVisual } from '@/lib/cards/productMapper'
 import { getPublicImageUrl } from '@/lib/imageUrl'
 
 interface Product {
@@ -50,19 +48,23 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
   const isPreview = mode === 'preview'
   const quantity = isPreview ? 0 : getQuantity(product.id)
 
-  // Map product to VisualProduct format and resolve preset
-  const visualProduct = mapProductToVisual(
-    product,
-    product.category?.name,
-    product.brand?.name
-  )
-  const resolvedPreset = resolveVisualPreset(visualProduct)
-  const appliedTheme = applyCardTheme(resolvedPreset)
-
-  // Build background style object
-  const backgroundStyle = appliedTheme.background_classes
-    ? {}
-    : { background: appliedTheme.background }
+  // Simple, clean styling - no visual preset system
+  const appliedTheme = {
+    background: product.backgroundGradient || product.backgroundColor 
+      ? `linear-gradient(135deg, ${product.backgroundColor || '#ffffff'}dd 0%, ${product.backgroundColor || '#f9fafb'}22 100%)`
+      : 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+    background_classes: 'bg-white',
+    border_classes: 'border border-gray-200',
+    shadow_classes: 'shadow-sm',
+    text_color: '#111827',
+    badges: {
+      featured: product.featured || false,
+      seasonal: product.seasonal || false,
+      new: product.newArrival || false,
+      trending: product.trending || false,
+    },
+  }
+  const backgroundStyle = { background: appliedTheme.background }
 
   const priceValue = typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0
 
@@ -95,67 +97,40 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
       viewport={{ once: true }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.98 }}
-      className={`
-        group relative overflow-hidden rounded-2xl
-        ${appliedTheme.background_classes || ''}
-        ${appliedTheme.border_classes}
-        ${appliedTheme.shadow_classes}
-        ${appliedTheme.glow_classes || ''}
-        ${appliedTheme.text_color}
-        transition-all duration-500
-        hover:shadow-2xl
-      `}
+      className="group relative overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-sm transition-all duration-500 hover:shadow-2xl"
       style={backgroundStyle}
     >
-      {/* Layer 3: Splash Overlay (if enabled) */}
-      {appliedTheme.splash_overlay_url && (
-        <div
-          className="absolute inset-0 pointer-events-none z-[1]"
-          style={{
-            backgroundImage: `url(${appliedTheme.splash_overlay_url})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            mixBlendMode: 'screen',
-            opacity: 0.7,
-          }}
-        />
-      )}
-
-      {/* Layer 2: Decorative Blur Orbs */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-
-      {/* Layer 1: Hover Overlay Gradient */}
+      {/* Simple hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-[2]" />
 
       {/* Layer 0: Content Container */}
       <div className="relative p-6 z-[3]">
-        {/* Badges (from resolved preset) */}
-        {(appliedTheme.badges.featured || appliedTheme.badges.seasonal || appliedTheme.badges.new || appliedTheme.badges.trending || product.badgeText) && (
+        {/* Simple badges */}
+        {(product.featured || product.seasonal || product.newArrival || product.trending || product.badgeText) && (
           <div className="mb-3 flex items-center gap-2 flex-wrap">
-            {appliedTheme.badges.featured && (
+            {product.featured && (
               <span className="px-2 py-1 bg-amber-400 text-amber-900 rounded-full text-xs font-black">
                 FEATURED
               </span>
             )}
-            {appliedTheme.badges.seasonal && (
+            {product.seasonal && (
               <span className="px-2 py-1 bg-rose-300 text-rose-900 rounded-full text-xs font-black">
                 SEASONAL
               </span>
             )}
-            {appliedTheme.badges.new && (
+            {product.newArrival && (
               <span className="px-2 py-1 bg-emerald-400 text-emerald-900 rounded-full text-xs font-black">
                 NEW
               </span>
             )}
-            {appliedTheme.badges.trending && (
+            {product.trending && (
               <span className="px-2 py-1 bg-purple-400 text-purple-900 rounded-full text-xs font-black">
                 TRENDING
               </span>
             )}
             {product.badgeText && (
               <span
-                className="px-3 py-1 rounded-full text-xs font-black text-white animate-pulse"
+                className="px-3 py-1 rounded-full text-xs font-black text-white"
                 style={{
                   backgroundColor: product.badgeColor || '#EF4444',
                 }}
@@ -196,7 +171,7 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
         </div>
 
         {/* Layer 5: Product Info */}
-        <div className={`space-y-3 ${appliedTheme.text_color}`}>
+        <div className="space-y-3">
           {/* Product Name */}
           <h3 className="text-xl font-bold line-clamp-2">
             {product.name}

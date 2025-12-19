@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { revalidateTag, revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
+
+// Helper to get current user from session
+async function getCurrentUser() {
+  try {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get('session')?.value
+    if (!sessionToken) return null
+
+    const session = await prisma.session.findUnique({
+      where: { id: sessionToken },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } }
+    })
+
+    if (!session || session.expiresAt < new Date()) return null
+    return session.user
+  } catch {
+    return null
+  }
+}
+
+// Helper to log activity
+async function logActivity(
+  userId: string,
+  actionType: string,
+  entityType: string,
+  entityId: string,
+  entityName: string,
+  description: string,
+  metadata?: any
+) {
+  try {
+    await prisma.employeeActivity.create({
+      data: {
+        userId,
+        actionType: actionType as any,
+        entityType,
+        entityId,
+        entityName,
+        description,
+        metadata
+      }
+    })
+  } catch (err) {
+    console.error('Failed to log activity:', err)
+  }
+}
 
 /**
  * PATCH /api/employee/inventory/[id]
@@ -13,7 +60,10 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { stock, warehouseLocation, unitsPerCase, inStock, sku, expirationDate, lotNumber, categoryId, brandId } = body
+    const { stock, warehouseLocation, unitsPerCase, inStock, sku, caseSku, expirationDate, lotNumber, categoryId, brandId } = body
+
+    // Get current user for activity logging
+    const currentUser = await getCurrentUser()
 
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
@@ -77,6 +127,11 @@ export async function PATCH(
       updateData.lotNumber = lotNumber || null
     }
 
+    // Handle case SKU
+    if (caseSku !== undefined) {
+      updateData.caseSku = caseSku || null
+    }
+
     // Handle category
     if (categoryId !== undefined) {
       updateData.categoryId = categoryId || null
@@ -95,6 +150,7 @@ export async function PATCH(
         id: true,
         name: true,
         sku: true,
+        caseSku: true,
         stock: true,
         warehouseLocation: true,
         unitsPerCase: true,
@@ -112,6 +168,91 @@ export async function PATCH(
         }
       }
     })
+
+    // Log activities for tracking
+    if (currentUser) {
+      const activities: Promise<void>[] = []
+
+      // Stock change
+      if (typeof stock === 'number' && stock !== existingProduct.stock) {
+        const diff = stock - Number(existingProduct.stock)
+        const action = diff > 0 ? 'added' : 'removed'
+        activities.push(logActivity(
+          currentUser.id,
+          'STOCK_UPDATE',
+          'product',
+          id,
+          existingProduct.name,
+          `${action} ${Math.abs(diff)} units (${existingProduct.stock} → ${stock})`,
+          { oldStock: existingProduct.stock, newStock: stock, diff }
+        ))
+      }
+
+      // Location change
+      if (warehouseLocation !== undefined && warehouseLocation !== existingProduct.warehouseLocation) {
+        activities.push(logActivity(
+          currentUser.id,
+          'LOCATION_UPDATE',
+          'product',
+          id,
+          existingProduct.name,
+          `Set location to ${warehouseLocation || 'none'}`,
+          { oldLocation: existingProduct.warehouseLocation, newLocation: warehouseLocation }
+        ))
+      }
+
+      // SKU change
+      if (sku !== undefined && sku !== existingProduct.sku) {
+        activities.push(logActivity(
+          currentUser.id,
+          'SKU_UPDATE',
+          'product',
+          id,
+          existingProduct.name,
+          `Updated SKU to ${sku}`,
+          { oldSku: existingProduct.sku, newSku: sku }
+        ))
+      }
+
+      // Expiration change
+      if (expirationDate !== undefined) {
+        const oldExp = existingProduct.expirationDate?.toISOString().split('T')[0]
+        const newExp = expirationDate ? new Date(expirationDate).toISOString().split('T')[0] : null
+        if (oldExp !== newExp) {
+          activities.push(logActivity(
+            currentUser.id,
+            'EXPIRATION_UPDATE',
+            'product',
+            id,
+            existingProduct.name,
+            `Set expiration to ${newExp || 'none'}`,
+            { oldExpiration: oldExp, newExpiration: newExp }
+          ))
+        }
+      }
+
+      // Category/Brand change
+      if ((categoryId !== undefined && categoryId !== existingProduct.categoryId) ||
+          (brandId !== undefined && brandId !== existingProduct.brandId)) {
+        activities.push(logActivity(
+          currentUser.id,
+          'PRODUCT_CLASSIFY',
+          'product',
+          id,
+          existingProduct.name,
+          `Updated classification`,
+          {
+            oldCategoryId: existingProduct.categoryId,
+            newCategoryId: categoryId,
+            oldBrandId: existingProduct.brandId,
+            newBrandId: brandId
+          }
+        ))
+      }
+
+      // Execute all activity logs in parallel (non-blocking)
+      Promise.all(activities).catch(console.error)
+    }
 
     // Revalidate caches
     revalidateTag('catalog')

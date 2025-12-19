@@ -1,137 +1,139 @@
-# ✅ Deployment Complete - Ready for Testing!
+# ✅ Deployment Complete - Image Fixes Deployed to VPS
 
-**Deployment Date:** $(date +%Y-%m-%d)
-**Status:** 🟢 **DEPLOYED AND RUNNING**
+## Deployment Status
 
----
-
-## 🎉 Deployment Summary
-
-✅ **Next.js application deployed to VPS**
-- **Process:** `azteka-nextjs` (PM2)
-- **Port:** 3002
-- **Status:** Online
-- **URL:** https://aztekafoods.com
+**Date:** Just completed  
+**VPS:** 77.243.85.8  
+**Status:** ✅ **SUCCESSFULLY DEPLOYED**
 
 ---
 
-## 🔐 Login Credentials
+## What Was Deployed
 
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | admin@aztekafoods.com | admin123 |
-| **Sales Rep** | sales@aztekafoods.com | sales123 |
-| **Driver** | driver@aztekafoods.com | driver123 |
-| **Customer** | customer@example.com | customer123 |
+### Files Synced:
+1. ✅ `app/employee/inventory/page.tsx` - Fixed image URL resolution
+2. ✅ `app/employee/products/page.tsx` - Fixed image URL resolution  
+3. ✅ `app/api/employee/products/upload-image/route.ts` - Improved HEIC support
+4. ✅ `app/api/admin/products/uploadImage/route.ts` - Fixed database update
+5. ✅ `lib/imageUrl.ts` - Image URL helper (already existed)
 
-⚠️ **Change these passwords in production!**
-
----
-
-## 🧪 Test URLs
-
-### Production URLs
-
-1. **Main Catalog**
-   - https://aztekafoods.com/catalog
-   - Test: Product cards, backgrounds, visual effects
-
-2. **Admin Products**
-   - https://aztekafoods.com/admin/products
-   - Test: Mark Out button, product editor, visual presets
-
-3. **Admin Bundles**
-   - https://aztekafoods.com/admin/bundles
-   - Test: Create/edit bundles
-
-4. **Admin Categories**
-   - https://aztekafoods.com/admin/categories
-   - Test: Category management
-
-5. **Admin Brands**
-   - https://aztekafoods.com/admin/brands
-   - Test: Brand management
-
-6. **Warehouse Print API**
-   - https://aztekafoods.com/api/warehouse/print-slip
-   - Test: Auto-print on order confirmation
+### Build Status:
+- ✅ Next.js app rebuilt successfully
+- ✅ PM2 services restarted (azteka-nextjs, azteka-worker)
+- ✅ Next.js cache cleared
+- ✅ Nginx reloaded
 
 ---
 
-## ✅ Testing Checklist
+## Next Steps
 
-### Admin Panel Tests
+### 1. Hard Refresh Browser
+**Important:** You MUST hard refresh to see the changes:
 
-- [ ] Login as admin
-- [ ] View product list
-- [ ] Click "Mark Out" button (should work without 500 error)
-- [ ] Create new product
-- [ ] Edit product (all fields)
-- [ ] Upload product image
-- [ ] Visual presets load correctly
-- [ ] Save product successfully
-- [ ] View bundles
-- [ ] Create/edit bundle
+- **Mac:** `Cmd + Shift + R`
+- **Windows/Linux:** `Ctrl + Shift + R`
+- **Or:** Clear browser cache
 
-### Catalog Tests
+### 2. Test Image Display
+1. Go to: `https://aztekafoods.com/employee/inventory`
+2. Search for "Alpura Vaquita Chocolate"
+3. **Check:** Image should now display (not placeholder)
 
-- [ ] View catalog page
-- [ ] Product cards display correctly
-- [ ] Backgrounds/gradients show
-- [ ] Add product to cart
-- [ ] View cart
-- [ ] Product detail page works
-
-### Warehouse Print Tests
-
-- [ ] Create order (sales rep)
-- [ ] Order confirmation triggers print
-- [ ] Print queue shows job
-- [ ] Packing slip generated
-- [ ] Pick list generated
+### 3. Test Image Upload
+1. Click on Alpura Vaquita Chocolate
+2. Go to Image tab
+3. Upload a PNG image
+4. **Check:** 
+   - Preview should update immediately
+   - Image should save to database
+   - Image should show in all UIs
 
 ---
 
-## 🔧 Monitoring Commands
+## What the Fixes Do
 
-### Check PM2 Status
+### Image URL Resolution
+- **Before:** Raw URLs like `/uploads/products/abc123.png` might not resolve
+- **After:** Uses `getPublicImageUrl()` to normalize URLs correctly
+- **Result:** Images display consistently everywhere
+
+### Upload Endpoint
+- **Before:** Admin endpoint didn't update database
+- **After:** Both endpoints update database and use `${productId}.png` filename
+- **Result:** Images sync immediately across all UIs
+
+### HEIC Support
+- **Before:** Basic error messages
+- **After:** Better error messages with helpful suggestions
+- **Result:** Users know what to do if HEIC conversion fails
+
+---
+
+## Verification Commands
+
+If you want to verify the deployment:
+
 ```bash
-ssh root@77.243.85.8 "pm2 list"
-```
+# Check if fixes are deployed
+ssh root@77.243.85.8 "grep 'getPublicImageUrl' /srv/azteka-api-live/app/employee/inventory/page.tsx"
 
-### View Logs
-```bash
-ssh root@77.243.85.8 "pm2 logs azteka-nextjs --lines 100"
-```
+# Check PM2 status
+ssh root@77.243.85.8 "pm2 status"
 
-### Monitor in Real-Time
-```bash
-ssh root@77.243.85.8 "pm2 monit"
-```
-
-### Restart Application
-```bash
-ssh root@77.243.85.8 "pm2 restart azteka-nextjs"
+# Check logs
+ssh root@77.243.85.8 "pm2 logs azteka-nextjs --lines 20"
 ```
 
 ---
 
-## 🐛 Known Issues
+## Troubleshooting
 
-1. **Build Warnings:** Some static page generation warnings (expected for dynamic API routes)
-2. **Type Errors:** Temporarily disabled type checking for deployment (will fix in next iteration)
-3. **Printer Connection:** Warehouse printer needs IPP wiring (stub implementation)
+### If images still don't show:
+
+1. **Hard refresh browser** (most important!)
+   - Mac: Cmd+Shift+R
+   - Windows: Ctrl+Shift+R
+
+2. **Check browser console:**
+   - Open DevTools (F12)
+   - Look for image loading errors
+   - Check Network tab for failed requests
+
+3. **Verify image file exists:**
+   ```bash
+   ssh root@77.243.85.8
+   cd /srv/azteka-api-live
+   ls -la public/uploads/products/ | grep vaquita
+   ```
+
+4. **Check database:**
+   ```bash
+   ssh root@77.243.85.8
+   cd /srv/azteka-api-live
+   npx prisma studio
+   # Find Alpura Vaquita Chocolate
+   # Check imageUrl field
+   ```
+
+5. **Run verification script:**
+   ```bash
+   ssh root@77.243.85.8
+   cd /srv/azteka-api-live
+   node scripts/verify-image-sync.mjs
+   ```
 
 ---
 
-## 🚀 Next Steps
+## Expected Results
 
-1. **Test all features** using the checklist above
-2. **Wire warehouse printer** (IPP implementation)
-3. **Fix TypeScript errors** (remove `ignoreBuildErrors` after fixing types)
-4. **Set up Capacitor** (after Apple Dev account)
+After hard refresh:
+- ✅ Alpura Vaquita Chocolate should show image (not placeholder)
+- ✅ Image upload should work from inventory page
+- ✅ Images should sync across all UIs
+- ✅ Preview should update immediately after upload
 
 ---
 
-**Status:** ✅ **READY FOR TESTING**
-**Last Updated:** $(date +%Y-%m-%d)
+**Status:** ✅ **DEPLOYED AND READY**
+
+**Action Required:** Hard refresh your browser to see the fixes!

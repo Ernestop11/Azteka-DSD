@@ -5,9 +5,6 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
 
-// Dynamic import for background removal (heavy dependency)
-let removeBackgroundAI: ((input: Buffer) => Promise<Blob>) | null = null
-
 // Dynamic import for HEIC conversion
 let heicConvert: ((options: { buffer: Buffer; format: 'JPEG' | 'PNG'; quality?: number }) => Promise<Buffer>) | null = null
 
@@ -23,31 +20,19 @@ async function loadHeicConverter() {
   return heicConvert
 }
 
-async function loadBackgroundRemovalAI() {
-  if (!removeBackgroundAI) {
-    try {
-      const { removeBackground } = await import('@imgly/background-removal-node')
-      removeBackgroundAI = removeBackground
-    } catch (err) {
-      console.warn('AI background removal not available, falling back to basic:', err)
-    }
-  }
-  return removeBackgroundAI
-}
-
 /**
  * POST /api/employee/products/upload-image
- * Uploads a product image with optional AI-powered background removal
- *
- * NEW FEATURE: Uses @imgly/background-removal-node for professional-quality
- * background removal that handles complex backgrounds, hair, fur, and soft edges.
+ * Uploads a product image with standard optimization
+ * 
+ * NOTE: Background removal has been moved to a separate service:
+ * Use /api/products/background-removal for background removal (optional, isolated)
  */
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const image = formData.get('image') as File | null
     const productId = formData.get('id') as string | null
-    const removeBackground = formData.get('removeBackground') === 'true'
+    // Background removal removed - use separate endpoint if needed
     const enhanceImage = formData.get('enhance') === 'true'
 
     if (!image) {
@@ -95,7 +80,7 @@ export async function POST(request: NextRequest) {
                    fileName.endsWith('.heic') || fileName.endsWith('.heif')
 
     if (isHeic) {
-      console.log('[Upload] Converting HEIC/HEIF to JPEG...')
+      console.log('[Upload] Detected HEIC/HEIF format, converting to JPEG...')
       const converter = await loadHeicConverter()
       if (converter) {
         try {
@@ -105,53 +90,36 @@ export async function POST(request: NextRequest) {
             quality: 0.9
           })
           console.log('[Upload] HEIC conversion successful')
-        } catch (heicError) {
+        } catch (heicError: any) {
           console.error('[Upload] HEIC conversion failed:', heicError)
+          // More helpful error message
+          const errorMsg = heicError?.message || 'Unknown conversion error'
           return NextResponse.json(
-            { error: 'Failed to convert HEIC image. Please convert to JPEG/PNG before uploading.' },
+            { 
+              error: 'Failed to convert HEIC image', 
+              details: `HEIC conversion error: ${errorMsg}. The heic-convert package may need to be installed or configured.`,
+              suggestion: 'Try converting the image to JPEG/PNG using your device before uploading.'
+            },
             { status: 400 }
           )
         }
       } else {
+        console.warn('[Upload] HEIC converter not available - heic-convert package may not be installed')
         return NextResponse.json(
-          { error: 'HEIC format not supported. Please convert to JPEG/PNG before uploading.' },
+          { 
+            error: 'HEIC format not supported', 
+            details: 'The heic-convert package is not available. Please install it or convert the image to JPEG/PNG before uploading.',
+            suggestion: 'Convert HEIC images to JPEG/PNG using your device\'s photo app before uploading.'
+          },
           { status: 400 }
         )
       }
     }
 
-    // Process image
+    // Process image (background removal removed - use separate endpoint)
     let processedBuffer: Buffer
-    let usedAI = false
 
-    if (removeBackground) {
-      // Try AI-powered background removal first
-      const aiRemover = await loadBackgroundRemovalAI()
-
-      if (aiRemover) {
-        try {
-          console.log('[Upload] Using AI background removal...')
-          const blob = await aiRemover(buffer)
-          const arrayBuffer = await blob.arrayBuffer()
-          processedBuffer = Buffer.from(arrayBuffer)
-          usedAI = true
-          console.log('[Upload] AI background removal successful')
-        } catch (aiError) {
-          console.warn('[Upload] AI background removal failed, using fallback:', aiError)
-          processedBuffer = await removeWhiteBackgroundBasic(buffer)
-        }
-      } else {
-        // Fallback to basic white background removal
-        processedBuffer = await removeWhiteBackgroundBasic(buffer)
-      }
-
-      // Resize after background removal
-      processedBuffer = await sharp(processedBuffer)
-        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-        .png()
-        .toBuffer()
-
-    } else if (enhanceImage) {
+    if (enhanceImage) {
       // NEW FEATURE: Image enhancement - sharpen, boost colors
       processedBuffer = await sharp(buffer)
         .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
@@ -176,28 +144,28 @@ export async function POST(request: NextRequest) {
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: {
-        imageUrl,
-        backgroundRemoved: removeBackground
+        imageUrl
       },
       select: {
         id: true,
-        imageUrl: true,
-        backgroundRemoved: true
+        imageUrl: true
       }
     })
 
-    // Revalidate caches
+    // Revalidate caches for real-time sync across ALL pages
     revalidateTag('catalog')
     revalidateTag('products')
     revalidatePath('/catalog')
     revalidatePath('/employee/inventory')
+    revalidatePath('/employee/products')
+    revalidatePath('/admin/products')
+    revalidatePath('/admin')
 
     return NextResponse.json({
       success: true,
       imageUrl: updatedProduct.imageUrl,
-      backgroundRemoved: updatedProduct.backgroundRemoved,
-      usedAI, // NEW: Let frontend know if AI was used
-      enhanced: enhanceImage
+      enhanced: enhanceImage,
+      message: 'Image uploaded successfully. Use /api/products/background-removal for background removal if needed.'
     })
   } catch (error: any) {
     console.error('[POST /api/employee/products/upload-image] Error:', error)
@@ -208,45 +176,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Basic white/light background removal using Sharp
- * Fallback when AI model is not available
- */
-async function removeWhiteBackgroundBasic(inputBuffer: Buffer): Promise<Buffer> {
-  try {
-    const resizedBuffer = await sharp(inputBuffer)
-      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-
-    const { data, info } = resizedBuffer
-    const pixels = new Uint8Array(data)
-    const pixelCount = info.width * info.height
-
-    for (let i = 0; i < pixelCount; i++) {
-      const idx = i * 4
-      const r = pixels[idx]
-      const g = pixels[idx + 1]
-      const b = pixels[idx + 2]
-
-      const isLight = r > 230 && g > 230 && b > 230
-      const isLightGray = r > 200 && g > 200 && b > 200 &&
-                          Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && Math.abs(r - b) < 20
-
-      if (isLight || isLightGray) {
-        pixels[idx + 3] = 0
-      }
-    }
-
-    return sharp(Buffer.from(pixels), {
-      raw: { width: info.width, height: info.height, channels: 4 }
-    }).png().toBuffer()
-  } catch (err) {
-    console.error('Basic background removal failed:', err)
-    return sharp(inputBuffer)
-      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .png()
-      .toBuffer()
-  }
-}

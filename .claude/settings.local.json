@@ -59,7 +59,21 @@
       "Bash(git reset:*)",
       "Bash(.next-azteka/ root@77.243.85.8:/srv/azteka-api-live/.next-azteka/)",
       "Bash(app/ root@77.243.85.8:/srv/azteka-api-live/app/)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:next:*)",
+      "Bash(/Users/ernestoponce/dev/azteka-dsd/ root@77.243.85.8:/srv/azteka-api-live/)",
+      "Bash(lib/validation/productSchema.ts )",
+      "Bash(root@77.243.85.8:/srv/azteka-api-live/lib/validation/)",
+      "Bash(app/api/admin/products/route.ts )",
+      "Bash(root@77.243.85.8:/srv/azteka-api-live/app/api/admin/products/)",
+      "Bash(app/employee/inventory/page.tsx )",
+      "Bash(root@77.243.85.8:/srv/azteka-api-live/app/employee/inventory/)",
+      "Bash(app/api/employee/products/upload-image/route.ts )",
+      "Bash(root@77.243.85.8:/srv/azteka-api-live/app/api/employee/products/upload-image/)",
+      "Bash(git stash:*)",
+      "Bash(md5:*)"
     ],
     "deny": [],
     "ask": []

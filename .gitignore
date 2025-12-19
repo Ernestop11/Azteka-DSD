@@ -65,3 +65,5 @@ logs/
 # Prisma
 prisma/migrations/
 .env.bak
+.next-azteka/
+.next/

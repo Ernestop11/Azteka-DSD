@@ -13,9 +13,35 @@ import { requireAdmin } from '../../lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // Parse query parameters for filtering
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('categoryId')
+    const brandId = searchParams.get('brandId')
+    const search = searchParams.get('search')
+
+    // Build dynamic where clause
+    const where: any = {}
+
+    if (categoryId && categoryId !== 'all') {
+      where.categoryId = categoryId
+    }
+
+    if (brandId && brandId !== 'all') {
+      where.brandId = brandId
+    }
+
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
     // Use minimal select with only core fields that definitely exist
     // Use include for relations to avoid field-by-field selection issues
     const products = await prisma.product.findMany({
+      where,
       select: {
         id: true,
         name: true,
@@ -23,6 +49,11 @@ export async function GET(request: NextRequest) {
         description: true,
         price: true,
         unitsPerCase: true,
+        stock: true,
+        minStock: true,
+        warehouseLocation: true,
+        expirationDate: true,
+        lotNumber: true,
         imageUrl: true,
         backgroundColor: true,
         backgroundGradient: true,
@@ -31,7 +62,7 @@ export async function GET(request: NextRequest) {
         trending: true,
         categoryId: true,
         brandId: true,
-        inStock: true, // Include inStock field
+        inStock: true,
         createdAt: true,
         updatedAt: true,
         Category: {
@@ -152,6 +183,11 @@ export async function POST(request: NextRequest) {
         categoryId: data.categoryId || null,
         brandId: data.brandId || null,
         imageUrl: data.imageUrl || null,
+        // Inventory fields
+        stock: data.stock ?? 0,
+        warehouseLocation: data.warehouseLocation || null,
+        expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+        lotNumber: data.lotNumber || null,
         // Visual preset fields
         gradientPresetId: data.gradientPresetId || null,
         glowPresetId: data.glowPresetId || null,
@@ -205,11 +241,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Revalidate catalog cache and paths
+    // Revalidate ALL caches and paths for real-time sync across ALL pages
     revalidateTag('catalog')
     revalidateTag('products')
     revalidatePath('/catalog')
     revalidatePath(`/catalog/${product.id}`)
+    revalidatePath('/employee/inventory')
+    revalidatePath('/employee/products')
+    revalidatePath('/admin/products')
+    revalidatePath('/admin')
     revalidatePath('/')
 
     // Fetch complete product with relations
@@ -299,6 +339,7 @@ export async function PUT(request: NextRequest) {
     })
 
     // Handle image upload if file exists
+    // IMPORTANT: Use product ID as filename for consistency across all UIs
     if (imageFile && imageFile.size > 0) {
       try {
         const uploadsDir = join(process.cwd(), "public", "uploads", "products")
@@ -307,7 +348,8 @@ export async function PUT(request: NextRequest) {
         }
 
         const buffer = Buffer.from(await imageFile.arrayBuffer())
-        const filename = `${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9.]/g, "_")}`
+        // Use product ID as filename - overwrites existing image
+        const filename = `${id}.png`
         const filepath = join(uploadsDir, filename)
         await writeFile(filepath, buffer)
         updateData.imageUrl = `/uploads/products/${filename}`
@@ -332,11 +374,16 @@ export async function PUT(request: NextRequest) {
     })
 
     // Revalidate cache
+    // Revalidate ALL caches and paths for real-time sync across ALL pages
     revalidateTag('catalog')
     revalidateTag('products')
     revalidateTag('catalog-layout')
     revalidatePath('/catalog')
     revalidatePath(`/catalog/${id}`)
+    revalidatePath('/employee/inventory')
+    revalidatePath('/employee/products')
+    revalidatePath('/admin/products')
+    revalidatePath('/admin')
     revalidatePath('/')
 
     const normalizedProduct = {

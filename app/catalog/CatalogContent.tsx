@@ -45,17 +45,24 @@ interface CatalogSettings {
   particleEffect?: string | null
 }
 
+interface BusinessSettings {
+  name: string
+  phone: string
+  email: string
+  website: string
+}
+
 // Product Image with fallback
 function ProductImage({ src, alt, className, style }: { src?: string; alt: string; className?: string; style?: React.CSSProperties }) {
   const [error, setError] = useState(false)
   if (!src || error) {
     return (
-      <div className={`flex items-center justify-center bg-slate-800 ${className}`} style={style}>
-        <Package className="w-12 h-12 text-slate-600" />
+      <div className={`flex items-center justify-center bg-slate-800 relative z-10 ${className || ''}`} style={style}>
+        <Package className="w-12 h-12 text-slate-600 relative z-10" />
       </div>
     )
   }
-  return <img src={src} alt={alt} className={className} style={style} onError={() => setError(true)} loading="lazy" />
+  return <img src={src} alt={alt} className={`${className || ''} relative z-10`} style={style} onError={() => setError(true)} loading="lazy" />
 }
 
 // Default hero gradient
@@ -258,7 +265,8 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
     else setOrderMode('case')
   }
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!product.inStock) return
     if (!isSelected) {
       setIsSelected(true)
@@ -319,16 +327,22 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
           />
         )}
 
-        <ProductImage
-          src={product.imageUrl}
-          alt={product.name}
-          className={`max-h-full max-w-full object-contain transition-all duration-500 z-10 ${
-            isSelected ? 'scale-110' : 'hover:scale-105'
-          }`}
-          style={{
-            filter: cardImageEffect || (isSelected ? `drop-shadow(0 0 20px ${cardAccentColor}70)` : 'drop-shadow(0 8px 16px rgba(0,0,0,0.4))'),
-          }}
-        />
+        {product.imageUrl ? (
+          <ProductImage
+            src={product.imageUrl}
+            alt={product.name}
+            className={`max-h-full max-w-full object-contain transition-all duration-500 relative z-10 ${
+              isSelected ? 'scale-110' : 'hover:scale-105'
+            }`}
+            style={{
+              filter: cardImageEffect || (isSelected ? `drop-shadow(0 0 20px ${cardAccentColor}70)` : 'drop-shadow(0 8px 16px rgba(0,0,0,0.4))'),
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center relative z-10">
+            <Package className="w-16 h-16 text-gray-400" />
+          </div>
+        )}
       </div>
 
       {/* Product Info - Clean & Minimal */}
@@ -364,24 +378,25 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
         </div>
       </div>
 
-      {/* Quantity Controls - Clean Panda Express Style */}
+      {/* Quantity Controls - Always Visible When Selected */}
       <AnimatePresence>
         {isSelected && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+            className="overflow-hidden border-t-2"
+            style={{ borderColor: cardAccentColor }}
           >
-            <div className="flex items-center justify-center gap-6 py-3 px-4 bg-white/5">
+            <div className="flex items-center justify-center gap-6 py-4 px-4" style={{ background: cardBg.includes('gradient') ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)' }}>
               {/* Minus Button - Round */}
               <button
                 onClick={(e) => handleQuantityChange(-1, e)}
-                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xl transition-all hover:scale-110 active:scale-95 border-2"
+                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
                 style={{
                   borderColor: cardAccentColor,
                   color: cardAccentColor,
-                  background: 'transparent'
+                  background: 'white'
                 }}
               >
                 −
@@ -389,7 +404,7 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
 
               {/* Quantity Display - Bold Number */}
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-black text-lg text-white"
+                className="w-12 h-12 rounded-full flex items-center justify-center font-black text-xl text-white shadow-lg z-20"
                 style={{ background: cardAccentColor }}
               >
                 {quantity}
@@ -398,11 +413,11 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
               {/* Plus Button - Round */}
               <button
                 onClick={(e) => handleQuantityChange(1, e)}
-                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xl transition-all hover:scale-110 active:scale-95 border-2"
+                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
                 style={{
                   borderColor: cardAccentColor,
                   color: cardAccentColor,
-                  background: 'transparent'
+                  background: 'white'
                 }}
               >
                 +
@@ -898,6 +913,17 @@ export default function CatalogContent() {
     refetchIntervalInBackground: true,
   })
 
+  // Fetch business settings (business name for header)
+  const { data: businessData } = useQuery<BusinessSettings>({
+    queryKey: ['business-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/settings')
+      if (!res.ok) return { name: 'Azteka DSD', phone: '', email: '', website: '' }
+      return res.json()
+    },
+    staleTime: 60000, // Cache for 1 minute
+  })
+
   // Fetch catalog blocks - auto-refresh every 3 seconds for live preview
   const { data: blocksData, isLoading, error } = useQuery<{ data: CatalogBlock[] }>({
     queryKey: ['catalog-blocks'],
@@ -1000,8 +1026,8 @@ export default function CatalogContent() {
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="text-center flex-1">
-              <h1 className="text-lg md:text-xl font-bold text-white">Azteka DSD - Grocery Store</h1>
-              <p className="text-slate-400 text-xs md:text-sm">Fresh Produce & Pantry Staples</p>
+              <h1 className="text-lg md:text-xl font-bold text-white">{businessData?.name || 'Azteka DSD'}</h1>
+              <p className="text-slate-400 text-xs md:text-sm">Wholesale Catalog</p>
             </div>
             <button onClick={() => setIsCartOpen(true)} className="relative p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
               <ShoppingCart className="w-6 h-6 text-white" />

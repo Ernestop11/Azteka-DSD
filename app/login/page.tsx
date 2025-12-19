@@ -156,8 +156,8 @@ function LoginForm() {
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Default credentials:</p>
-            <p className="font-mono mt-1">admin@azteka.com / password123</p>
+            <p>Admin credentials:</p>
+            <p className="font-mono mt-1">admin@aztekafoods.com</p>
           </div>
         </div>
       </motion.div>

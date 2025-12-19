@@ -280,7 +280,7 @@ function ProductsTab() {
       {/* Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Product List */}
-        <div className={`${selectedProduct || isCreating ? 'w-1/2' : 'w-full'} overflow-auto p-6 transition-all`}>
+        <div className="w-full overflow-auto p-6">
           {loadingProducts ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -302,24 +302,26 @@ function ProductsTab() {
           )}
         </div>
 
-        {/* Product Editor Panel */}
+        {/* Product Editor Modal */}
         {(selectedProduct || isCreating) && (
-          <div className="w-1/2 border-l border-gray-200 bg-white overflow-auto">
-            <ProductEditorPanel
-              product={selectedProduct}
-              categories={categories}
-              brands={brands}
-              allProducts={products}
-              onClose={() => {
-                setSelectedProduct(null)
-                setIsCreating(false)
-              }}
-              onSave={() => {
-                queryClient.invalidateQueries({ queryKey: ['admin-products'] })
-                setSelectedProduct(null)
-                setIsCreating(false)
-              }}
-            />
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+              <ProductEditorPanel
+                product={selectedProduct}
+                categories={categories}
+                brands={brands}
+                allProducts={products}
+                onClose={() => {
+                  setSelectedProduct(null)
+                  setIsCreating(false)
+                }}
+                onSave={() => {
+                  queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+                  setSelectedProduct(null)
+                  setIsCreating(false)
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -537,9 +539,9 @@ function ProductEditorPanel({
   ]
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-full max-h-[90vh]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
         <h3 className="text-lg font-bold text-gray-900">
           {product?.id ? 'Edit Product' : 'New Product'}
         </h3>
@@ -554,7 +556,7 @@ function ProductEditorPanel({
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-1 px-4 py-2 bg-gray-50 border-b border-gray-200 overflow-x-auto">
+      <div className="flex-shrink-0 flex gap-1 px-4 py-2 bg-gray-50 border-b border-gray-200 overflow-x-auto">
         {sections.map((section) => {
           const Icon = section.icon
           return (
@@ -575,7 +577,7 @@ function ProductEditorPanel({
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 min-h-0 overflow-auto p-6">
         {/* Basic Info Section */}
         {activeSection === 'basic' && (
           <div className="space-y-6">
@@ -957,7 +959,7 @@ function ProductEditorPanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
         <button
           onClick={onClose}
           className="px-4 py-2 text-gray-600 hover:text-gray-800"

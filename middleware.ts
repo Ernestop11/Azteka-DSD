@@ -40,6 +40,16 @@ function isPublicRoute(pathname: string): boolean {
     return true
   }
 
+  // Allow /kiosk route (public employee time clock)
+  if (pathname === '/kiosk' || pathname.startsWith('/kiosk/')) {
+    return true
+  }
+
+  // Allow /employee route - AuthGuard handles actual role-based auth
+  if (pathname === '/employee' || pathname.startsWith('/employee/')) {
+    return true
+  }
+
   // Allow public assets (_next, static files, etc.)
   if (
     pathname.startsWith('/_next/') ||

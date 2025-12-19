@@ -7,11 +7,15 @@ const nextConfig = {
 
   // Externalize native node modules for server components
   // This fixes webpack issues with onnxruntime-node (used by @imgly/background-removal-node)
-  serverExternalPackages: [
-    '@imgly/background-removal-node',
-    'onnxruntime-node',
-    'sharp',
-  ],
+  // Use experimental.serverComponentsExternalPackages for Next.js 14.x compatibility
+  experimental: {
+    serverComponentsExternalPackages: [
+      '@imgly/background-removal-node',
+      'onnxruntime-node',
+      'sharp',
+      'heic-convert',
+    ],
+  },
 
   // Webpack config to handle native modules
   webpack: (config, { isServer }) => {
@@ -21,6 +25,7 @@ const nextConfig = {
       config.externals.push({
         '@imgly/background-removal-node': 'commonjs @imgly/background-removal-node',
         'onnxruntime-node': 'commonjs onnxruntime-node',
+        'heic-convert': 'commonjs heic-convert',
       })
     }
     return config

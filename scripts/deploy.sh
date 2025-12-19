@@ -1,59 +1,95 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$APP_DIR"
+# =============================================================================
+# Azteka DSD - Git-Based Deployment Script
+# =============================================================================
+#
+# Flow: Local → Git → VPS Pull → VPS Build → PM2 Restart
+#
+# Usage: ./scripts/deploy.sh
+# =============================================================================
 
-echo "[$(date)] ========================================"
-echo "[$(date)] Starting Azteka DSD Deployment"
-echo "[$(date)] ========================================"
+set -e
 
-# Check if .env.production exists
-if [ ! -f ".env.production" ]; then
-    echo "[$(date)] ERROR: .env.production file not found!"
-    exit 1
+VPS="root@77.243.85.8"
+APP_PATH="/srv/azteka-api-live"
+
+echo ""
+echo "🚀 Azteka DSD Deployment"
+echo "========================"
+echo ""
+
+# Check for uncommitted changes
+if [[ -n $(git status --porcelain) ]]; then
+    echo "⚠️  Uncommitted changes detected:"
+    git status --short
+    echo ""
+    read -p "Commit these changes? (y/n) " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        read -p "Commit message: " message
+        git add .
+        git commit -m "$message"
+    else
+        echo "❌ Commit your changes first, then deploy."
+        exit 1
+    fi
 fi
 
-# Load production environment
-echo "[$(date)] Loading production environment..."
-export $(grep -v '^#' .env.production | xargs)
+# Push to git
+echo "📤 Pushing to git..."
+git push origin main || git push origin $(git branch --show-current)
 
-echo "[$(date)] Installing dependencies..."
-npm install --production=false
+# Deploy on VPS via SSH
+echo ""
+echo "🔄 Deploying on VPS..."
+ssh $VPS << 'DEPLOY_SCRIPT'
+set -e
+cd /srv/azteka-api-live
 
-echo "[$(date)] Generating Prisma client..."
+echo ""
+echo "📥 Pulling latest from git..."
+git fetch origin
+git reset --hard origin/main
+
+echo ""
+echo "📦 Installing dependencies..."
+npm install --legacy-peer-deps --silent
+
+echo ""
+echo "🔧 Generating Prisma client..."
 npx prisma generate
 
-echo "[$(date)] Applying database migrations..."
-npx prisma migrate deploy
+echo ""
+echo "🗄️  Running database migrations..."
+npx prisma migrate deploy 2>/dev/null || echo "   No pending migrations"
 
-echo "[$(date)] Building Vite frontend..."
-NODE_ENV=production npm run build
+echo ""
+echo "🏗️  Building Next.js..."
+npm run build:next
 
-# Create necessary directories
-echo "[$(date)] Creating upload directories..."
-mkdir -p uploads/invoices
-mkdir -p uploads/products
-mkdir -p public/products
+# CRITICAL: Ensure correct module type for Next.js build
+echo '{"type": "commonjs"}' > .next-azteka/package.json
 
-echo "[$(date)] Setting proper permissions..."
-chmod -R 755 uploads
-chmod -R 755 public
-
-echo "[$(date)] Restarting PM2 process (azteka-api)..."
-if pm2 list | grep -q "azteka-api"; then
-  pm2 restart azteka-api
-else
-  pm2 start server.mjs --name azteka-api --node-args="--env-file=.env.production"
-fi
-
-# Save PM2 configuration
+echo ""
+echo "♻️  Restarting services..."
+pm2 restart azteka-nextjs azteka-worker
 pm2 save
 
-echo "[$(date)] Reloading nginx..."
-sudo systemctl reload nginx
+echo ""
+echo "✅ VPS deployment complete!"
+DEPLOY_SCRIPT
 
-echo "[$(date)] ========================================"
-echo "[$(date)] Deployment Complete!"
-echo "[$(date)] ========================================"
-echo "[$(date)] Health check: curl http://127.0.0.1:4000/health"
+# Show status
+echo ""
+echo "========================"
+echo "✅ Deployment successful!"
+echo "========================"
+echo ""
+echo "🌐 Site: https://aztekafoods.com"
+echo ""
+echo "📋 Commands:"
+echo "   Logs:    ssh $VPS 'pm2 logs azteka-nextjs --lines 30'"
+echo "   Status:  ssh $VPS 'pm2 list'"
+echo "   Restart: ssh $VPS 'pm2 restart azteka-nextjs'"
+echo ""

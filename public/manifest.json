@@ -91,6 +91,13 @@
   ],
   "shortcuts": [
     {
+      "name": "Time Clock",
+      "short_name": "Clock",
+      "description": "Employee clock in/out kiosk",
+      "url": "/kiosk",
+      "icons": [{ "src": "/icons/clock.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Product Catalog",
       "short_name": "Catalog",
       "description": "Browse and order products",
@@ -117,6 +124,13 @@
       "description": "Pick and pack orders",
       "url": "/employee/orders",
       "icons": [{ "src": "/icons/orders.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Driver Dashboard",
+      "short_name": "Driver",
+      "description": "Deliveries, route, and truck inventory",
+      "url": "/driver/today",
+      "icons": [{ "src": "/icons/driver.png", "sizes": "192x192" }]
     },
     {
       "name": "Admin Panel",
