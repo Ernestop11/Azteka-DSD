@@ -8,6 +8,21 @@ import sharp from 'sharp'
 // Dynamic import for background removal (heavy dependency)
 let removeBackgroundAI: ((input: Buffer) => Promise<Blob>) | null = null
 
+// Dynamic import for HEIC conversion
+let heicConvert: ((options: { buffer: Buffer; format: 'JPEG' | 'PNG'; quality?: number }) => Promise<Buffer>) | null = null
+
+async function loadHeicConverter() {
+  if (!heicConvert) {
+    try {
+      const mod = await import('heic-convert')
+      heicConvert = mod.default || mod
+    } catch (err) {
+      console.warn('HEIC converter not available:', err)
+    }
+  }
+  return heicConvert
+}
+
 async function loadBackgroundRemovalAI() {
   if (!removeBackgroundAI) {
     try {
@@ -71,7 +86,39 @@ export async function POST(request: NextRequest) {
 
     // Read file buffer
     const bytes = await image.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    let buffer = Buffer.from(bytes)
+
+    // Check if HEIC/HEIF format and convert to JPEG
+    const mimeType = image.type?.toLowerCase() || ''
+    const fileName = image.name?.toLowerCase() || ''
+    const isHeic = mimeType.includes('heic') || mimeType.includes('heif') ||
+                   fileName.endsWith('.heic') || fileName.endsWith('.heif')
+
+    if (isHeic) {
+      console.log('[Upload] Converting HEIC/HEIF to JPEG...')
+      const converter = await loadHeicConverter()
+      if (converter) {
+        try {
+          buffer = await converter({
+            buffer,
+            format: 'JPEG',
+            quality: 0.9
+          })
+          console.log('[Upload] HEIC conversion successful')
+        } catch (heicError) {
+          console.error('[Upload] HEIC conversion failed:', heicError)
+          return NextResponse.json(
+            { error: 'Failed to convert HEIC image. Please convert to JPEG/PNG before uploading.' },
+            { status: 400 }
+          )
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'HEIC format not supported. Please convert to JPEG/PNG before uploading.' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Process image
     let processedBuffer: Buffer

@@ -72,6 +72,7 @@
     "form-data": "^4.0.4",
     "framer-motion": "^12.23.24",
     "googlethis": "^1.8.0",
+    "heic-convert": "^2.1.0",
     "jsonwebtoken": "^9.0.2",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.344.0",
