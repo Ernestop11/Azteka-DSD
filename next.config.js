@@ -5,6 +5,27 @@ const nextConfig = {
   // Note: Next.js dev server runs on http://localhost:3000
   // Server Actions are enabled by default in Next.js 14+
 
+  // Externalize native node modules for server components
+  // This fixes webpack issues with onnxruntime-node (used by @imgly/background-removal-node)
+  serverExternalPackages: [
+    '@imgly/background-removal-node',
+    'onnxruntime-node',
+    'sharp',
+  ],
+
+  // Webpack config to handle native modules
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Don't bundle these packages, they will be required at runtime
+      config.externals = config.externals || []
+      config.externals.push({
+        '@imgly/background-removal-node': 'commonjs @imgly/background-removal-node',
+        'onnxruntime-node': 'commonjs onnxruntime-node',
+      })
+    }
+    return config
+  },
+
   // Image optimization configuration
   images: {
     remotePatterns: [
