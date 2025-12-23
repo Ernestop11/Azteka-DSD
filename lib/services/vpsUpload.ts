@@ -9,12 +9,13 @@ import { NodeSSH } from 'node-ssh'
 import path from 'path'
 
 // VPS Configuration from environment
+// NOTE: Production runs from /srv/azteka-dsd NOT /srv/azteka-api-live
 const VPS_CONFIG = {
   host: process.env.VPS_HOST || process.env.VPS_SSH_HOST || '77.243.85.8',
   username: process.env.VPS_USER || process.env.VPS_SSH_USER || 'root',
   privateKeyPath: process.env.VPS_SSH_KEY_PATH || `${process.env.HOME}/.ssh/id_rsa`,
-  basePath: process.env.VPS_PATH || '/srv/azteka-api-live',
-  uploadsPath: '/srv/azteka-api-live/public/uploads',
+  basePath: process.env.VPS_PATH || '/srv/azteka-dsd',
+  uploadsPath: process.env.VPS_UPLOADS_PATH || '/srv/azteka-dsd/public/uploads',
 }
 
 // Upload types and their paths
@@ -45,10 +46,24 @@ interface UploadResult {
 }
 
 /**
+ * Check if we're running directly on the VPS
+ */
+function isRunningOnVps(): boolean {
+  const fs = require('fs')
+  // If the VPS uploads path exists locally, we're on the VPS
+  return fs.existsSync(VPS_CONFIG.uploadsPath)
+}
+
+/**
  * Check if VPS upload is enabled
  */
 export function isVpsUploadEnabled(): boolean {
-  // Check if we have SSH key access
+  // If we're on the VPS, we can always upload (direct filesystem write)
+  if (isRunningOnVps()) {
+    return true
+  }
+
+  // Otherwise check if we have SSH key access for remote upload
   const fs = require('fs')
   try {
     fs.accessSync(VPS_CONFIG.privateKeyPath)
@@ -61,21 +76,57 @@ export function isVpsUploadEnabled(): boolean {
 
 /**
  * Upload a file buffer directly to VPS
+ * If running on VPS, writes directly to filesystem
+ * If running locally, uses SSH/SCP
  */
 export async function uploadToVps(
   buffer: Buffer,
   filename: string,
   type: UploadType = 'products'
 ): Promise<UploadResult> {
+  const fs = require('fs')
+  const fsPromises = require('fs').promises
+
+  // Get the upload subdirectory
+  const subdir = UPLOAD_PATHS[type] || type
+  const uploadDir = `${VPS_CONFIG.uploadsPath}/${subdir}`
+  const filePath = `${uploadDir}/${filename}`
+  const publicUrl = `/uploads/${subdir}/${filename}`
+
+  // If we're running ON the VPS, write directly to filesystem
+  if (isRunningOnVps()) {
+    try {
+      console.log(`[VPS Upload] Running on VPS, writing directly to: ${filePath}`)
+
+      // Ensure directory exists
+      if (!fs.existsSync(uploadDir)) {
+        await fsPromises.mkdir(uploadDir, { recursive: true })
+      }
+
+      // Write file
+      await fsPromises.writeFile(filePath, buffer)
+
+      console.log(`[VPS Upload] Direct write successful: ${filePath}`)
+
+      return {
+        success: true,
+        url: publicUrl,
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[VPS Upload] Direct write failed:', message)
+      return {
+        success: false,
+        url: '',
+        error: message,
+      }
+    }
+  }
+
+  // Otherwise use SSH for remote upload
   const ssh = new NodeSSH()
 
   try {
-    // Get the upload subdirectory
-    const subdir = UPLOAD_PATHS[type] || type
-    const remotePath = `${VPS_CONFIG.uploadsPath}/${subdir}`
-    const remoteFilePath = `${remotePath}/${filename}`
-    const publicUrl = `/uploads/${subdir}/${filename}`
-
     console.log(`[VPS Upload] Connecting to ${VPS_CONFIG.host}...`)
 
     // Connect to VPS
@@ -85,28 +136,27 @@ export async function uploadToVps(
       privateKeyPath: VPS_CONFIG.privateKeyPath,
     })
 
-    console.log(`[VPS Upload] Connected. Ensuring directory exists: ${remotePath}`)
+    console.log(`[VPS Upload] Connected. Ensuring directory exists: ${uploadDir}`)
 
     // Ensure the directory exists
-    await ssh.execCommand(`mkdir -p ${remotePath}`)
+    await ssh.execCommand(`mkdir -p ${uploadDir}`)
 
     // Upload the file using putBuffer
     console.log(`[VPS Upload] Uploading ${filename} (${buffer.length} bytes)...`)
 
     // Write buffer to temp file first, then SCP it
     const tempPath = `/tmp/azteka-upload-${Date.now()}-${filename}`
-    const fs = require('fs').promises
-    await fs.writeFile(tempPath, buffer)
+    await fsPromises.writeFile(tempPath, buffer)
 
-    await ssh.putFile(tempPath, remoteFilePath)
+    await ssh.putFile(tempPath, filePath)
 
     // Clean up temp file
-    await fs.unlink(tempPath)
+    await fsPromises.unlink(tempPath)
 
     // Set proper permissions
-    await ssh.execCommand(`chmod 644 ${remoteFilePath}`)
+    await ssh.execCommand(`chmod 644 ${filePath}`)
 
-    console.log(`[VPS Upload] Successfully uploaded to ${remoteFilePath}`)
+    console.log(`[VPS Upload] Successfully uploaded to ${filePath}`)
 
     ssh.dispose()
 
