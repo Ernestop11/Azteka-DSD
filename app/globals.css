@@ -12,9 +12,25 @@
   display: none;
 }
 
-/* Smooth Scroll */
+/* Smooth Scroll & Full Viewport */
 html {
   scroll-behavior: smooth;
+}
+
+/* Ensure full width on all devices including tablets */
+html, body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fix PWA standalone mode viewport issues on iPad */
+@supports (padding: env(safe-area-inset-top)) {
+  html, body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
 }
 
 /* Custom Scrollbar for Desktop (optional) */

@@ -94,7 +94,13 @@
       "Bash(/Users/ernestoponce/dev/azteka-dsd/app/api/employee/receiving )",
       "Bash(/Users/ernestoponce/dev/azteka-dsd/app/employee/receiving )",
       "Bash(root@77.243.85.8:/srv/azteka-api-live/app/)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(root@77.243.85.8:/srv/azteka-dsd/)",
+      "Bash(xxd:*)",
+      "Bash(root@77.243.85.8:/srv/azteka-dsd/.next-azteka/)",
+      "Bash(/Users/ernestoponce/dev/azteka-dsd/app/api/admin/products/uploadImage/route.ts )",
+      "Bash(/Users/ernestoponce/dev/azteka-dsd/app/api/employee/products/upload-image/route.ts )",
+      "Bash(root@77.243.85.8:/tmp/)"
     ],
     "deny": [],
     "ask": []

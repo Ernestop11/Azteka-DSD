@@ -75,7 +75,7 @@ export default function EmployeeLayout({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
@@ -119,7 +119,7 @@ export default function EmployeeLayout({
   ]
 
   return (
-    <div className="bg-gray-100 flex">
+    <div className="min-h-screen w-full bg-gray-100 flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -137,11 +137,10 @@ export default function EmployeeLayout({
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           shadow-2xl
         `}
-        style={{ 
+        style={{
           backgroundColor: '#065f46',
           backgroundImage: 'none',
-          opacity: 1,
-          position: 'relative'
+          opacity: 1
         }}
       >
         <div className="p-4 border-b border-emerald-600 flex items-center justify-between">

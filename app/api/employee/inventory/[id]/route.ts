@@ -60,7 +60,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { stock, warehouseLocation, unitsPerCase, inStock, sku, caseSku, expirationDate, lotNumber, categoryId, brandId, allowPresell } = body
+    const { name, stock, warehouseLocation, unitsPerCase, inStock, sku, caseSku, expirationDate, lotNumber, categoryId, brandId, allowPresell } = body
 
     // Get current user for activity logging
     const currentUser = await getCurrentUser()
@@ -79,6 +79,11 @@ export async function PATCH(
 
     // Build update data
     const updateData: any = {}
+
+    // Handle name update
+    if (name !== undefined && name !== existingProduct.name && name.trim()) {
+      updateData.name = name.trim()
+    }
 
     if (typeof stock === 'number') {
       updateData.stock = Math.max(0, stock)
@@ -253,6 +258,19 @@ export async function PATCH(
             oldBrandId: existingProduct.brandId,
             newBrandId: brandId
           }
+        ))
+      }
+
+      // Name change
+      if (name !== undefined && name.trim() && name !== existingProduct.name) {
+        activities.push(logActivity(
+          currentUser.id,
+          'NAME_UPDATE',
+          'product',
+          id,
+          name,
+          `Renamed from "${existingProduct.name}" to "${name}"`,
+          { oldName: existingProduct.name, newName: name }
         ))
       }
 

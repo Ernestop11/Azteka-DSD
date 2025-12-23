@@ -98,15 +98,21 @@ export async function POST(request: NextRequest) {
       imageUrl = await saveLocally(processedBuffer, filename)
     }
 
-    // Update database with the image URL
+    // Update database with the image URL (add cache busting timestamp)
+    const cacheBustUrl = `${imageUrl}?v=${Date.now()}`
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
-      data: { imageUrl },
+      data: {
+        imageUrl: cacheBustUrl,
+        updatedAt: new Date() // Force updatedAt to change
+      },
       select: {
         id: true,
-        imageUrl: true
+        imageUrl: true,
+        updatedAt: true
       }
     })
+    console.log('[Upload] Database updated:', updatedProduct.id, updatedProduct.imageUrl)
 
     // Invalidate ALL caches for real-time sync
     revalidateTag('products')

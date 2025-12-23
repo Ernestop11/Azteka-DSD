@@ -90,6 +90,7 @@ export default function InventoryPage() {
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null)
   const [editBrandId, setEditBrandId] = useState<string | null>(null)
   const [editAllowPresell, setEditAllowPresell] = useState(false)
+  const [editName, setEditName] = useState('')
   const [activeTab, setActiveTab] = useState<'stock' | 'location' | 'details'>('stock')
 
   // Categories and Brands
@@ -98,37 +99,8 @@ export default function InventoryPage() {
 
   // Image upload
   const [uploading, setUploading] = useState(false)
+  const [imageKey, setImageKey] = useState(Date.now()) // Cache buster for image preview
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // iPhone Camera Persistence Hack - Keep camera open during session
-  const persistentStreamRef = useRef<MediaStream | null>(null)
-  const [cameraPersistent, setCameraPersistent] = useState(false)
-  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
-
-  // Initialize persistent camera on mount (iPhone only) - prevents re-auth on each scan
-  useEffect(() => {
-    if (!isIOS) return
-
-    async function initPersistentCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        })
-        persistentStreamRef.current = stream
-        setCameraPersistent(true)
-        console.log('[iPhone] Persistent camera initialized - will reuse stream to avoid re-auth')
-      } catch (err) {
-        console.warn('[iPhone] Could not initialize persistent camera:', err)
-      }
-    }
-
-    initPersistentCamera()
-
-    return () => {
-      // Don't stop on unmount - keep it alive during session
-    }
-  }, [isIOS])
 
   // Check authentication
   useEffect(() => {
@@ -229,6 +201,7 @@ export default function InventoryPage() {
     setEditCategoryId(product.category?.id || null)
     setEditBrandId(product.brand?.id || null)
     setEditAllowPresell(product.allowPresell || false)
+    setEditName(product.name || '')
 
     const loc = parseLocation(product.warehouseLocation)
     setEditAisle(loc.aisle)
@@ -284,6 +257,7 @@ export default function InventoryPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
+          name: editName || selectedProduct.name,
           stock: totalStock,
           unitsPerCase: editUnitsPerCase,
           warehouseLocation,
@@ -310,6 +284,7 @@ export default function InventoryPage() {
         p.id === selectedProduct.id
           ? {
               ...p,
+              name: editName || p.name,
               stock: totalStock,
               unitsPerCase: editUnitsPerCase,
               warehouseLocation,
@@ -366,6 +341,7 @@ export default function InventoryPage() {
         p.id === selectedProduct.id ? { ...p, imageUrl: newImageUrl } : p
       ))
       setSelectedProduct(prev => prev ? { ...prev, imageUrl: newImageUrl } : null)
+      setImageKey(Date.now()) // Force image refresh
 
       setSuccess(`Image uploaded to ${data.uploadedTo || 'server'}!`)
       setTimeout(() => setSuccess(''), 3000)
@@ -431,15 +407,15 @@ export default function InventoryPage() {
           Scan to Find Product
         </button>
 
-        {/* Search */}
+        {/* Search - Highlighted */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-600" />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search by name, SKU, or location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-gray-300 rounded-xl text-gray-900 text-lg"
+            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-emerald-500 rounded-xl text-gray-900 text-lg shadow-md shadow-emerald-100 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-600 transition-all"
           />
         </div>
 
@@ -517,6 +493,14 @@ export default function InventoryPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate">{product.name}</h3>
+                    {/* SKU Display */}
+                    <p className="text-xs text-gray-500 font-mono truncate mt-0.5">
+                      {needsSku ? (
+                        <span className="text-orange-500">No SKU</span>
+                      ) : (
+                        product.sku
+                      )}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         isLowStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
@@ -524,9 +508,6 @@ export default function InventoryPage() {
                         {stockDisplay}
                       </span>
                     </div>
-                    {needsSku && (
-                      <span className="text-xs text-orange-600 font-bold">Needs SKU</span>
-                    )}
                   </div>
                   <Edit3 className="w-5 h-5 text-gray-400 flex-shrink-0" />
                 </div>
@@ -559,7 +540,8 @@ export default function InventoryPage() {
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 relative">
                 {selectedProduct.imageUrl ? (
                   <img
-                    src={`${getPublicImageUrl(selectedProduct.imageUrl)}?t=${Date.now()}`}
+                    key={imageKey}
+                    src={`${getPublicImageUrl(selectedProduct.imageUrl)}?t=${imageKey}`}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                   />
@@ -802,6 +784,18 @@ export default function InventoryPage() {
               {/* Details Tab */}
               {activeTab === 'details' && (
                 <>
+                  {/* Product Name */}
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <label className="text-sm font-medium text-emerald-700 mb-3 block">Product Name</label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Enter product name..."
+                      className="w-full px-4 py-3 border border-emerald-300 rounded-lg text-gray-900 font-medium bg-white"
+                    />
+                  </div>
+
                   {/* SKU */}
                   <div className="bg-gray-50 rounded-xl p-4">
                     <label className="text-sm font-medium text-gray-700 mb-3 block">SKU / Barcode</label>
@@ -913,30 +907,27 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Barcode Scanner - Uses persistent stream for iPhone */}
+      {/* Barcode Scanner */}
       {scannerOpen && (
         <BarcodeScanner
           onScan={handleScan}
           onClose={() => setScannerOpen(false)}
           mode={scanMode}
-          persistentStream={isIOS ? persistentStreamRef.current : null}
         />
       )}
     </div>
   )
 }
 
-// Barcode Scanner Component - iPhone Camera Persistence Hack
+// Barcode Scanner Component - Optimized for iOS Safari + Android
 function BarcodeScanner({
   onScan,
   onClose,
-  mode,
-  persistentStream
+  mode
 }: {
   onScan: (barcode: string) => void
   onClose: () => void
   mode: 'lookup' | 'seed' | 'sku' | 'caseSku'
-  persistentStream?: MediaStream | null
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -947,6 +938,7 @@ function BarcodeScanner({
   const codeReaderRef = useRef<any>(null)
   const scanningRef = useRef(false)
 
+  // Detect iOS
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 
   useEffect(() => {
@@ -954,56 +946,14 @@ function BarcodeScanner({
 
     async function startScanner() {
       try {
-        // iPhone Hack: Use persistent stream if available (no re-auth needed!)
-        if (persistentStream && isIOS) {
-          console.log('[iPhone] Using persistent camera stream - no re-auth needed!')
-          streamRef.current = persistentStream
-
-          if (videoRef.current) {
-            videoRef.current.srcObject = persistentStream
-            await videoRef.current.play()
-          }
-
-          setScanning(true)
-          scanningRef.current = true
-
-          const { BrowserMultiFormatReader } = await import('@zxing/browser')
-          const codeReader = new BrowserMultiFormatReader()
-          codeReaderRef.current = codeReader
-
-          const decodeLoop = async () => {
-            if (!mounted || !scanningRef.current || !videoRef.current) return
-
-            try {
-              const result = await codeReader.decodeOnceFromVideoElement(videoRef.current)
-              if (result && mounted && scanningRef.current) {
-                const barcode = result.getText()
-                if (barcode) {
-                  if (navigator.vibrate) navigator.vibrate(100)
-                  scanningRef.current = false
-                  onScan(barcode)
-                  return
-                }
-              }
-            } catch (e) {
-              // No barcode found - continue
-            }
-
-            if (mounted && scanningRef.current) {
-              requestAnimationFrame(decodeLoop)
-            }
-          }
-
-          setTimeout(decodeLoop, 500)
-          return
-        }
-
-        // Standard scanner for Android/non-iOS
+        // Dynamically import ZXing - BrowserMultiFormatReader from browser, hints from library
         const { BrowserMultiFormatReader } = await import('@zxing/browser')
         const ZXingLibrary = await import('@zxing/library')
 
         if (!mounted) return
 
+        // Configure hints for better barcode detection
+        // Use library exports for DecodeHintType and BarcodeFormat
         const hints = new Map()
         if (ZXingLibrary.DecodeHintType && ZXingLibrary.BarcodeFormat) {
           hints.set(ZXingLibrary.DecodeHintType.POSSIBLE_FORMATS, [
@@ -1019,11 +969,15 @@ function BarcodeScanner({
           hints.set(ZXingLibrary.DecodeHintType.TRY_HARDER, true)
         }
 
+        // Create reader - pass hints only if we have them
         const codeReader = hints.size > 0
           ? new BrowserMultiFormatReader(hints)
           : new BrowserMultiFormatReader()
         codeReaderRef.current = codeReader
 
+        // iOS-optimized camera constraints
+        // Key: Use facingMode instead of deviceId for iOS
+        // Higher resolution + continuous autofocus
         const constraints: MediaStreamConstraints = {
           video: {
             facingMode: { ideal: 'environment' },
@@ -1033,10 +987,13 @@ function BarcodeScanner({
           audio: false
         }
 
+        // Get camera stream directly for more control
         let stream: MediaStream
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints)
         } catch (constraintErr) {
+          // Fallback to simpler constraints for older iOS
+          console.log('Falling back to simple constraints')
           stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' },
             audio: false
@@ -1049,18 +1006,30 @@ function BarcodeScanner({
           return
         }
 
+        // Check torch support
         const videoTrack = stream.getVideoTracks()[0]
         if (videoTrack) {
           try {
             const capabilities = videoTrack.getCapabilities?.() as any
-            if (capabilities?.torch) setTorchSupported(true)
-          } catch (e) {}
+            if (capabilities?.torch) {
+              setTorchSupported(true)
+            }
+          } catch (e) {
+            // getCapabilities not supported
+          }
 
+          // Apply advanced constraints for iOS (non-blocking)
           try {
-            await videoTrack.applyConstraints({ focusMode: 'continuous' } as any)
-          } catch (e) {}
+            await videoTrack.applyConstraints({
+              // @ts-ignore
+              focusMode: 'continuous'
+            })
+          } catch (e) {
+            // Ignore - not all devices support these
+          }
         }
 
+        // Attach stream to video
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           await videoRef.current.play()
@@ -1069,6 +1038,7 @@ function BarcodeScanner({
         setScanning(true)
         scanningRef.current = true
 
+        // Start decoding loop with requestAnimationFrame for smoother scanning
         const decodeLoop = async () => {
           if (!mounted || !scanningRef.current || !videoRef.current) return
 
@@ -1077,27 +1047,38 @@ function BarcodeScanner({
             if (result && mounted && scanningRef.current) {
               const barcode = result.getText()
               if (barcode) {
-                try { if (navigator.vibrate) navigator.vibrate(100) } catch (e) {}
+                // Vibrate on success (if supported)
+                try {
+                  if (navigator.vibrate) {
+                    navigator.vibrate(100)
+                  }
+                } catch (e) {}
                 scanningRef.current = false
                 onScan(barcode)
                 return
               }
             }
-          } catch (e) {}
+          } catch (e) {
+            // No barcode found in this frame - continue
+          }
 
+          // Continue scanning
           if (mounted && scanningRef.current) {
             requestAnimationFrame(decodeLoop)
           }
         }
 
+        // Small delay before starting decode loop (let camera stabilize)
         setTimeout(decodeLoop, 500)
 
       } catch (err: any) {
         console.error('Scanner error:', err)
         if (err.name === 'NotAllowedError') {
-          setError('Camera access denied. Please allow camera access.')
+          setError('Camera access denied. Please allow camera access in Settings.')
         } else if (err.name === 'NotFoundError') {
           setError('No camera found on this device.')
+        } else if (err.name === 'NotReadableError') {
+          setError('Camera is in use by another app.')
         } else {
           setError('Could not start camera: ' + (err.message || 'Please try again'))
         }
@@ -1109,21 +1090,16 @@ function BarcodeScanner({
     return () => {
       mounted = false
       scanningRef.current = false
-      // iPhone Hack: Don't stop persistent stream on close
-      if (persistentStream && isIOS) {
-        if (codeReaderRef.current) {
-          try { codeReaderRef.current.reset() } catch (e) {}
-        }
-        return
-      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop())
       }
       if (codeReaderRef.current) {
-        try { codeReaderRef.current.reset() } catch (e) {}
+        try {
+          codeReaderRef.current.reset()
+        } catch (e) {}
       }
     }
-  }, [onScan, persistentStream, isIOS])
+  }, [onScan])
 
   const toggleTorch = async () => {
     if (!streamRef.current) return
@@ -1157,11 +1133,8 @@ function BarcodeScanner({
 
   const handleClose = () => {
     scanningRef.current = false
-    // Don't stop persistent stream for iPhone
-    if (!persistentStream || !isIOS) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop())
-      }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
     }
     if (codeReaderRef.current) {
       try { codeReaderRef.current.reset() } catch (e) {}
