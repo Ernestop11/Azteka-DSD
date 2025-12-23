@@ -1001,11 +1001,13 @@ export default function InventoryPage() {
       {/* Product Modal */}
       {selectedProduct && typeof window !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+          className="modal-backdrop fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+          data-modal-backdrop="true"
           onClick={() => setSelectedProduct(null)}
         >
           <div
-            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col"
+            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col relative"
+            style={{ maxWidth: 'min(32rem, calc(100vw - 2rem))' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1759,11 +1761,13 @@ export default function InventoryPage() {
       {/* New Item Modal */}
       {isCreatingNew && typeof window !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+          className="modal-backdrop fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+          data-modal-backdrop="true"
           onClick={() => setIsCreatingNew(false)}
         >
           <div
-            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col"
+            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col relative"
+            style={{ maxWidth: 'min(32rem, calc(100vw - 2rem))' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -2123,8 +2127,9 @@ export default function InventoryPage() {
 
       {/* SKU Follow-up Modal - Shown after product creation */}
       {showSkuFollowUp && newlyCreatedProduct && typeof window !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+        <div
+          className="modal-backdrop fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
+          data-modal-backdrop="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowSkuFollowUp(false)
@@ -2132,8 +2137,9 @@ export default function InventoryPage() {
             }
           }}
         >
-          <div 
-            className="bg-white rounded-xl max-h-[90vh] overflow-auto"
+          <div
+            className="bg-white rounded-xl max-h-[90vh] overflow-auto w-full max-w-lg relative"
+            style={{ maxWidth: 'min(32rem, calc(100vw - 2rem))' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Success Header */}

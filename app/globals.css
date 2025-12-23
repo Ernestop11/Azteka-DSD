@@ -123,13 +123,20 @@ html {
   transform: none !important;
 }
 
+/* Modal backdrop fix - ensure it covers everything */
+[data-modal-backdrop="true"],
+.modal-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 99999 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
 /* Inventory Page Mobile/Tablet Fixes */
 @media (max-width: 1024px) {
-  /* Ensure modals don't overflow on tablets */
-  .fixed.inset-0 > div {
-    max-width: calc(100vw - 2rem) !important;
-  }
-
   /* Fix grid cards on tablets */
   .inventory-grid {
     grid-auto-rows: auto !important;
@@ -155,10 +162,5 @@ html {
 
   .inventory-grid > button {
     padding: 0.75rem !important;
-  }
-
-  /* Modal content padding on mobile */
-  .fixed.inset-0.flex.items-center.justify-center {
-    padding: 1rem !important;
   }
 }
