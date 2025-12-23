@@ -115,3 +115,10 @@ html {
 * {
   min-height: 0;
 }
+
+/* Inventory Grid Override - Final Safety Net */
+.inventory-grid > * {
+  position: relative !important;
+  height: auto !important;
+  transform: none !important;
+}

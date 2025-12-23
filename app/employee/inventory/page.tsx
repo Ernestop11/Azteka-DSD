@@ -897,7 +897,19 @@ export default function InventoryPage() {
         )}
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start pb-24">
+        <div
+          className="
+            inventory-grid
+            grid
+            grid-cols-1
+            sm:grid-cols-2
+            lg:grid-cols-3
+            xl:grid-cols-4
+            gap-4
+            auto-rows-max
+            items-start
+          "
+        >
         {filteredProducts.map((product) => {
           const totalPieces = Number(product.stock) || 0
           const unitsPerCase = Number(product.unitsPerCase) || 1
@@ -915,7 +927,7 @@ export default function InventoryPage() {
             <button
               key={product.id}
               onClick={() => openProductModal(product)}
-              className={`flex flex-col items-stretch rounded-xl border bg-white shadow-sm border-2 p-4 text-left hover:shadow-lg transition-all z-10 relative ${
+              className={`block rounded-xl border bg-white shadow-sm border-2 p-4 text-left hover:shadow-lg transition-all z-10 relative ${
                 isLowStock 
                   ? 'border-red-300 bg-red-50/30' 
                   : needsSku 
@@ -939,7 +951,7 @@ export default function InventoryPage() {
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center absolute inset-0 z-10">
+                    <div className="w-full h-full flex items-center justify-center relative z-10">
                       <Package className="w-8 h-8 text-gray-300" />
                     </div>
                   )}
