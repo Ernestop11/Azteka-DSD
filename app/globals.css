@@ -101,3 +101,17 @@ html {
   animation: pulse-glow 3s ease-in-out infinite;
   will-change: opacity;
 }
+
+/* Safe Area Padding for iOS devices with home indicator */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Global Safety Fix - Prevent height overflow issues */
+* {
+  min-height: 0;
+}

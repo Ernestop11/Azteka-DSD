@@ -75,7 +75,7 @@ export default function EmployeeLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
@@ -119,22 +119,31 @@ export default function EmployeeLayout({
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="bg-gray-100 flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-25 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-gradient-to-b from-emerald-700 to-emerald-800 text-white
-        transform transition-transform duration-200 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <aside 
+        className={`
+          fixed lg:static inset-y-0 left-0 z-30
+          w-64 text-white
+          transform transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          shadow-2xl
+        `}
+        style={{ 
+          backgroundColor: '#065f46',
+          backgroundImage: 'none',
+          opacity: 1,
+          position: 'relative'
+        }}
+      >
         <div className="p-4 border-b border-emerald-600 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Azteka DSD</h1>
@@ -188,12 +197,12 @@ export default function EmployeeLayout({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 relative z-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+        <header className="lg:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between relative z-10">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 rounded-lg z-20 relative"
           >
             <Menu className="w-6 h-6 text-gray-700" />
           </button>
@@ -201,7 +210,7 @@ export default function EmployeeLayout({
           <div className="w-10" /> {/* Spacer for centering */}
         </header>
 
-        <div className="p-4 lg:p-6">
+        <div className="p-4 lg:p-6 relative z-0">
           {children}
         </div>
       </main>

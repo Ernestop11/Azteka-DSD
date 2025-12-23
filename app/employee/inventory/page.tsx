@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Package,
   Search,
@@ -40,6 +41,7 @@ interface Product {
   expirationDate: string | null
   lotNumber: string | null
   inStock: boolean
+  allowPresell: boolean
   brand: { id: string; name: string } | null
   category: { id: string; name: string } | null
 }
@@ -72,6 +74,10 @@ export default function InventoryPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Auth state - wait for session before loading data
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
+
   // Scanner states
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scanMode, setScanMode] = useState<'lookup' | 'seed' | 'sku' | 'caseSku'>('lookup')
@@ -90,6 +96,7 @@ export default function InventoryPage() {
   const [editCaseSku, setEditCaseSku] = useState('')
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null)
   const [editBrandId, setEditBrandId] = useState<string | null>(null)
+  const [editAllowPresell, setEditAllowPresell] = useState(false)
   const [activeTab, setActiveTab] = useState<'stock' | 'location' | 'classify' | 'image' | 'details'>('stock')
 
   // Categories and Brands for reclassification
@@ -120,23 +127,112 @@ export default function InventoryPage() {
   const [creatingCategory, setCreatingCategory] = useState(false)
   const [creatingBrand, setCreatingBrand] = useState(false)
 
-  // Load products, categories, and brands
+  // iPhone Camera Persistence Hack - Keep camera open during session
+  const persistentStreamRef = useRef<MediaStream | null>(null)
+  const [cameraPersistent, setCameraPersistent] = useState(false)
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+  // Initialize persistent camera on mount (iPhone only) - prevents re-auth on each scan
   useEffect(() => {
-    loadProducts()
-    loadCategories()
-    loadBrands()
+    if (!isIOS) return
+
+    async function initPersistentCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
+        })
+        persistentStreamRef.current = stream
+        setCameraPersistent(true)
+        console.log('[iPhone] Persistent camera initialized - will reuse stream to avoid re-auth')
+      } catch (err) {
+        console.warn('[iPhone] Could not initialize persistent camera:', err)
+      }
+    }
+
+    initPersistentCamera()
+
+    return () => {
+      // Don't stop on unmount - keep it alive during session
+      // Only stop when user explicitly closes or navigates away
+    }
+  }, [isIOS])
+
+  // First, check authentication before loading any data
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log('[Inventory] Checking authentication...')
+      try {
+        const res = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          console.log('[Inventory] Auth successful:', data.email)
+          setIsAuthenticated(true)
+        } else {
+          console.log('[Inventory] Auth failed:', res.status)
+          setError('Please log in to access inventory management')
+          setIsAuthenticated(false)
+        }
+      } catch (err) {
+        console.error('[Inventory] Auth check error:', err)
+        setError('Failed to verify authentication')
+        setIsAuthenticated(false)
+      } finally {
+        setAuthChecking(false)
+      }
+    }
+
+    checkAuth()
   }, [])
+
+  // Only load data after authentication is confirmed
+  useEffect(() => {
+    if (isAuthenticated && !authChecking) {
+      console.log('[Inventory] Auth confirmed, loading data...')
+      loadProducts()
+      loadCategories()
+      loadBrands()
+    }
+  }, [isAuthenticated, authChecking])
 
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/admin/products')
-      const data = await res.json()
-      if (data.data) {
-        setProducts(data.data)
+      setLoading(true)
+      setError('')
+      console.log('[Inventory] Loading products...')
+      
+      const res = await fetch('/api/admin/products', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      
+      console.log('[Inventory] Response status:', res.status)
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`)
       }
-    } catch (err) {
-      console.error('Failed to load products:', err)
-      setError('Failed to load products')
+      
+      const data = await res.json()
+      console.log('[Inventory] Products loaded:', data.data?.length || 0)
+      
+      if (data.data && Array.isArray(data.data)) {
+        setProducts(data.data)
+        setSuccess(`Loaded ${data.data.length} products`)
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        console.warn('[Inventory] Unexpected data format:', data)
+        setProducts([])
+      }
+    } catch (err: any) {
+      console.error('[Inventory] Failed to load products:', err)
+      setError(err.message || 'Failed to load products. Please refresh the page.')
+      setProducts([])
     } finally {
       setLoading(false)
     }
@@ -144,7 +240,7 @@ export default function InventoryPage() {
 
   const loadCategories = async () => {
     try {
-      const res = await fetch('/api/admin/categories')
+      const res = await fetch('/api/admin/categories', { credentials: 'include' })
       const data = await res.json()
       if (data.data) {
         setCategories(data.data)
@@ -156,7 +252,7 @@ export default function InventoryPage() {
 
   const loadBrands = async () => {
     try {
-      const res = await fetch('/api/admin/brands')
+      const res = await fetch('/api/admin/brands', { credentials: 'include' })
       const data = await res.json()
       if (data.data) {
         setBrands(data.data)
@@ -175,6 +271,7 @@ export default function InventoryPage() {
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: newCategoryName.trim() })
       })
 
@@ -207,6 +304,7 @@ export default function InventoryPage() {
       const res = await fetch('/api/admin/brands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: newBrandName.trim() })
       })
 
@@ -274,6 +372,7 @@ export default function InventoryPage() {
     setEditLotNumber(product.lotNumber || '')
     setEditCategoryId(product.category?.id || null)
     setEditBrandId(product.brand?.id || null)
+    setEditAllowPresell(product.allowPresell || false)
 
     const loc = parseLocation(product.warehouseLocation)
     setEditAisle(loc.aisle)
@@ -339,6 +438,7 @@ export default function InventoryPage() {
       const res = await fetch(`/api/employee/inventory/${selectedProduct.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           stock: totalStock,
           unitsPerCase: editUnitsPerCase,
@@ -349,7 +449,8 @@ export default function InventoryPage() {
           caseSku: editCaseSku || null,
           categoryId: editCategoryId,
           brandId: editBrandId,
-          inStock: totalStock > 0
+          inStock: totalStock > 0,
+          allowPresell: editAllowPresell
         })
       })
 
@@ -376,7 +477,8 @@ export default function InventoryPage() {
               caseSku: editCaseSku || null,
               category: newCategory,
               brand: newBrand,
-              inStock: totalStock > 0
+              inStock: totalStock > 0,
+              allowPresell: editAllowPresell
             }
           : p
       ))
@@ -424,6 +526,7 @@ export default function InventoryPage() {
 
       const res = await fetch('/api/employee/products/upload-image', {
         method: 'POST',
+        credentials: 'include',
         body: formData
       })
 
@@ -509,6 +612,7 @@ export default function InventoryPage() {
       const res = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: newItemName.trim(),
           sku: tempSku,
@@ -569,6 +673,7 @@ export default function InventoryPage() {
       const res = await fetch(`/api/employee/inventory/${newlyCreatedProduct.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(updateData)
       })
 
@@ -622,10 +727,31 @@ export default function InventoryPage() {
     setError('')
   }
 
-  if (loading) {
+  // Show loading while checking auth or loading data
+  if (authChecking || (loading && isAuthenticated)) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600" />
+        <p className="text-sm text-gray-500">
+          {authChecking ? 'Verifying session...' : 'Loading inventory...'}
+        </p>
+      </div>
+    )
+  }
+
+  // Show error if not authenticated
+  if (!isAuthenticated && !authChecking) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <AlertCircle className="w-12 h-12 text-red-500" />
+        <p className="text-gray-700 font-medium">Access Denied</p>
+        <p className="text-sm text-gray-500">{error || 'Please log in to access inventory management'}</p>
+        <a
+          href="/login"
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+        >
+          Go to Login
+        </a>
       </div>
     )
   }
@@ -634,78 +760,82 @@ export default function InventoryPage() {
   const noSkuCount = products.filter(p => !p.sku || p.sku.startsWith('AUTO-') || p.sku.startsWith('PROD-')).length
 
   return (
-    <div className="space-y-3">
-      {/* Header Row - Title + Add Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-xs text-gray-500">Manage stock & products</p>
+    <div className="bg-gray-50 -m-4 lg:-m-6 p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Header Row - Title + Add Button */}
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+            <p className="text-sm text-gray-600">Manage stock & products</p>
+          </div>
+          <button
+            onClick={openNewItemModal}
+            className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg z-10 relative"
+            title="Add New Product"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
         </div>
-        <button
-          onClick={openNewItemModal}
-          className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors shadow-lg"
-          title="Add New Product"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
 
-      {/* Full Width Scan Button */}
-      <button
-        onClick={() => {
-          setScanMode('lookup')
-          setScannerOpen(true)
-        }}
-        className="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md"
-      >
-        <ScanBarcode className="w-6 h-6" />
-        Scan to Find Product
-      </button>
+        {/* Action Buttons Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Full Width Scan Button */}
+          <button
+            onClick={() => {
+              setScanMode('lookup')
+              setScannerOpen(true)
+            }}
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md z-10 relative"
+          >
+            <ScanBarcode className="w-6 h-6" />
+            Scan to Find Product
+          </button>
 
-      {/* Full Width Search - Very Prominent */}
-      <div className="relative">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow">
-          <Search className="w-5 h-5 text-white" />
+          {/* Full Width Search - Very Prominent */}
+          <div className="relative z-10">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow z-20">
+              <Search className="w-5 h-5 text-white" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name, SKU, location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-16 pr-4 py-5 bg-white border-2 border-emerald-400 rounded-xl text-gray-900 text-lg font-semibold placeholder:text-emerald-600/50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm z-10 relative"
+            />
+          </div>
         </div>
-        <input
-          type="text"
-          placeholder="Search by name, SKU, location..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-16 pr-4 py-5 bg-emerald-50 border-2 border-emerald-400 rounded-xl text-gray-900 text-lg font-semibold placeholder:text-emerald-600/50 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white shadow-sm"
-        />
-      </div>
 
-      {/* Stats Row */}
-      <div className="flex gap-2">
-        {/* Low Stock Button */}
-        <button
-          onClick={() => setFilterLowStock(!filterLowStock)}
-          className={`flex-1 py-3 px-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
-            filterLowStock
-              ? 'bg-red-500 text-white shadow-lg'
-              : 'bg-white text-gray-700 shadow-sm border border-gray-200'
-          }`}
-        >
-          <span className="text-lg font-bold">{lowStockCount}</span>
-          <span className="text-xs">Low Stock</span>
-        </button>
-        {/* Need SKU Button */}
-        <button
-          onClick={() => setFilterNoSku(!filterNoSku)}
-          className={`flex-1 py-3 px-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
-            filterNoSku
-              ? 'bg-orange-500 text-white shadow-lg'
-              : 'bg-white text-gray-700 shadow-sm border border-gray-200'
-          }`}
-        >
-          <span className="text-lg font-bold">{noSkuCount}</span>
-          <span className="text-xs">Need SKU</span>
-        </button>
-      </div>
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Low Stock Button */}
+          <button
+            onClick={() => setFilterLowStock(!filterLowStock)}
+            className={`py-4 px-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-sm border-2 z-10 relative ${
+              filterLowStock
+                ? 'bg-red-500 text-white border-red-600 shadow-lg'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-red-300'
+            }`}
+          >
+            <span className="text-2xl font-bold">{lowStockCount}</span>
+            <span className="text-xs font-medium">Low Stock</span>
+          </button>
+          {/* Need SKU Button */}
+          <button
+            onClick={() => setFilterNoSku(!filterNoSku)}
+            className={`py-4 px-4 rounded-xl transition-all flex flex-col items-center justify-center gap-1 shadow-sm border-2 z-10 relative ${
+              filterNoSku
+                ? 'bg-orange-500 text-white border-orange-600 shadow-lg'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-orange-300'
+            }`}
+          >
+            <span className="text-2xl font-bold">{noSkuCount}</span>
+            <span className="text-xs font-medium">Need SKU</span>
+          </button>
+        </div>
 
-      {/* Filters Row - Separate row for dropdowns */}
-      <div className="grid grid-cols-2 gap-2">
+        {/* Filters Row - Separate row for dropdowns */}
+        <div className="grid grid-cols-2 gap-3">
         {/* Category Filter */}
         <div className="relative">
           <select
@@ -752,22 +882,22 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Messages */}
-      {success && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
-          <Check className="w-5 h-5 text-green-600" />
-          <span className="text-green-700 font-medium">{success}</span>
-        </div>
-      )}
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <span className="text-red-700">{error}</span>
-        </div>
-      )}
+        {/* Messages */}
+        {success && (
+          <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl flex items-center gap-3 shadow-sm z-10 relative">
+            <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <span className="text-green-700 font-medium">{success}</span>
+          </div>
+        )}
+        {error && (
+          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-center gap-3 shadow-sm z-10 relative">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <span className="text-red-700 font-medium">{error}</span>
+          </div>
+        )}
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 gap-3">
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start pb-24">
         {filteredProducts.map((product) => {
           const totalPieces = Number(product.stock) || 0
           const unitsPerCase = Number(product.unitsPerCase) || 1
@@ -785,76 +915,87 @@ export default function InventoryPage() {
             <button
               key={product.id}
               onClick={() => openProductModal(product)}
-              className={`bg-white rounded-xl shadow-sm p-3 text-left hover:shadow-md transition-all ${
-                isLowStock ? 'ring-2 ring-red-300' : needsSku ? 'ring-2 ring-orange-300' : ''
+              className={`flex flex-col items-stretch rounded-xl border bg-white shadow-sm border-2 p-4 text-left hover:shadow-lg transition-all z-10 relative ${
+                isLowStock 
+                  ? 'border-red-300 bg-red-50/30' 
+                  : needsSku 
+                    ? 'border-orange-300 bg-orange-50/30' 
+                    : 'border-gray-200 hover:border-emerald-300'
               }`}
             >
-              <div className="flex gap-3">
-                <div className="w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden relative bg-gray-100">
+              <div className="flex gap-4">
+                <div className="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden relative bg-gray-100 border-2 border-gray-200">
                   {product.imageUrl ? (
                     <Image
                       src={`${getPublicImageUrl(product.imageUrl)}${product.imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`}
                       alt={product.name}
-                      width={56}
-                      height={56}
+                      width={80}
+                      height={80}
                       className="w-full h-full object-cover relative z-10"
-                      key={`list-${product.id}-${product.imageUrl}`} // Force re-render when imageUrl changes
-                      unoptimized // Disable Next.js optimization for immediate display
+                      key={`list-${product.id}-${product.imageUrl}`}
+                      unoptimized
                       onError={(e) => {
                         console.error('[Inventory] Image failed to load:', product.imageUrl)
-                        // Fallback handled by conditional rendering
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center absolute inset-0">
-                      <Package className="w-7 h-7 text-gray-300" />
+                    <div className="w-full h-full flex items-center justify-center absolute inset-0 z-10">
+                      <Package className="w-8 h-8 text-gray-300" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate text-sm">{product.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  <h3 className="font-bold text-gray-900 truncate text-base mb-1">{product.name}</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${
                       isLowStock ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                     }`}>
                       {stockDisplay}
                     </span>
                     {product.warehouseLocation && (
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
+                      <span className="flex items-center gap-1 text-xs text-gray-600 font-medium">
                         <MapPin className="w-3 h-3" />
                         {product.warehouseLocation}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2">
                     {needsSku ? (
-                      <span className="text-xs text-orange-600 font-medium">Needs SKU</span>
+                      <span className="text-xs text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded">Needs SKU</span>
                     ) : (
-                      <span className="text-xs text-gray-400 font-mono">{product.sku}</span>
+                      <span className="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-0.5 rounded">{product.sku}</span>
                     )}
                     {product.brand && (
-                      <span className="text-xs text-gray-400">• {product.brand.name}</span>
+                      <span className="text-xs text-gray-500">• {product.brand.name}</span>
                     )}
                   </div>
                 </div>
-                <Edit3 className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                <Edit3 className="w-6 h-6 text-gray-400 flex-shrink-0 mt-1" />
               </div>
             </button>
           )
         })}
       </div>
 
-      {filteredProducts.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-          <Package className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">No products found</p>
-        </div>
-      )}
+        {filteredProducts.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-12 text-center col-span-full">
+            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium text-lg mb-1">No products found</p>
+            <p className="text-gray-500 text-sm">Try adjusting your filters or search terms</p>
+          </div>
+        )}
+      </div>
 
       {/* Product Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+      {selectedProduct && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+          onClick={() => setSelectedProduct(null)}
+        >
+          <div 
+            className="bg-white rounded-xl max-h-[90vh] overflow-auto flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 relative bg-gray-100">
@@ -1187,6 +1328,43 @@ export default function InventoryPage() {
                       </p>
                     )}
                   </div>
+
+                  {/* Allow Pre-sell Toggle - Only shows when stock is 0 */}
+                  {(editStock === 0 && editExtraPieces === 0) && (
+                    <div className="bg-amber-50 rounded-xl p-4 border-2 border-amber-300">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                            <Package className="w-4 h-4" />
+                            Allow Pre-sell
+                          </div>
+                          <p className="text-xs text-amber-600 mt-1">
+                            Show on catalog as "Pre-order" when out of stock
+                          </p>
+                        </div>
+                        <div className="ml-4">
+                          <button
+                            type="button"
+                            onClick={() => setEditAllowPresell(!editAllowPresell)}
+                            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${
+                              editAllowPresell ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                                editAllowPresell ? 'translate-x-7' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </label>
+                      {editAllowPresell && (
+                        <div className="mt-3 p-2 bg-amber-100 rounded-lg border border-amber-300 text-xs text-amber-700">
+                          <strong>Pre-sell enabled:</strong> This item will appear on the catalog with a "PRE-ORDER" banner even though it's out of stock.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1548,7 +1726,7 @@ export default function InventoryPage() {
             </div>
 
             {/* Save Button */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 z-10">
               <button
                 onClick={saveChanges}
                 disabled={saving}
@@ -1567,9 +1745,15 @@ export default function InventoryPage() {
       )}
 
       {/* New Item Modal */}
-      {isCreatingNew && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+      {isCreatingNew && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+          onClick={() => setIsCreatingNew(false)}
+        >
+          <div 
+            className="bg-white rounded-xl max-h-[90vh] overflow-auto flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -1921,13 +2105,25 @@ export default function InventoryPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* SKU Follow-up Modal - Shown after product creation */}
-      {showSkuFollowUp && newlyCreatedProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+      {showSkuFollowUp && newlyCreatedProduct && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSkuFollowUp(false)
+              setNewlyCreatedProduct(null)
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Success Header */}
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-center">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1962,11 +2158,13 @@ export default function InventoryPage() {
                     <Check className="w-6 h-6 text-green-600" />
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowSkuFollowUp(false)
                         setScanMode('sku')
                         setScannerOpen(true)
                       }}
-                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold flex items-center gap-2 text-sm"
+                      className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold flex items-center gap-2 text-sm z-[202] relative"
                     >
                       <ScanBarcode className="w-4 h-4" />
                       Scan
@@ -1996,11 +2194,13 @@ export default function InventoryPage() {
                     <Check className="w-6 h-6 text-green-600" />
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowSkuFollowUp(false)
                         setScanMode('caseSku')
                         setScannerOpen(true)
                       }}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold flex items-center gap-2 text-sm"
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold flex items-center gap-2 text-sm z-[202] relative"
                     >
                       <ScanBarcode className="w-4 h-4" />
                       Scan
@@ -2013,36 +2213,40 @@ export default function InventoryPage() {
             {/* Action Buttons */}
             <div className="p-4 pt-0 space-y-2">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation()
                   setShowSkuFollowUp(false)
                   setNewlyCreatedProduct(null)
                   openNewItemModal() // Create another product
                 }}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 z-[202] relative"
               >
                 <Plus className="w-5 h-5" />
                 Add Another Product
               </button>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation()
                   setShowSkuFollowUp(false)
                   setNewlyCreatedProduct(null)
                 }}
-                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold"
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold z-[202] relative"
               >
                 Done
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Barcode Scanner */}
+      {/* Barcode Scanner - Uses persistent stream for iPhone */}
       {scannerOpen && (
         <BarcodeScanner
           onScan={handleScan}
           onClose={() => setScannerOpen(false)}
           mode={scanMode}
+          persistentStream={isIOS ? persistentStreamRef.current : null}
         />
       )}
     </div>
@@ -2050,14 +2254,17 @@ export default function InventoryPage() {
 }
 
 // Barcode Scanner Component - Optimized for iOS Safari + Android
+// iPhone Hack: Accepts persistent stream to avoid re-authentication
 function BarcodeScanner({
   onScan,
   onClose,
-  mode
+  mode,
+  persistentStream
 }: {
   onScan: (barcode: string) => void
   onClose: () => void
   mode: 'lookup' | 'seed' | 'sku' | 'caseSku'
+  persistentStream?: MediaStream | null
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -2076,6 +2283,53 @@ function BarcodeScanner({
 
     async function startScanner() {
       try {
+        // iPhone Hack: Use persistent stream if available (no re-auth needed!)
+        if (persistentStream && isIOS) {
+          console.log('[iPhone] Using persistent camera stream - no re-auth needed!')
+          streamRef.current = persistentStream
+          
+          if (videoRef.current) {
+            videoRef.current.srcObject = persistentStream
+            await videoRef.current.play()
+          }
+          
+          setScanning(true)
+          scanningRef.current = true
+          
+          // Initialize code reader
+          const { BrowserMultiFormatReader } = await import('@zxing/browser')
+          const codeReader = new BrowserMultiFormatReader()
+          codeReaderRef.current = codeReader
+          
+          // Start decoding loop
+          const decodeLoop = async () => {
+            if (!mounted || !scanningRef.current || !videoRef.current) return
+
+            try {
+              const result = await codeReader.decodeOnceFromVideoElement(videoRef.current)
+              if (result && mounted && scanningRef.current) {
+                const barcode = result.getText()
+                if (barcode) {
+                  if (navigator.vibrate) navigator.vibrate(100)
+                  scanningRef.current = false
+                  onScan(barcode)
+                  return
+                }
+              }
+            } catch (e) {
+              // No barcode found - continue
+            }
+
+            if (mounted && scanningRef.current) {
+              requestAnimationFrame(decodeLoop)
+            }
+          }
+          
+          setTimeout(decodeLoop, 500)
+          return
+        }
+
+        // Original scanner logic for Android/non-iOS or if persistent stream not available
         // Dynamically import ZXing - BrowserMultiFormatReader from browser, hints from library
         const { BrowserMultiFormatReader } = await import('@zxing/browser')
         const ZXingLibrary = await import('@zxing/library')
@@ -2220,6 +2474,16 @@ function BarcodeScanner({
     return () => {
       mounted = false
       scanningRef.current = false
+      // iPhone Hack: Don't stop persistent stream on close (keep it alive)
+      if (persistentStream && isIOS) {
+        console.log('[iPhone] Keeping persistent stream alive for next scan')
+        if (codeReaderRef.current) {
+          try {
+            codeReaderRef.current.reset()
+          } catch (e) {}
+        }
+        return
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop())
       }
@@ -2229,7 +2493,7 @@ function BarcodeScanner({
         } catch (e) {}
       }
     }
-  }, [onScan])
+  }, [onScan, persistentStream, isIOS])
 
   // Toggle torch/flashlight
   const toggleTorch = async () => {
@@ -2294,7 +2558,7 @@ function BarcodeScanner({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-[60] flex flex-col">
+    <div className="fixed inset-0 bg-black z-[110] flex flex-col">
       <div className="bg-black/80 p-4 flex items-center justify-between safe-area-inset-top">
         <div>
           <h2 className="text-white font-semibold">
