@@ -50,9 +50,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const skip = (page - 1) * limit
 
-    // Build where clause
+    // Build where clause - show products that are either:
+    // 1. In stock (inStock = true), OR
+    // 2. Marked as pre-sellable (allowPresell = true)
     const where: any = {
-      inStock: true, // Only show in-stock products in catalog
+      OR: [
+        { inStock: true },
+        { allowPresell: true },
+      ],
     }
     const conditions: any[] = []
 
@@ -173,6 +178,8 @@ export async function GET(request: NextRequest) {
         featured: p.featured || false,
         seasonal: p.seasonal || false,
         trending: p.trending || false,
+        inStock: p.inStock ?? true,
+        allowPresell: p.allowPresell ?? false,
         category: p.Category
           ? {
               id: p.Category.id,

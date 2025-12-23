@@ -927,11 +927,11 @@ export default function InventoryPage() {
             <button
               key={product.id}
               onClick={() => openProductModal(product)}
-              className={`block rounded-xl border bg-white shadow-sm border-2 p-4 text-left hover:shadow-lg transition-all z-10 relative ${
-                isLowStock 
-                  ? 'border-red-300 bg-red-50/30' 
-                  : needsSku 
-                    ? 'border-orange-300 bg-orange-50/30' 
+              className={`block rounded-xl border bg-white shadow-sm border-2 p-4 text-left hover:shadow-lg transition-all h-auto overflow-hidden ${
+                isLowStock
+                  ? 'border-red-300 bg-red-50/30'
+                  : needsSku
+                    ? 'border-orange-300 bg-orange-50/30'
                     : 'border-gray-200 hover:border-emerald-300'
               }`}
             >
@@ -1000,12 +1000,12 @@ export default function InventoryPage() {
 
       {/* Product Modal */}
       {selectedProduct && typeof window !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+        <div
+          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
           onClick={() => setSelectedProduct(null)}
         >
-          <div 
-            className="bg-white rounded-xl max-h-[90vh] overflow-auto flex flex-col"
+          <div
+            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1758,12 +1758,12 @@ export default function InventoryPage() {
 
       {/* New Item Modal */}
       {isCreatingNew && typeof window !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center"
+        <div
+          className="fixed inset-0 bg-black/50 z-[99999] flex items-center justify-center p-4"
           onClick={() => setIsCreatingNew(false)}
         >
-          <div 
-            className="bg-white rounded-xl max-h-[90vh] overflow-auto flex flex-col"
+          <div
+            className="bg-white rounded-xl max-h-[90vh] w-full max-w-lg overflow-auto flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

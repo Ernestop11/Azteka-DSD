@@ -666,7 +666,7 @@ export default function DriverDashboard() {
       let businessName = 'Azteka' // fallback
 
       try {
-        const settingsRes = await fetch('/api/admin/settings')
+        const settingsRes = await fetch('/api/settings/public')
         if (settingsRes.ok) {
           const settings = await settingsRes.json()
           if (settings.warehouseAddress) {

@@ -1,5 +1,10 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
 import { defineConfig, env } from "prisma/config";
+
+// Load .env.local first (production overrides), then fall back to .env
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

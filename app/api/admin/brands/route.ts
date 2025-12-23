@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import prisma from '@/lib/prisma'
 import type { TApiResponse, ErrorResponse } from '@/types/api'
+import { requireAdmin, unauthorizedResponse } from '../../lib/auth'
 
 export async function GET(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const brands = await prisma.brand.findMany({
       orderBy: {
@@ -21,6 +26,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { name, slug } = body
@@ -57,6 +66,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { id, name, slug } = body
@@ -84,6 +97,10 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { id } = body

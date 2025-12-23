@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client'
 
 import { toSlug } from '@/lib/slug'
 import { getPublicImageUrl } from '@/lib/imageUrl'
+import { getCustomerPrice } from '@/lib/pricing/getCustomerPrice'
 import type { ProductApiResponse } from '@/types/catalog'
 
 // ============================================================================
@@ -166,52 +167,81 @@ export async function fetchCatalogProductRows(
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        brand: { select: { id: true, name: true, slug: true } },
-        category: { select: { id: true, name: true, slug: true } },
+        Brand: { select: { id: true, name: true, slug: true } },
+        Category: { select: { id: true, name: true, slug: true } },
       },
     }),
     prisma.product.count({ where }),
   ])
 
-  const mappedRows: CatalogProductRow[] = rows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: toSlug(p.name),
-    sku: p.sku,
-    description: p.description,
-    shortDescription: p.description?.substring(0, 100) || null,
-    priceCase: p.price,
-    vendorPrice: null,
-    costCase: null,
-    unitsPerCase: p.unitsPerCase,
-    unitType: null,
-    marginPercent: null,
-    backgroundColor: p.backgroundColor,
-    backgroundGradient: p.backgroundGradient,
-    imageUrl: getPublicImageUrl(p.imageUrl),
-    thumbnailUrl: getPublicImageUrl(p.imageUrl),
-    hasImage: !!p.imageUrl,
-    stock: null,
-    minStock: null,
-    inStock: p.inStock,
-    supplier: null,
-    featured: p.featured || false,
-    minOrderQty: null,
-    meta: null,
-    businessModes: null,
-    displayOrder: null,
-    updatedAt: p.updatedAt,
-    categoryId: p.categoryId || null,
-    categoryName: p.category?.name || null,
-    categorySlug: p.category?.slug || null,
-    brandId: p.brandId || null,
-    brandName: p.brand?.name || null,
-    brandSlug: p.brand?.slug || null,
-    overridePrice: null,
-    overrideCustomerId: customerId || null,
-    revenue30d: null,
-    units30d: null,
-  }))
+  // Calculate customer-specific prices if customerId is provided
+  const mappedRows: CatalogProductRow[] = await Promise.all(
+    rows.map(async (p) => {
+      const basePrice = Number(p.price)
+      let finalPrice = basePrice
+      let overridePrice: number | null = null
+      let discountAmount = 0
+      let discountPercent = 0
+
+      // Get customer-specific price if customerId is provided
+      if (customerId) {
+        try {
+          const priceResult = await getCustomerPrice(p.id, customerId, 1)
+          finalPrice = priceResult.finalPrice
+          overridePrice = priceResult.overridePrice
+          discountAmount = priceResult.discountAmount
+          discountPercent = priceResult.discountPercent
+        } catch (error) {
+          // If price calculation fails, use base price
+          console.warn(`[Catalog] Failed to get customer price for product ${p.id}:`, error)
+        }
+      }
+
+      return {
+        id: p.id,
+        name: p.name,
+        slug: toSlug(p.name),
+        sku: p.sku,
+        description: p.description,
+        shortDescription: p.description?.substring(0, 100) || null,
+        priceCase: finalPrice, // Use customer-specific price
+        vendorPrice: null,
+        costCase: null,
+        unitsPerCase: p.unitsPerCase,
+        unitType: null,
+        marginPercent: null,
+        backgroundColor: p.backgroundColor,
+        backgroundGradient: p.backgroundGradient,
+        imageUrl: getPublicImageUrl(p.imageUrl),
+        thumbnailUrl: getPublicImageUrl(p.imageUrl),
+        hasImage: !!p.imageUrl,
+        stock: null,
+        minStock: null,
+        inStock: p.inStock,
+        supplier: null,
+        featured: p.featured || false,
+        minOrderQty: null,
+        meta: null,
+        businessModes: null,
+        displayOrder: null,
+        updatedAt: p.updatedAt,
+        categoryId: p.categoryId || null,
+        categoryName: p.Category?.name || null,
+        categorySlug: p.Category?.slug || null,
+        brandId: p.brandId || null,
+        brandName: p.Brand?.name || null,
+        brandSlug: p.Brand?.slug || null,
+        overridePrice: overridePrice, // Customer-specific override price
+        overrideCustomerId: customerId || null,
+        revenue30d: null,
+        units30d: null,
+        // Add discount info for UI display
+        basePrice: basePrice,
+        discountAmount: discountAmount,
+        discountPercent: discountPercent,
+      } as CatalogProductRow & { basePrice?: number; discountAmount?: number; discountPercent?: number }
+    })
+  )
 
   return { rows: mappedRows, total }
 }
@@ -220,23 +250,51 @@ export async function fetchCatalogProductRows(
 // MAP CATALOG PRODUCT ROW
 // ============================================================================
 
-export function mapCatalogProductRow(row: CatalogProductRow): CatalogProduct {
-  return toCatalogProduct({
+export function mapCatalogProductRow(row: CatalogProductRow): any {
+  // Return format that matches ProductApiResponseSchema
+  return {
     id: row.id,
     name: row.name,
-    sku: row.sku || '',
+    slug: row.slug || '',
+    sku: row.sku,
     description: row.description,
-    price: typeof row.priceCase === 'string' ? parseFloat(row.priceCase) : row.priceCase || 0,
-    brand: row.brandName || '',
-    category: row.categoryName || '',
-    imageUrl: row.imageUrl || '',
-    backgroundGradient: row.backgroundGradient,
-    backgroundColor: row.backgroundColor,
-    unitsPerCase: row.unitsPerCase || undefined,
+    shortDescription: row.shortDescription,
     featured: row.featured || false,
-    seasonal: false,
-    trending: false,
-  })
+    category: row.categoryId ? {
+      id: row.categoryId,
+      name: row.categoryName || '',
+      slug: row.categorySlug || null,
+    } : null,
+    brand: row.brandId ? {
+      id: row.brandId,
+      name: row.brandName || '',
+      slug: row.brandSlug || null,
+    } : null,
+    price: {
+      list: typeof row.priceCase === 'string' ? parseFloat(row.priceCase) : row.priceCase || 0,
+      final: typeof row.priceCase === 'string' ? parseFloat(row.priceCase) : row.priceCase || 0,
+      override: typeof row.overridePrice === 'string' ? parseFloat(row.overridePrice) : row.overridePrice,
+      customerId: row.overrideCustomerId,
+    },
+    visual: {
+      imageUrl: row.imageUrl,
+      thumbnailUrl: row.thumbnailUrl,
+      backgroundColor: row.backgroundColor,
+      backgroundGradient: row.backgroundGradient,
+    },
+    stock: {
+      inStock: row.inStock ?? true,
+      stockLevel: row.stock,
+      minStock: row.minStock,
+      unitsPerCase: row.unitsPerCase,
+      unitType: row.unitType,
+      vendorPrice: typeof row.vendorPrice === 'string' ? parseFloat(row.vendorPrice) : row.vendorPrice,
+      costCase: typeof row.costCase === 'string' ? parseFloat(row.costCase) : row.costCase,
+      supplier: row.supplier,
+      minOrderQty: row.minOrderQty,
+    },
+    updatedAt: row.updatedAt ? (typeof row.updatedAt === 'string' ? row.updatedAt : row.updatedAt.toISOString()) : new Date().toISOString(),
+  }
 }
 
 // ============================================================================

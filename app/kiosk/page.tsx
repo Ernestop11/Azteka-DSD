@@ -29,7 +29,7 @@ export default function KioskPage() {
 
   // Fetch business name from settings
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/settings/public')
       .then(res => res.json())
       .then(data => {
         if (data.name) setBusinessName(`${data.name} Employee Time Clock`)

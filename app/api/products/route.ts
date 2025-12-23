@@ -73,7 +73,25 @@ export async function GET(request: NextRequest) {
     })
 
     const mapped = rows.map(mapCatalogProductRow)
-    const products = ProductApiResponseSchema.array().parse(mapped)
+    // Be resilient to partial bad data: if one row fails validation,
+    // don't break the entire catalog response.
+    const parsed = ProductApiResponseSchema.array().safeParse(mapped)
+    const products = parsed.success
+      ? parsed.data
+      : mapped
+          .map((item) => {
+            const itemParsed = ProductApiResponseSchema.safeParse(item)
+            return itemParsed.success ? itemParsed.data : null
+          })
+          .filter((item): item is ReturnType<typeof ProductApiResponseSchema.parse> => item !== null)
+
+    if (!parsed.success) {
+      console.error('[api/products] Product schema validation failed; returning partial results', {
+        totalRows: mapped.length,
+        validRows: products.length,
+        issues: parsed.error.issues.slice(0, 25),
+      })
+    }
 
     catalogCache.set(cacheKey, { products }, CACHE_TTL)
 

@@ -263,7 +263,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
           cost: cost.toString(),
         });
       } else {
-        const computedPrice = cost.times(1.3);
+        const computedPrice = cost.times(1.5); // 50% margin
         const margin = computedPrice.minus(cost).div(computedPrice).times(100);
         const productSku = `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const imageFilename = `${productSku}.png`;

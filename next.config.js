@@ -14,6 +14,9 @@ const nextConfig = {
       'onnxruntime-node',
       'sharp',
       'heic-convert',
+      'pdf-parse',
+      'node-ssh',
+      'ssh2',
     ],
   },
 
@@ -26,6 +29,9 @@ const nextConfig = {
         '@imgly/background-removal-node': 'commonjs @imgly/background-removal-node',
         'onnxruntime-node': 'commonjs onnxruntime-node',
         'heic-convert': 'commonjs heic-convert',
+        'pdf-parse': 'commonjs pdf-parse',
+        'node-ssh': 'commonjs node-ssh',
+        'ssh2': 'commonjs ssh2',
       })
     }
     return config
@@ -52,9 +58,35 @@ const nextConfig = {
   // Static file serving for uploads
   async rewrites() {
     return [
+      // Fix shortened /uploads/prod/ paths to /uploads/products/
+      {
+        source: '/uploads/prod/:path*',
+        destination: '/uploads/products/:path*',
+      },
       {
         source: '/uploads/:path*',
         destination: '/uploads/:path*',
+      },
+    ]
+  },
+
+  // PWA headers for manifest and service worker
+  async headers() {
+    return [
+      {
+        source: '/manifest.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/manifest+json' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Content-Type', value: 'application/javascript' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
       },
     ]
   },

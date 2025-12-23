@@ -122,3 +122,43 @@ html {
   height: auto !important;
   transform: none !important;
 }
+
+/* Inventory Page Mobile/Tablet Fixes */
+@media (max-width: 1024px) {
+  /* Ensure modals don't overflow on tablets */
+  .fixed.inset-0 > div {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Fix grid cards on tablets */
+  .inventory-grid {
+    grid-auto-rows: auto !important;
+  }
+
+  .inventory-grid > button {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  /* Prevent text overflow in product cards */
+  .inventory-grid .truncate {
+    max-width: 100% !important;
+  }
+}
+
+/* Small tablet and mobile fixes */
+@media (max-width: 768px) {
+  .inventory-grid {
+    gap: 0.75rem !important;
+  }
+
+  .inventory-grid > button {
+    padding: 0.75rem !important;
+  }
+
+  /* Modal content padding on mobile */
+  .fixed.inset-0.flex.items-center.justify-center {
+    padding: 1rem !important;
+  }
+}

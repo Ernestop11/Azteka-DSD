@@ -4,6 +4,9 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { sanitizeIdForFilename } from '@/lib/utils/imageSanitize'
+import sharp from 'sharp'
+import { revalidateTag, revalidatePath } from 'next/cache'
+import { uploadToVps, isVpsUploadEnabled } from '@/lib/services/vpsUpload'
 
 /**
  * POST /api/admin/brands/uploadImage
@@ -71,22 +74,54 @@ export async function POST(request: NextRequest) {
     const filename = `${sanitizedId}.png`
     const filepath = join(uploadsDir, filename)
 
-    // Convert file to buffer and save
+    // Convert file to buffer
     const bytes = await imageFile.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
+    let buffer = Buffer.from(bytes)
 
-    // Update brand with image URL
-    const imageUrl = `/uploads/brands/${filename}`
+    // Process image with Sharp: resize to 400x400 and optimize
+    buffer = await sharp(buffer)
+      .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+      .png({ quality: 90 })
+      .toBuffer()
+
+    let imageUrl: string
+
+    // Try VPS upload first (single source of truth)
+    if (isVpsUploadEnabled()) {
+      console.log('[Brand Upload] VPS upload enabled, uploading directly to VPS...')
+      const vpsResult = await uploadToVps(buffer, filename, 'brands')
+
+      if (vpsResult.success) {
+        imageUrl = vpsResult.url
+        console.log('[Brand Upload] VPS upload successful:', imageUrl)
+      } else {
+        console.warn('[Brand Upload] VPS upload failed, falling back to local:', vpsResult.error)
+        await writeFile(filepath, buffer)
+        imageUrl = `/uploads/brands/${filename}`
+      }
+    } else {
+      console.log('[Brand Upload] VPS upload not available, saving locally...')
+      await writeFile(filepath, buffer)
+      imageUrl = `/uploads/brands/${filename}`
+    }
+
     const updatedBrand = await prisma.brand.update({
       where: { id: brandId },
       data: { imageUrl },
     })
 
+    // Invalidate caches for real-time sync
+    revalidateTag('brands')
+    revalidatePath('/admin/brands')
+    revalidatePath('/admin/dashboard')
+    revalidatePath('/catalog')
+    revalidatePath('/')
+
     return NextResponse.json({
       success: true,
       brand: updatedBrand,
       imageUrl,
+      uploadedTo: isVpsUploadEnabled() ? 'vps' : 'local',
     })
   } catch (error: any) {
     console.error('Error uploading brand image:', error)

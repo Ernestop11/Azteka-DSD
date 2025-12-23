@@ -66,3 +66,6 @@ echo "   - Upload image on product modal"
 echo "   - Verify it syncs to all pages"
 echo ""
 
+
+
+

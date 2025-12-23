@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { CartItem } from '@/store/cart'
 import { Trash2 } from 'lucide-react'
 import { getPublicImageUrl } from '@/lib/imageUrl'
@@ -9,6 +10,7 @@ interface CartItemRowProps {
   onIncrement: () => void
   onDecrement: () => void
   onRemove: () => void
+  onSetQuantity?: (quantity: number) => void
 }
 
 export default function CartItemRow({
@@ -16,7 +18,26 @@ export default function CartItemRow({
   onIncrement,
   onDecrement,
   onRemove,
+  onSetQuantity,
 }: CartItemRowProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+
+  const handleQuantityClick = () => {
+    if (onSetQuantity) {
+      setInputValue(String(item.quantity))
+      setIsEditing(true)
+    }
+  }
+
+  const handleQuantitySubmit = () => {
+    const newQty = parseInt(inputValue) || 0
+    if (onSetQuantity) {
+      onSetQuantity(newQty)
+    }
+    setIsEditing(false)
+  }
+
   return (
     <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
       {/* Image */}
@@ -56,9 +77,29 @@ export default function CartItemRow({
           >
             −
           </button>
-          <span className="px-2 py-1 text-sm font-medium min-w-[2ch] text-center">
-            {item.quantity}
-          </span>
+          {isEditing ? (
+            <input
+              type="number"
+              min="0"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onBlur={handleQuantitySubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleQuantitySubmit()
+                if (e.key === 'Escape') setIsEditing(false)
+              }}
+              autoFocus
+              className="w-12 px-1 py-1 text-sm font-medium text-center border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          ) : (
+            <button
+              onClick={handleQuantityClick}
+              className="px-2 py-1 text-sm font-medium min-w-[2ch] text-center hover:bg-gray-100 transition-colors cursor-text"
+              title="Click to edit quantity"
+            >
+              {item.quantity}
+            </button>
+          )}
           <button
             onClick={onIncrement}
             className="px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors text-sm"

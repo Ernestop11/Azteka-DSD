@@ -11,21 +11,21 @@
 import sharp from 'sharp'
 
 // Dynamic import for AI background removal (heavy dependency)
-let removeBackgroundAI: ((input: Buffer) => Promise<Blob>) | null = null
+let aiRemovalFn: ((input: Buffer) => Promise<Blob>) | null = null
 
 /**
  * Load AI background removal library (lazy load)
  */
 async function loadBackgroundRemovalAI() {
-  if (!removeBackgroundAI) {
+  if (!aiRemovalFn) {
     try {
       const { removeBackground } = await import('@imgly/background-removal-node')
-      removeBackgroundAI = removeBackground
+      aiRemovalFn = removeBackground
     } catch (err) {
       console.warn('[BackgroundRemoval] AI background removal not available:', err)
     }
   }
-  return removeBackgroundAI
+  return aiRemovalFn
 }
 
 /**
@@ -107,4 +107,7 @@ export async function removeBackground(inputBuffer: Buffer, useAI: boolean = tru
     return await removeBackgroundBasic(inputBuffer)
   }
 }
+
+
+
 

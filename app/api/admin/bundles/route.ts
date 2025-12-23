@@ -6,6 +6,7 @@ import { existsSync } from 'fs'
 import { revalidateTag, revalidatePath } from 'next/cache'
 import { getPublicImageUrl } from '@/lib/imageUrl'
 import type { TApiResponse, ErrorResponse } from '@/types/api'
+import { requireAdmin, unauthorizedResponse } from '../../lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,10 @@ function generateSlug(name: string): string {
 
 // GET - List all bundles
 export async function GET(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const active = searchParams.get('active')
@@ -108,6 +113,10 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new bundle
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const formData = await request.formData()
     

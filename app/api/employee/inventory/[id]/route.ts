@@ -60,7 +60,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { stock, warehouseLocation, unitsPerCase, inStock, sku, caseSku, expirationDate, lotNumber, categoryId, brandId } = body
+    const { stock, warehouseLocation, unitsPerCase, inStock, sku, caseSku, expirationDate, lotNumber, categoryId, brandId, allowPresell } = body
 
     // Get current user for activity logging
     const currentUser = await getCurrentUser()
@@ -142,6 +142,11 @@ export async function PATCH(
       updateData.brandId = brandId || null
     }
 
+    // Handle allowPresell
+    if (typeof allowPresell === 'boolean') {
+      updateData.allowPresell = allowPresell
+    }
+
     // Update the product
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -155,6 +160,7 @@ export async function PATCH(
         warehouseLocation: true,
         unitsPerCase: true,
         inStock: true,
+        allowPresell: true,
         expirationDate: true,
         lotNumber: true,
         categoryId: true,

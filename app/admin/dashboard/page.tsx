@@ -353,7 +353,7 @@ function ProductCard({ product, isSelected, onClick }: {
       }`}
     >
       {/* Image */}
-      <div className="aspect-square bg-gray-100 relative">
+      <div className="aspect-square bg-gray-100 relative overflow-hidden">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -365,15 +365,20 @@ function ProductCard({ product, isSelected, onClick }: {
             <Package className="w-12 h-12" />
           </div>
         )}
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex gap-1">
-          {product.featured && (
+        {/* Featured Badge */}
+        {product.featured && (
+          <div className="absolute top-2 left-2">
             <span className="px-1.5 py-0.5 bg-amber-500 text-white text-xs rounded-full">Featured</span>
-          )}
-          {product.inStock === false && (
-            <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">Out of Stock</span>
-          )}
-        </div>
+          </div>
+        )}
+        {/* Out of Stock Banner - diagonal red banner */}
+        {product.inStock === false && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-red-600 text-white font-bold text-[10px] px-6 py-1 -rotate-12 shadow-lg uppercase tracking-wide">
+              Out of Stock
+            </div>
+          </div>
+        )}
       </div>
       {/* Info */}
       <div className="p-3">

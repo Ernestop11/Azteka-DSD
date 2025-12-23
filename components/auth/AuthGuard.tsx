@@ -21,16 +21,7 @@ export default function AuthGuard({ children, requiredRoles = [] }: AuthGuardPro
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
 
-  // PUBLIC ROUTES - Skip auth check for these routes
-  const isPublicRoute = pathname === '/admin/products' || pathname.startsWith('/admin/products/')
-
   useEffect(() => {
-    // Skip auth check for public routes
-    if (isPublicRoute) {
-      setIsLoading(false)
-      return
-    }
-
     async function checkAuth() {
       try {
         const res = await fetch('/api/auth/session')
@@ -63,12 +54,7 @@ export default function AuthGuard({ children, requiredRoles = [] }: AuthGuardPro
     }
 
     checkAuth()
-  }, [router, pathname, requiredRoles, isPublicRoute])
-
-  // For public routes, render children immediately
-  if (isPublicRoute) {
-    return <>{children}</>
-  }
+  }, [router, pathname, requiredRoles])
 
   if (isLoading) {
     return (

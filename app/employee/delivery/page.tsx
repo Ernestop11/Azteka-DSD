@@ -30,6 +30,20 @@ interface DeliveryOrder {
   itemCount: number
 }
 
+interface DeliveryQRData {
+  orderId: string
+  orderNumber?: string
+  customerName: string
+  confirmationUrl: string
+  qrCodeDataUrl: string
+  items: Array<{
+    id: string
+    productName: string
+    productImage?: string
+    quantity: number
+  }>
+}
+
 export default function DeliveryPage() {
   const [orders, setOrders] = useState<DeliveryOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +53,7 @@ export default function DeliveryPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [statusFilter, setStatusFilter] = useState<'packed' | 'shipped' | 'all'>('packed')
+  const [activeDelivery, setActiveDelivery] = useState<DeliveryQRData | null>(null)
 
   // Load delivery orders
   useEffect(() => {
@@ -65,14 +80,42 @@ export default function DeliveryPage() {
     return o.status.toLowerCase() === statusFilter
   })
 
-  // Handle QR code scan
+  // Handle QR code scan - supports both box QR codes and order QR codes
   const handleScan = async (scannedData: string) => {
     setScannerOpen(false)
     setError('')
     setSuccess('')
 
     try {
-      // Parse QR code data (base64 encoded JSON)
+      // Check if it's a box QR code (format: BOX-XXXXXX or URL with /box/)
+      if (scannedData.startsWith('BOX-') || scannedData.includes('/box/')) {
+        // Extract box code
+        const boxCode = scannedData.startsWith('BOX-')
+          ? scannedData
+          : scannedData.split('/box/')[1]?.split('?')[0]
+
+        if (!boxCode) throw new Error('Invalid box QR code')
+
+        // Look up box to get order ID
+        const boxRes = await fetch(`/api/boxes?qrCode=${boxCode}`)
+        const boxData = await boxRes.json()
+
+        if (!boxRes.ok || !boxData.data) {
+          throw new Error('Box not found')
+        }
+
+        // Find the order for this box
+        const order = orders.find(o => o.id === boxData.data.orderId)
+        if (!order) {
+          throw new Error('Order not found in your delivery list')
+        }
+
+        setSelectedOrder(order)
+        setSuccess(`Box ${boxCode} scanned - Order #${order.id.slice(-8)}`)
+        return
+      }
+
+      // Try to parse as base64 encoded JSON (legacy format)
       const decoded = atob(scannedData)
       const orderData = JSON.parse(decoded)
 
@@ -88,34 +131,53 @@ export default function DeliveryPage() {
 
       setSelectedOrder(order)
     } catch (err: any) {
-      setError(err.message || 'Failed to read QR code')
+      // If base64 parsing fails, show generic error
+      if (err.message?.includes('atob')) {
+        setError('Invalid QR code format')
+      } else {
+        setError(err.message || 'Failed to read QR code')
+      }
     }
   }
 
-  // Mark order as shipped (out for delivery)
+  // Mark order as shipped (out for delivery) - generates customer QR code
   const markAsShipped = async (order: DeliveryOrder) => {
     setSaving(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/employee/orders/${order.id}/status`, {
-        method: 'PATCH',
+      // Call start delivery API to generate customer confirmation QR
+      const res = await fetch('/api/employee/delivery/start', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'shipped' })
+        body: JSON.stringify({ orderId: order.id })
       })
 
       if (!res.ok) {
-        throw new Error('Failed to update status')
+        throw new Error('Failed to start delivery')
       }
 
+      const data = await res.json()
+
+      // Update local order status
       setOrders(prev => prev.map(o =>
         o.id === order.id ? { ...o, status: 'shipped' } : o
       ))
 
-      setSuccess('Order marked as out for delivery!')
-      setTimeout(() => setSuccess(''), 2000)
+      // Show the QR code modal for customer to scan
+      setActiveDelivery({
+        orderId: data.data.orderId,
+        orderNumber: data.data.orderNumber,
+        customerName: data.data.customerName,
+        confirmationUrl: data.data.confirmationUrl,
+        qrCodeDataUrl: data.data.qrCodeDataUrl,
+        items: data.data.items
+      })
+
+      setSuccess('Delivery started! Show QR code to customer.')
+      setTimeout(() => setSuccess(''), 3000)
     } catch (err: any) {
-      setError(err.message || 'Failed to update order')
+      setError(err.message || 'Failed to start delivery')
     } finally {
       setSaving(false)
     }
@@ -348,6 +410,100 @@ export default function DeliveryPage() {
                 )}
                 {saving ? 'Confirming...' : 'Confirm Delivered'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Confirmation QR Modal */}
+      {activeDelivery && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Truck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">Customer Confirmation</h2>
+                    <p className="text-white/80">Order #{activeDelivery.orderNumber || activeDelivery.orderId.slice(-8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveDelivery(null)}
+                  className="p-2 bg-white/10 rounded-lg hover:bg-white/20"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Customer Info */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <User className="w-5 h-5 text-gray-400" />
+                <span className="text-gray-900 font-medium">{activeDelivery.customerName}</span>
+              </div>
+
+              {/* QR Code Display */}
+              <div className="flex flex-col items-center">
+                <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-inner">
+                  <img
+                    src={activeDelivery.qrCodeDataUrl}
+                    alt="Customer Confirmation QR Code"
+                    className="w-48 h-48"
+                  />
+                </div>
+                <p className="mt-4 text-center text-gray-600 text-sm">
+                  Have the customer scan this QR code to confirm delivery
+                </p>
+              </div>
+
+              {/* Items Summary */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Items to deliver</p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {activeDelivery.items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 text-sm">
+                      <div className="w-8 h-8 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                        {item.productImage ? (
+                          <img
+                            src={item.productImage}
+                            alt={item.productName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Package className="w-4 h-4 m-2 text-gray-400" />
+                        )}
+                      </div>
+                      <span className="flex-1 text-gray-700 truncate">{item.productName}</span>
+                      <span className="text-gray-500">x{item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setActiveDelivery(null)}
+                  className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    // Open URL in new tab for customer to access on their phone
+                    window.open(activeDelivery.confirmationUrl, '_blank')
+                  }}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
+                >
+                  <Navigation className="w-4 h-4" />
+                  Open Link
+                </button>
+              </div>
             </div>
           </div>
         </div>

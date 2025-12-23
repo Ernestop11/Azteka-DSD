@@ -214,8 +214,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               )}
 
               {!product.inStock && (
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20">
-                  <span className="text-white font-bold text-lg px-4 py-2 bg-red-600 rounded-lg shadow-xl">
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                  {/* Semi-transparent overlay that doesn't completely hide image */}
+                  <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"></div>
+                  {/* Out of stock badge */}
+                  <span className="relative text-white font-bold text-sm px-6 py-2 bg-red-600/95 rounded-full shadow-xl border-2 border-white/50">
                     Out of Stock
                   </span>
                 </div>

@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { uploadToVps, isVpsUploadEnabled } from '@/lib/services/vpsUpload'
+
+type CatalogUploadType = 'hero-banner' | 'billboard-promo' | 'seasonal' | 'backdrop' | 'background' | 'brand-logo' | 'catalog'
+
+// Map frontend types to vpsUpload types
+const TYPE_TO_VPS_TYPE: Record<string, 'hero-banners' | 'promos' | 'seasonal' | 'backdrops' | 'backgrounds' | 'brand' | 'catalog'> = {
+  'hero-banner': 'hero-banners',
+  'billboard-promo': 'promos',
+  'seasonal': 'seasonal',
+  'backdrop': 'backdrops',
+  'background': 'backgrounds',
+  'brand-logo': 'brand',
+  'catalog': 'catalog',
+}
 
 function sanitizeFilename(str: string): string {
   return str.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase()
@@ -72,14 +86,39 @@ export async function POST(request: NextRequest) {
     // Save file
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
 
-    // Return relative path - use 'url' for compatibility with frontend
-    const imageUrl = subFolder
-      ? `/uploads/catalog/${subFolder}/${filename}`
-      : `/uploads/catalog/${filename}`
+    let imageUrl: string
+    const vpsType = TYPE_TO_VPS_TYPE[type] || 'catalog'
 
-    return NextResponse.json({ success: true, url: imageUrl, imageUrl })
+    // Try VPS upload first (single source of truth)
+    if (isVpsUploadEnabled()) {
+      console.log(`[Catalog Upload] VPS upload enabled, uploading ${type} directly to VPS...`)
+      const vpsResult = await uploadToVps(buffer, filename, vpsType)
+
+      if (vpsResult.success) {
+        imageUrl = vpsResult.url
+        console.log('[Catalog Upload] VPS upload successful:', imageUrl)
+      } else {
+        console.warn('[Catalog Upload] VPS upload failed, falling back to local:', vpsResult.error)
+        await writeFile(filepath, buffer)
+        imageUrl = subFolder
+          ? `/uploads/catalog/${subFolder}/${filename}`
+          : `/uploads/catalog/${filename}`
+      }
+    } else {
+      console.log('[Catalog Upload] VPS upload not available, saving locally...')
+      await writeFile(filepath, buffer)
+      imageUrl = subFolder
+        ? `/uploads/catalog/${subFolder}/${filename}`
+        : `/uploads/catalog/${filename}`
+    }
+
+    return NextResponse.json({
+      success: true,
+      url: imageUrl,
+      imageUrl,
+      uploadedTo: isVpsUploadEnabled() ? 'vps' : 'local'
+    })
   } catch (error: unknown) {
     console.error('Error uploading catalog image:', error)
     const message = error instanceof Error ? error.message : 'Unknown error'

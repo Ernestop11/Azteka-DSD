@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
-import { ShoppingCart, Plus, Minus, X, Package, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, Package, ChevronLeft, ChevronRight, Box } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
+import { getPublicImageUrl } from '@/lib/imageUrl'
 
 // Types
 interface CatalogProduct {
@@ -52,12 +54,12 @@ interface BusinessSettings {
   website: string
 }
 
-// Product Image with fallback
+// Product Image with fallback - v2.0 style (no overlapping squares)
 function ProductImage({ src, alt, className, style }: { src?: string; alt: string; className?: string; style?: React.CSSProperties }) {
   const [error, setError] = useState(false)
   if (!src || error) {
     return (
-      <div className={`flex items-center justify-center bg-slate-800 relative z-10 ${className || ''}`} style={style}>
+      <div className={`flex items-center justify-center bg-transparent relative z-10 ${className || ''}`} style={style}>
         <Package className="w-12 h-12 text-slate-600 relative z-10" />
       </div>
     )
@@ -89,29 +91,29 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
   const casePrice = price
 
   return (
-    <div className="relative overflow-hidden rounded-3xl mb-8 shadow-2xl" style={{ background: gradient }}>
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 shadow-2xl" style={{ background: gradient }}>
       {/* Decorative overlays for depth */}
       <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-      {/* Radial glow behind product */}
-      <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
+      {/* Radial glow behind product - smaller on mobile */}
+      <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-[250px] h-[250px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] bg-white/15 rounded-full blur-[60px] sm:blur-[80px] md:blur-[100px]" />
 
-      <div className="relative flex flex-col md:flex-row items-center min-h-[420px] px-6 md:px-12 lg:px-16 py-10">
+      <div className="relative flex flex-col md:flex-row items-center min-h-[320px] sm:min-h-[380px] md:min-h-[420px] px-4 sm:px-6 md:px-12 lg:px-16 py-6 sm:py-8 md:py-10">
         {/* Navigation arrows */}
         {products.length > 1 && (
           <button
             onClick={() => setCurrentIndex((i) => (i - 1 + products.length) % products.length)}
-            className="absolute left-3 md:left-6 z-10 p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
+            className="absolute left-2 sm:left-3 md:left-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
           >
-            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
           </button>
         )}
 
-        {/* Product Image */}
-        <div className="relative w-56 h-56 md:w-72 md:h-72 lg:w-80 lg:h-80 flex-shrink-0 flex items-center justify-center">
+        {/* Product Image - Smaller on mobile */}
+        <div className="relative w-40 h-40 sm:w-52 sm:h-52 md:w-72 md:h-72 lg:w-80 lg:h-80 flex-shrink-0 flex items-center justify-center">
           {/* Glow effect behind image */}
-          <div className="absolute inset-0 bg-gradient-radial from-white/20 to-transparent rounded-full blur-2xl scale-110" />
+          <div className="absolute inset-0 bg-gradient-radial from-white/25 to-transparent rounded-full blur-xl sm:blur-2xl scale-110" />
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -122,7 +124,7 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
               className="w-full h-full flex items-center justify-center relative z-10"
             >
               <ProductImage
-                src={product.imageUrl}
+                src={getPublicImageUrl(product.imageUrl)}
                 alt={product.name}
                 className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
               />
@@ -130,15 +132,15 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
           </AnimatePresence>
         </div>
 
-        {/* Product Info */}
-        <div className="flex-1 text-center md:text-left max-w-xl mt-6 md:mt-0 md:ml-10 lg:ml-14">
+        {/* Product Info - Compact on mobile */}
+        <div className="flex-1 text-center md:text-left max-w-xl mt-3 sm:mt-6 md:mt-0 md:ml-10 lg:ml-14">
           {/* Badge */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-slate-900 font-bold text-sm mb-4 shadow-lg"
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm mb-2 sm:mb-4 shadow-lg"
           >
-            <span className="text-base">🔥</span>
+            <span className="text-sm sm:text-base">🔥</span>
             <span className="uppercase tracking-wide">{block.badgeText || 'HOT DEAL'}</span>
           </motion.div>
 
@@ -147,47 +149,52 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
             key={`name-${currentIndex}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-3xl md:text-4xl lg:text-5xl font-black text-white mb-3 leading-tight drop-shadow-lg"
+            className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 leading-tight drop-shadow-lg"
           >
             {product.name}
           </motion.h2>
 
-          {/* Description */}
+          {/* Description - Hidden on mobile */}
           <motion.p
             key={`desc-${currentIndex}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-white/80 text-base md:text-lg mb-6 max-w-md"
+            className="hidden sm:block text-white/80 text-sm md:text-lg mb-4 md:mb-6 max-w-md"
           >
             {product.description || `${product.unitsPerCase} units per case • Mexican snack`}
           </motion.p>
 
-          {/* Pricing */}
-          <div className="flex flex-wrap items-end gap-4 mb-6 justify-center md:justify-start">
+          {/* Pricing - Compact on mobile */}
+          <div className="flex flex-wrap items-end gap-2 sm:gap-4 mb-3 sm:mb-6 justify-center md:justify-start">
             <div>
-              <p className="text-white/50 text-sm line-through mb-1">${(pricePerUnit * 1.05).toFixed(2)} / each</p>
-              <p className="text-white text-3xl md:text-4xl font-black">
+              <p className="text-white/50 text-xs sm:text-sm line-through mb-0.5 sm:mb-1">${(pricePerUnit * 1.05).toFixed(2)} / each</p>
+              <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black">
                 ${pricePerUnit.toFixed(2)}
-                <span className="text-lg md:text-xl font-medium ml-1">/ each</span>
+                <span className="text-sm sm:text-lg md:text-xl font-medium ml-1">/ each</span>
               </p>
-              <p className="text-amber-300 text-sm mt-1">${casePrice.toFixed(2)} per case of {product.unitsPerCase}</p>
+              <p className="text-amber-300 text-xs sm:text-sm mt-0.5 sm:mt-1">${casePrice.toFixed(2)} per case of {product.unitsPerCase}</p>
             </div>
-            <div className="px-4 py-2.5 rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg border border-red-400/30">
-              <p className="text-white font-black text-xl">-5%</p>
-              <p className="text-red-100 text-xs uppercase tracking-wide">Save Now</p>
+            <div className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg border border-red-400/30">
+              <p className="text-white font-black text-base sm:text-xl">-5%</p>
+              <p className="text-red-100 text-[10px] sm:text-xs uppercase tracking-wide">Save Now</p>
             </div>
           </div>
 
-          {/* CTA Button */}
+          {/* CTA Button - Premium Hero Style */}
           <motion.button
             onClick={() => onAddToCart(product, 1)}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-8 py-4 rounded-xl font-bold bg-white text-slate-900 hover:bg-amber-50 inline-flex items-center gap-3 text-lg shadow-xl transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="group relative px-8 sm:px-10 py-4 sm:py-5 rounded-2xl font-black bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-900 inline-flex items-center gap-3 text-lg sm:text-xl shadow-2xl transition-all overflow-hidden"
+            style={{
+              boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), 0 10px 40px rgba(0,0,0,0.3)',
+            }}
           >
-            <Plus className="w-6 h-6" />
-            <span>ADD TO CART</span>
+            {/* Shine effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 relative z-10" />
+            <span className="relative z-10 uppercase tracking-wide">Add to Cart</span>
           </motion.button>
         </div>
 
@@ -195,16 +202,16 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
         {products.length > 1 && (
           <button
             onClick={() => setCurrentIndex((i) => (i + 1) % products.length)}
-            className="absolute right-3 md:right-6 z-10 p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
+            className="absolute right-2 sm:right-3 md:right-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
           >
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
           </button>
         )}
       </div>
 
       {/* Pagination dots */}
       {products.length > 1 && (
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2">
           {products.map((_, idx) => (
             <button
               key={idx}
@@ -222,11 +229,93 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
   )
 }
 
-// 🔥 DSD Showcase Product Card - Tap to Select, Glowing Borders
-function ProductCard({ product, style, onAddToCart, cardStyle }: { product: CatalogProduct; style?: string; onAddToCart: (p: CatalogProduct, q: number) => void; cardStyle?: Record<string, unknown> }) {
-  const [isSelected, setIsSelected] = useState(false)
+// Bulk Order Quick Picks
+const BULK_QUANTITIES = [5, 10, 15, 20, 25, 50]
+
+// 🔥 DSD Showcase Product Card - Tap to Select, Glowing Borders, Long-Press for Bulk
+function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0, onSetQuantity }: { product: CatalogProduct; style?: string; onAddToCart: (p: CatalogProduct, q: number) => void; cardStyle?: Record<string, unknown>; cartQuantity?: number; onSetQuantity?: (productId: string, qty: number) => void }) {
+  // Derive isSelected from cart quantity - if in cart, it's selected
+  const isInCart = cartQuantity > 0
+  const [showControls, setShowControls] = useState(isInCart)
   const [orderMode, setOrderMode] = useState<'case' | 'half' | 'pieces'>('case')
-  const [quantity, setQuantity] = useState(1)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [modalQuantity, setModalQuantity] = useState(1) // Local modal qty for preview
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isLongPress = useRef(false)
+
+  // Sync showControls with cart state
+  useEffect(() => {
+    setShowControls(isInCart)
+  }, [isInCart])
+
+  // Long press handlers for bulk order modal
+  const handleTouchStart = () => {
+    isLongPress.current = false
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPress.current = true
+      // Initialize modal quantity from cart or default to 1
+      setModalQuantity(cartQuantity > 0 ? cartQuantity : 1)
+      // Clear any existing auto-close timer
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current)
+        autoCloseTimerRef.current = null
+      }
+      setShowBulkModal(true)
+      // Haptic feedback if available
+      if (navigator.vibrate) navigator.vibrate(50)
+    }, 500) // 500ms for long press
+  }
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+    }
+  }
+
+  const handleTouchMove = () => {
+    // Cancel long press if user moves finger
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+    }
+  }
+
+  const handleBulkSelect = (qty: number) => {
+    // Update modal preview immediately
+    setModalQuantity(qty)
+
+    // Save to cart
+    if (onSetQuantity) {
+      onSetQuantity(product.id, qty)
+    } else {
+      onAddToCart(product, qty)
+    }
+    setShowControls(true)
+
+    // Clear any existing auto-close timer
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current)
+    }
+
+    // Start 3-second auto-close timer
+    autoCloseTimerRef.current = setTimeout(() => {
+      setShowBulkModal(false)
+    }, 3000)
+  }
+
+  // Cleanup auto-close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Use cart quantity as the displayed quantity
+  const displayQuantity = cartQuantity > 0 ? cartQuantity : 1
 
   const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price
   const unitsPerCase = product.unitsPerCase || 24
@@ -267,75 +356,116 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    // Don't trigger click if it was a long press
+    if (isLongPress.current) {
+      isLongPress.current = false
+      return
+    }
     if (!product.inStock) return
-    if (!isSelected) {
-      setIsSelected(true)
-      onAddToCart(product, quantity)
+    if (!showControls) {
+      // First click - show controls and add 1 to cart
+      setShowControls(true)
+      onAddToCart(product, 1)
     }
   }
 
   const handleQuantityChange = (delta: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    const newQty = Math.max(0, quantity + delta)
+    const newQty = Math.max(0, cartQuantity + delta)
     if (newQty === 0) {
-      setIsSelected(false)
-      setQuantity(1)
-      onAddToCart(product, -quantity) // Remove all
+      // Remove from cart entirely
+      setShowControls(false)
+      if (onSetQuantity) {
+        onSetQuantity(product.id, 0)
+      }
+    } else if (onSetQuantity) {
+      // Use direct set quantity for cleaner cart management
+      onSetQuantity(product.id, newQty)
     } else {
-      const qtyDelta = newQty - quantity
-      setQuantity(newQty)
-      onAddToCart(product, qtyDelta)
+      // Fallback to delta-based add
+      onAddToCart(product, delta)
     }
   }
 
-  // Glow animation styles - clean border glow when selected
-  const glowStyle = isSelected ? {
-    boxShadow: `0 0 25px ${cardGlowColor}70, 0 0 50px ${cardGlowColor}40`,
+  // Handle direct quantity input
+  const handleQuantityEdit = () => {
+    setEditValue(String(displayQuantity))
+    setIsEditing(true)
+  }
+
+  const handleQuantitySubmit = () => {
+    const newQty = parseInt(editValue) || 0
+    setIsEditing(false)
+    if (newQty === 0) {
+      setShowControls(false)
+      if (onSetQuantity) {
+        onSetQuantity(product.id, 0)
+      }
+    } else if (onSetQuantity) {
+      onSetQuantity(product.id, newQty)
+    }
+  }
+
+  // Glow animation styles - clean border glow when selected - enhanced for mobile visibility
+  const glowStyle = showControls ? {
+    boxShadow: `0 0 15px ${cardGlowColor}80, 0 0 30px ${cardGlowColor}50, inset 0 0 20px ${cardGlowColor}15`,
     borderColor: cardAccentColor,
-  } : {}
+  } : {
+    // Subtle ambient glow on all cards for premium feel
+    boxShadow: `0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px ${cardBorderColor}30`,
+  }
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.03 }}
+      whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={handleCardClick}
-      className={`relative overflow-hidden rounded-2xl cursor-pointer transition-all duration-300`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      className={`relative overflow-hidden rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 flex flex-col`}
       style={{
         background: cardBg,
-        borderWidth: '3px',
+        borderWidth: '2px',
         borderStyle: 'solid',
-        borderColor: isSelected ? cardAccentColor : cardBorderColor,
+        borderColor: showControls ? cardAccentColor : cardBorderColor,
         ...glowStyle,
+        WebkitTouchCallout: 'none', // Prevent iOS callout
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
       }}
     >
-      {/* PRODUCT IMAGE - BIGGER SHOWCASE STYLE */}
+      {/* PRODUCT IMAGE - v2.0 style: transparent background when image exists, shorter on mobile */}
       <div
-        className="relative h-56 overflow-hidden flex items-center justify-center p-4"
+        className="relative h-36 sm:h-44 md:h-52 overflow-hidden flex items-center justify-center p-2 sm:p-3 md:p-4"
         style={{
-          background: cardBackdropUrl ? `url(${cardBackdropUrl}) center/cover` : cardImageBg
+          background: product.imageUrl
+            ? `radial-gradient(ellipse at center, ${cardImageBg.replace('linear-gradient', '').includes('#') ? 'rgba(30,41,59,0.3)' : 'rgba(30,41,59,0.2)'} 0%, transparent 70%)`
+            : (cardBackdropUrl ? `url(${cardBackdropUrl}) center/cover` : cardImageBg)
         }}
       >
-        {/* Subtle glow behind product when selected */}
-        {isSelected && (
-          <div
-            className="absolute inset-0 opacity-40"
-            style={{
-              background: `radial-gradient(circle at center, ${cardAccentColor}50 0%, transparent 60%)`
-            }}
-          />
-        )}
+        {/* Ambient glow behind product - always visible for premium look */}
+        <div
+          className="absolute inset-0 z-[8]"
+          style={{
+            background: showControls
+              ? `radial-gradient(circle at center, ${cardAccentColor}40 0%, transparent 60%)`
+              : `radial-gradient(ellipse at center bottom, rgba(255,255,255,0.08) 0%, transparent 50%)`
+          }}
+        />
 
         {product.imageUrl ? (
           <ProductImage
-            src={product.imageUrl}
+            src={getPublicImageUrl(product.imageUrl)}
             alt={product.name}
             className={`max-h-full max-w-full object-contain transition-all duration-500 relative z-10 ${
-              isSelected ? 'scale-110' : 'hover:scale-105'
+              showControls ? 'scale-110' : 'hover:scale-105'
             }`}
             style={{
-              filter: cardImageEffect || (isSelected ? `drop-shadow(0 0 20px ${cardAccentColor}70)` : 'drop-shadow(0 8px 16px rgba(0,0,0,0.4))'),
+              filter: cardImageEffect || (showControls ? `drop-shadow(0 0 20px ${cardAccentColor}70)` : 'drop-shadow(0 8px 16px rgba(0,0,0,0.4))'),
             }}
           />
         ) : (
@@ -345,42 +475,66 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
         )}
       </div>
 
-      {/* Product Info - Clean & Minimal */}
-      <div className="p-3" style={{ background: cardBg.includes('gradient') ? 'transparent' : cardBg }}>
-        {/* Product Name */}
-        <h3 className={`font-bold text-sm mb-1 line-clamp-2 leading-tight ${cardTextLight ? 'text-white' : 'text-slate-900'}`}>
+      {/* Product Info - Clean & Minimal - Fixed height for alignment */}
+      <div className="p-2 sm:p-3 flex-1 flex flex-col" style={{ background: cardBg.includes('gradient') ? 'transparent' : cardBg }}>
+        {/* Product Name - Fixed height container for consistent alignment */}
+        <h3 className={`font-bold text-xs sm:text-sm mb-0.5 sm:mb-1 line-clamp-2 leading-tight h-8 sm:h-10 ${cardTextLight ? 'text-white' : 'text-slate-900'}`}>
           {product.name}
         </h3>
 
-        {/* Price Row - with secret mode toggle */}
+        {/* Price Row - with 3D box toggle icon */}
         <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-1">
-            <span className={`font-black text-xl ${cardTextLight ? 'text-white' : 'text-slate-900'}`}>
+          <div className="flex items-baseline gap-0.5 sm:gap-1">
+            <span className={`font-black text-lg sm:text-xl ${cardTextLight ? 'text-white' : 'text-slate-900'}`}>
               ${displayInfo.price.toFixed(2)}
             </span>
-            {/* Secret mode toggle - tap to cycle case/half/pieces */}
-            <button
-              onClick={cycleOrderMode}
-              className={`text-xs font-medium px-1.5 py-0.5 rounded transition-colors ${
-                cardTextLight
-                  ? 'text-white/60 hover:text-white hover:bg-white/10'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
+            <span className={`text-[10px] sm:text-xs ${cardTextLight ? 'text-white/50' : 'text-slate-500'}`}>
               /{displayInfo.label}
-            </button>
+            </span>
           </div>
 
-          {/* Units per case indicator */}
-          <span className={`text-[10px] ${cardTextLight ? 'text-white/40' : 'text-slate-400'}`}>
-            {unitsPerCase}ct
-          </span>
+          {/* 3D Box Icon Toggle - cycles case/half/pieces */}
+          <button
+            onClick={cycleOrderMode}
+            className="relative p-1 rounded-lg transition-all hover:scale-110 active:scale-95"
+            style={{
+              background: orderMode !== 'case' ? `${cardAccentColor}30` : 'rgba(255,255,255,0.1)',
+              boxShadow: orderMode !== 'case'
+                ? `0 2px 8px ${cardAccentColor}40, inset 0 1px 2px rgba(255,255,255,0.2)`
+                : '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.1)',
+            }}
+          >
+            <Box
+              className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                orderMode === 'case'
+                  ? (cardTextLight ? 'text-white/50' : 'text-slate-400')
+                  : 'text-white'
+              }`}
+              style={{
+                filter: orderMode !== 'case' ? `drop-shadow(0 0 4px ${cardAccentColor})` : 'none'
+              }}
+            />
+            {/* Mode indicator badge */}
+            {orderMode !== 'case' && (
+              <span
+                className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded-full text-white"
+                style={{ background: cardAccentColor }}
+              >
+                {orderMode === 'half' ? '½' : 'pc'}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* Units per case - smaller text below */}
+        <span className={`text-[9px] sm:text-[10px] mt-0.5 ${cardTextLight ? 'text-white/40' : 'text-slate-400'}`}>
+          {unitsPerCase} units/case
+        </span>
       </div>
 
-      {/* Quantity Controls - Always Visible When Selected */}
+      {/* Quantity Controls - Always Visible When Selected - Compact on mobile */}
       <AnimatePresence>
-        {isSelected && (
+        {showControls && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -388,11 +542,11 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
             className="overflow-hidden border-t-2"
             style={{ borderColor: cardAccentColor }}
           >
-            <div className="flex items-center justify-center gap-6 py-4 px-4" style={{ background: cardBg.includes('gradient') ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)' }}>
+            <div className="flex items-center justify-center gap-3 sm:gap-6 py-2.5 sm:py-4 px-2 sm:px-4" style={{ background: cardBg.includes('gradient') ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)' }}>
               {/* Minus Button - Round */}
               <button
                 onClick={(e) => handleQuantityChange(-1, e)}
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
                 style={{
                   borderColor: cardAccentColor,
                   color: cardAccentColor,
@@ -402,18 +556,41 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
                 −
               </button>
 
-              {/* Quantity Display - Bold Number */}
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center font-black text-xl text-white shadow-lg z-20"
-                style={{ background: cardAccentColor }}
-              >
-                {quantity}
-              </div>
+              {/* Quantity Display - Editable */}
+              {isEditing ? (
+                <input
+                  type="number"
+                  min="0"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleQuantitySubmit}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleQuantitySubmit()
+                    if (e.key === 'Escape') setIsEditing(false)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  className="w-10 h-10 sm:w-14 sm:h-12 rounded-full text-center font-black text-lg sm:text-xl shadow-lg z-20 border-2"
+                  style={{
+                    background: 'white',
+                    color: cardAccentColor,
+                    borderColor: cardAccentColor
+                  }}
+                />
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-lg sm:text-xl text-white shadow-lg z-20 hover:scale-110 transition-transform"
+                  style={{ background: cardAccentColor }}
+                >
+                  {displayQuantity}
+                </button>
+              )}
 
               {/* Plus Button - Round */}
               <button
                 onClick={(e) => handleQuantityChange(1, e)}
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
                 style={{
                   borderColor: cardAccentColor,
                   color: cardAccentColor,
@@ -427,15 +604,204 @@ function ProductCard({ product, style, onAddToCart, cardStyle }: { product: Cata
         )}
       </AnimatePresence>
 
-      {/* Out of Stock Overlay */}
+      {/* Out of Stock Banner - Diagonal red banner over image area, NOT blocking interaction */}
       {!product.inStock && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-          <span className="px-4 py-2 rounded-full bg-red-600/80 text-white font-bold text-sm">
+        <div className="absolute top-0 left-0 right-0 h-36 sm:h-44 md:h-52 flex items-center justify-center pointer-events-none z-[15]">
+          <div className="bg-red-600 text-white font-bold text-xs sm:text-sm px-8 sm:px-12 py-1.5 sm:py-2 -rotate-12 shadow-lg uppercase tracking-wide">
             Out of Stock
-          </span>
+          </div>
         </div>
       )}
     </motion.div>
+
+    {/* Bulk Order Modal - Portal to body to prevent scroll issues */}
+    {typeof document !== 'undefined' && createPortal(
+      <AnimatePresence>
+        {showBulkModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-end justify-center"
+            onClick={() => setShowBulkModal(false)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/85 backdrop-blur-md" />
+
+            {/* Modal Content - Fixed at bottom, no scroll issues */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+              className="relative w-full max-w-md rounded-t-3xl overflow-hidden"
+              style={{
+                background: `linear-gradient(180deg, #1e293b 0%, #0f172a 100%)`,
+                boxShadow: `0 -10px 60px ${cardAccentColor}30, 0 0 100px ${cardAccentColor}20`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/30" />
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="absolute top-3 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 z-10"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+
+              {/* Product Image with Glow - Same style as card */}
+              <div className="px-6 pt-2 pb-3">
+                <div
+                  className="relative w-full aspect-square max-w-[220px] mx-auto rounded-2xl overflow-hidden flex items-center justify-center"
+                  style={{
+                    background: `radial-gradient(ellipse at center, ${cardAccentColor}20 0%, rgba(30,41,59,0.5) 50%, transparent 80%)`,
+                    boxShadow: `0 0 40px ${cardAccentColor}40, inset 0 0 30px ${cardAccentColor}15`,
+                    border: `2px solid ${cardAccentColor}40`,
+                  }}
+                >
+                  {/* Animated glow pulse */}
+                  <div
+                    className="absolute inset-0 animate-pulse"
+                    style={{
+                      background: `radial-gradient(circle at center, ${cardAccentColor}30 0%, transparent 60%)`,
+                    }}
+                  />
+                  {product.imageUrl ? (
+                    <ProductImage
+                      src={getPublicImageUrl(product.imageUrl)}
+                      alt={product.name}
+                      className="w-full h-full object-contain p-3 relative z-10"
+                      style={{
+                        filter: `drop-shadow(0 0 25px ${cardAccentColor}60) drop-shadow(0 10px 20px rgba(0,0,0,0.5))`,
+                      }}
+                    />
+                  ) : (
+                    <Package className="w-20 h-20 text-slate-600" />
+                  )}
+                </div>
+
+                {/* Product Info */}
+                <div className="text-center mt-3">
+                  <h3 className="font-bold text-white text-lg line-clamp-2 mb-1">{product.name}</h3>
+                  <p className="font-black text-2xl" style={{ color: cardAccentColor }}>
+                    ${price.toFixed(2)}
+                    <span className="text-sm font-medium opacity-70">/case</span>
+                  </p>
+                  <p className="text-slate-400 text-xs mt-0.5">{unitsPerCase} units per case</p>
+                </div>
+              </div>
+
+              {/* Bottom Controls - Clean & Spacious */}
+              <div
+                className="bg-slate-900/95 border-t px-6 py-5 pb-safe"
+                style={{ borderColor: `${cardAccentColor}30` }}
+              >
+                {/* Main +/- Controls with Qty Display */}
+                <div className="flex items-center justify-center gap-6 mb-5">
+                  <button
+                    onClick={() => {
+                      const newQty = Math.max(1, modalQuantity - 1)
+                      handleBulkSelect(newQty)
+                    }}
+                    className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-3xl transition-all active:scale-90"
+                    style={{
+                      background: 'white',
+                      color: cardAccentColor,
+                      boxShadow: `0 0 20px ${cardAccentColor}40, 0 4px 15px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)`,
+                      border: `2px solid ${cardAccentColor}30`,
+                    }}
+                  >
+                    −
+                  </button>
+
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center font-black text-3xl text-white"
+                    style={{
+                      background: `linear-gradient(135deg, ${cardAccentColor} 0%, ${cardAccentColor}cc 100%)`,
+                      boxShadow: `0 0 40px ${cardAccentColor}60, 0 0 80px ${cardAccentColor}30, inset 0 2px 4px rgba(255,255,255,0.2)`,
+                      border: `2px solid ${cardAccentColor}`,
+                    }}
+                  >
+                    {modalQuantity}
+                  </div>
+
+                  <button
+                    onClick={() => handleBulkSelect(modalQuantity + 1)}
+                    className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-3xl transition-all active:scale-90"
+                    style={{
+                      background: 'white',
+                      color: cardAccentColor,
+                      boxShadow: `0 0 20px ${cardAccentColor}40, 0 4px 15px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5)`,
+                      border: `2px solid ${cardAccentColor}30`,
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quick Bulk Buttons - 4 columns, cleaner */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {[5, 10, 20, 50].map((qty) => (
+                    <button
+                      key={qty}
+                      onClick={() => handleBulkSelect(qty)}
+                      className="py-2.5 rounded-xl font-bold text-base transition-all active:scale-95"
+                      style={{
+                        background: modalQuantity === qty
+                          ? `linear-gradient(135deg, ${cardAccentColor} 0%, ${cardAccentColor}dd 100%)`
+                          : 'rgba(255,255,255,0.08)',
+                        color: 'white',
+                        boxShadow: modalQuantity === qty
+                          ? `0 0 15px ${cardAccentColor}50, 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)`
+                          : `0 0 8px ${cardAccentColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
+                        border: `1px solid ${modalQuantity === qty ? cardAccentColor : `${cardAccentColor}20`}`,
+                      }}
+                    >
+                      {qty}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Cart Status - Always visible when qty selected */}
+                <div
+                  className="text-center py-3 rounded-xl mb-3"
+                  style={{
+                    background: `linear-gradient(135deg, ${cardAccentColor}20 0%, ${cardAccentColor}10 100%)`,
+                    border: `1px solid ${cardAccentColor}40`,
+                    boxShadow: `0 0 20px ${cardAccentColor}15, inset 0 0 30px ${cardAccentColor}10`,
+                  }}
+                >
+                  <p className="text-white font-semibold">
+                    {modalQuantity} case{modalQuantity > 1 ? 's' : ''} = <span style={{ color: cardAccentColor, textShadow: `0 0 10px ${cardAccentColor}60` }}>${(price * modalQuantity).toFixed(2)}</span>
+                  </p>
+                  <p className="text-white/50 text-xs mt-0.5">Auto-closing in 3 seconds...</p>
+                </div>
+
+                {/* Done Button */}
+                <button
+                  onClick={() => setShowBulkModal(false)}
+                  className="w-full py-4 rounded-xl font-bold text-lg text-white active:scale-98 transition-transform"
+                  style={{
+                    background: `linear-gradient(135deg, ${cardAccentColor} 0%, ${cardAccentColor}cc 100%)`,
+                    boxShadow: `0 0 25px ${cardAccentColor}50, 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)`,
+                    border: `1px solid ${cardAccentColor}`,
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>,
+      document.body
+    )}
+    </>
   )
 }
 
@@ -457,7 +823,7 @@ function getCardStyleFromBlock(block: CatalogBlock) {
 }
 
 // Product Grid Block
-function ProductGridBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function ProductGridBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const columns = (block.config as { columns?: number }).columns || 4
   const cardStyle = getCardStyleFromBlock(block)
@@ -491,9 +857,9 @@ function ProductGridBlock({ block, onAddToCart }: { block: CatalogBlock; onAddTo
             <span className="text-slate-400 text-sm">({products.length})</span>
           </div>
         )}
-        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4`}>
+        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4`}>
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
         </div>
       </div>
@@ -524,7 +890,7 @@ function BannerBlock({ block }: { block: CatalogBlock }) {
 }
 
 // Promo Section Block
-function PromoSectionBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
 
@@ -562,9 +928,9 @@ function PromoSectionBlock({ block, onAddToCart }: { block: CatalogBlock; onAddT
             </span>
           )}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
         </div>
       </div>
@@ -573,7 +939,7 @@ function PromoSectionBlock({ block, onAddToCart }: { block: CatalogBlock; onAddT
 }
 
 // Rack Bundle Block - DSD Feature
-function RackBundleBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -626,9 +992,9 @@ function RackBundleBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToC
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+                <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
               ))}
             </div>
           </div>
@@ -639,7 +1005,7 @@ function RackBundleBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToC
 }
 
 // Case Deal Block - DSD Feature
-function CaseDealBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -667,9 +1033,9 @@ function CaseDealBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCar
           <p className="text-orange-200 text-sm">on {config.minCases || 3}+ cases</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
         ))}
       </div>
     </section>
@@ -677,7 +1043,7 @@ function CaseDealBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCar
 }
 
 // Vendor Spotlight Block - DSD Feature
-function VendorSpotlightBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -707,10 +1073,10 @@ function VendorSpotlightBlock({ block, onAddToCart }: { block: CatalogBlock; onA
       </div>
 
       {/* Products */}
-      <div className="p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="p-3 sm:p-4 md:p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
         </div>
       </div>
@@ -719,7 +1085,7 @@ function VendorSpotlightBlock({ block, onAddToCart }: { block: CatalogBlock; onA
 }
 
 // Bulk Builder Block - DSD Feature
-function BulkBuilderBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -744,9 +1110,9 @@ function BulkBuilderBlock({ block, onAddToCart }: { block: CatalogBlock; onAddTo
           <p className="text-3xl font-black text-blue-400">-{config.mixMatchDiscount || 5}%</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
         ))}
       </div>
     </section>
@@ -754,7 +1120,7 @@ function BulkBuilderBlock({ block, onAddToCart }: { block: CatalogBlock; onAddTo
 }
 
 // Brand Showcase Block - DSD Feature
-function BrandShowcaseBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -777,10 +1143,10 @@ function BrandShowcaseBlock({ block, onAddToCart }: { block: CatalogBlock; onAdd
       </div>
 
       {/* Products Carousel */}
-      <div className="p-6 bg-slate-900">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="p-3 sm:p-4 md:p-6 bg-slate-900">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
         </div>
       </div>
@@ -789,7 +1155,7 @@ function BrandShowcaseBlock({ block, onAddToCart }: { block: CatalogBlock; onAdd
 }
 
 // New Arrivals Block - DSD Feature
-function NewArrivalsBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
 
@@ -802,13 +1168,13 @@ function NewArrivalsBlock({ block, onAddToCart }: { block: CatalogBlock; onAddTo
           JUST IN
         </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         {products.map((product) => (
           <div key={product.id} className="relative">
-            <div className="absolute -top-2 -right-2 z-10 px-2 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold">
+            <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 z-10 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full bg-emerald-500 text-white text-[10px] sm:text-xs font-bold">
               NEW
             </div>
-            <ProductCard product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} />
+            <ProductCard product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           </div>
         ))}
       </div>
@@ -816,24 +1182,30 @@ function NewArrivalsBlock({ block, onAddToCart }: { block: CatalogBlock; onAddTo
   )
 }
 
-// Block Renderer
-function BlockRenderer({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
+// Block Renderer - Hide blocks with no products (except BANNER and HERO which may not need products)
+function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+  // Skip rendering product blocks that have no products
+  const productsRequired = !['BANNER'].includes(block.type)
+  if (productsRequired && (!block.products || block.products.length === 0)) {
+    return null
+  }
+
   switch (block.type) {
     case 'HERO': return <HeroBlock block={block} onAddToCart={onAddToCart} />
-    case 'PRODUCT_GRID': return <ProductGridBlock block={block} onAddToCart={onAddToCart} />
-    case 'PRODUCT_CARDS': return <ProductGridBlock block={block} onAddToCart={onAddToCart} />
+    case 'PRODUCT_GRID': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'PRODUCT_CARDS': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
     case 'BANNER': return <BannerBlock block={block} />
-    case 'PROMO_SECTION': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} />
-    case 'CATEGORY_ROW': return <ProductGridBlock block={block} onAddToCart={onAddToCart} />
+    case 'PROMO_SECTION': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'CATEGORY_ROW': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
     // DSD Block Types
-    case 'RACK_BUNDLE': return <RackBundleBlock block={block} onAddToCart={onAddToCart} />
-    case 'VENDOR_SPOTLIGHT': return <VendorSpotlightBlock block={block} onAddToCart={onAddToCart} />
-    case 'CASE_DEAL': return <CaseDealBlock block={block} onAddToCart={onAddToCart} />
-    case 'NEW_ARRIVALS': return <NewArrivalsBlock block={block} onAddToCart={onAddToCart} />
-    case 'QUICK_REORDER': return <ProductGridBlock block={block} onAddToCart={onAddToCart} />
-    case 'BULK_BUILDER': return <BulkBuilderBlock block={block} onAddToCart={onAddToCart} />
-    case 'SEASONAL_THEME': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} />
-    case 'BRAND_SHOWCASE': return <BrandShowcaseBlock block={block} onAddToCart={onAddToCart} />
+    case 'RACK_BUNDLE': return <RackBundleBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'VENDOR_SPOTLIGHT': return <VendorSpotlightBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'CASE_DEAL': return <CaseDealBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'NEW_ARRIVALS': return <NewArrivalsBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'QUICK_REORDER': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'BULK_BUILDER': return <BulkBuilderBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'SEASONAL_THEME': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'BRAND_SHOWCASE': return <BrandShowcaseBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
     default: return null
   }
 }
@@ -861,7 +1233,7 @@ function CartDrawer({ isOpen, onClose, items, onUpdateQuantity, onRemove, totals
                   {items.map((item: any) => (
                     <div key={item.id} className="flex gap-4 bg-slate-800 rounded-xl p-4">
                       <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 flex items-center justify-center">
-                        <ProductImage src={item.imageUrl} alt={item.name} className="max-h-full max-w-full object-contain p-2" />
+                        <ProductImage src={getPublicImageUrl(item.imageUrl)} alt={item.name} className="max-h-full max-w-full object-contain p-2" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-white truncate">{item.name}</h4>
@@ -899,7 +1271,7 @@ function CartDrawer({ isOpen, onClose, items, onUpdateQuantity, onRemove, totals
 // Main Catalog Component
 export default function CatalogContent() {
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const { add, items, updateQty, remove, totals, getCartCount } = useCart()
+  const { add, items, updateQty, remove, totals, getCartCount, getQuantity, setQuantity } = useCart()
 
   // Fetch catalog settings (background gradient, pattern) - auto-refresh every 3 seconds for live preview
   const { data: settingsData } = useQuery<{ data: CatalogSettings }>({
@@ -913,15 +1285,17 @@ export default function CatalogContent() {
     refetchIntervalInBackground: true,
   })
 
-  // Fetch business settings (business name for header)
+  // Fetch business settings (business name for header) - uses public endpoint
+  // Same auto-refresh pattern as catalog blocks (every 3 seconds)
   const { data: businessData } = useQuery<BusinessSettings>({
     queryKey: ['business-settings'],
     queryFn: async () => {
-      const res = await fetch('/api/admin/settings')
+      const res = await fetch('/api/settings/public')
       if (!res.ok) return { name: 'Azteka DSD', phone: '', email: '', website: '' }
       return res.json()
     },
-    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 3000, // Auto-refresh every 3 seconds for real-time updates (same as blocks)
+    refetchIntervalInBackground: true, // Keep refreshing even when tab is in background
   })
 
   // Fetch catalog blocks - auto-refresh every 3 seconds for live preview
@@ -940,12 +1314,28 @@ export default function CatalogContent() {
   const blocks = blocksData?.data || []
 
   const handleAddToCart = (product: CatalogProduct, quantity: number) => {
+    // Convert price to number safely (handles Prisma Decimal, strings, etc.)
+    let priceNum = 0
+    if (product.price !== null && product.price !== undefined) {
+      if (typeof product.price === 'number') {
+        priceNum = product.price
+      } else if (typeof product.price === 'string') {
+        priceNum = parseFloat(product.price) || 0
+      } else if (typeof product.price === 'object' && 'toNumber' in (product.price as object)) {
+        priceNum = (product.price as { toNumber(): number }).toNumber()
+      } else {
+        priceNum = Number(product.price) || 0
+      }
+    }
+    // Round to 2 decimal places to avoid floating point issues
+    priceNum = Math.round(priceNum * 100) / 100
+
     add({
       id: product.id,
       name: product.name,
-      price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-      imageUrl: product.imageUrl || '/placeholder-product.png',
-      quantity,
+      price: priceNum,
+      imageUrl: getPublicImageUrl(product.imageUrl) || '/placeholder-product.png',
+      quantity: Math.abs(quantity), // Ensure positive quantity
     })
   }
 
@@ -1021,15 +1411,16 @@ export default function CatalogContent() {
         />
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/30 border-b border-white/10">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-center flex-1">
-              <h1 className="text-lg md:text-xl font-bold text-white">{businessData?.name || 'Azteka DSD'}</h1>
-              <p className="text-slate-400 text-xs md:text-sm">Wholesale Catalog</p>
+      {/* Header - Optimized for mobile */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/40 border-b border-white/10">
+        <div className="max-w-[1400px] mx-auto px-3 md:px-6 py-3 md:py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base md:text-xl font-bold text-white truncate">{businessData?.name || 'Azteka Foods, LLC'}</h1>
+              <p className="text-slate-400 text-[11px] md:text-sm">Wholesale Catalog</p>
             </div>
-            <button onClick={() => setIsCartOpen(true)} className="relative p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
+            {/* Cart button - hidden on mobile since we have FAB */}
+            <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
               <ShoppingCart className="w-6 h-6 text-white" />
               {getCartCount() > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs font-bold rounded-full bg-amber-500 text-slate-900">
@@ -1041,8 +1432,8 @@ export default function CatalogContent() {
         </div>
       </header>
 
-      {/* Main Content - Render Blocks */}
-      <main className="relative max-w-[1400px] mx-auto px-4 md:px-6 py-6">
+      {/* Main Content - Render Blocks - Tighter mobile spacing */}
+      <main className="relative max-w-[1400px] mx-auto px-2 sm:px-4 md:px-6 py-4 md:py-6">
         {blocks.length === 0 ? (
           <div className="text-center py-20">
             <Package className="w-20 h-20 text-slate-600 mx-auto mb-6" />
@@ -1054,7 +1445,7 @@ export default function CatalogContent() {
           </div>
         ) : (
           blocks.sort((a, b) => a.position - b.position).map((block) => (
-            <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} />
+            <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} getQuantity={getQuantity} onSetQuantity={setQuantity} />
           ))
         )}
       </main>

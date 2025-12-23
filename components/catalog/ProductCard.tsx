@@ -19,6 +19,8 @@ interface Product {
   seasonal?: boolean
   newArrival?: boolean
   trending?: boolean
+  inStock?: boolean
+  allowPresell?: boolean
   category?: { id: string; name: string } | null
   brand?: { id: string; name: string } | null
   // Visual preset fields
@@ -43,8 +45,10 @@ interface ProductCardProps {
 
 
 export default function ProductCard({ product, index = 0, mode = 'default', onCardClick }: ProductCardProps) {
-  const { addItem, increment, decrement, getQuantity } = useCartStore()
+  const { addItem, increment, decrement, setQuantity, getQuantity } = useCartStore()
   const [imageError, setImageError] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
   const isPreview = mode === 'preview'
   const quantity = isPreview ? 0 : getQuantity(product.id)
 
@@ -156,16 +160,57 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
           {/* Product Image */}
           {!imageError && product.imageUrl ? (
             <img
-              src={getPublicImageUrl(product.imageUrl)}
+              src={(() => {
+                const resolvedUrl = getPublicImageUrl(product.imageUrl)
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:163',message:'Catalog ProductCard image src',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                return resolvedUrl
+              })()}
               alt={product.name}
               className="relative w-full h-full object-contain transform group-hover:scale-110 group-hover:rotate-2 transition-transform duration-700 drop-shadow-2xl"
               loading="lazy"
               decoding="async"
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:168',message:'Catalog ProductCard image onError',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl:getPublicImageUrl(product.imageUrl),naturalWidth:target.naturalWidth,naturalHeight:target.naturalHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                // Only set error if image truly failed (no dimensions)
+                if (target.naturalWidth === 0 && target.naturalHeight === 0) {
+                  setImageError(true)
+                }
+              }}
+              onLoad={() => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:175',message:'Catalog ProductCard image onLoad',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl:getPublicImageUrl(product.imageUrl)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+              }}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gray-100 text-sm font-semibold text-gray-500">
               No Image
+            </div>
+          )}
+
+          {/* Out of Stock Banner - diagonal red banner over image (doesn't hide image) */}
+          {product.inStock === false && !product.allowPresell && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              {/* Light overlay that preserves image visibility */}
+              <div className="absolute inset-0 bg-black/15"></div>
+              {/* Out of stock badge */}
+              <div className="relative bg-red-600/95 text-white font-bold text-sm px-8 py-2 -rotate-12 shadow-xl uppercase tracking-wide border-2 border-white/30 rounded">
+                Out of Stock
+              </div>
+            </div>
+          )}
+
+          {/* Pre-order Banner - for out of stock items that allow presell */}
+          {product.inStock === false && product.allowPresell && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-amber-500/95 text-white font-bold text-sm px-8 py-2 -rotate-12 shadow-lg">
+                PRE-ORDER
+              </div>
             </div>
           )}
         </div>
@@ -173,25 +218,32 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
         {/* Layer 5: Product Info */}
         <div className="space-y-3">
           {/* Product Name */}
-          <h3 className="text-xl font-bold line-clamp-2">
+          <h3 className="text-xl font-bold line-clamp-2 text-gray-900">
             {product.name}
           </h3>
 
+          {/* SKU */}
+          {product.sku && (
+            <p className="text-xs font-mono text-gray-600">
+              SKU: {product.sku}
+            </p>
+          )}
+
           {/* Description */}
           {product.description && (
-            <p className="text-sm line-clamp-2 opacity-80">
+            <p className="text-sm line-clamp-2 text-gray-700">
               {product.description}
             </p>
           )}
 
           {/* Units Info */}
-          <p className="text-xs opacity-70">
+          <p className="text-xs text-gray-600">
             {product.unitsPerCase} units per case
           </p>
 
           {/* Category/Brand (if available) */}
           {(product.category || product.brand) && (
-            <div className="text-xs opacity-60 space-y-1">
+            <div className="text-xs text-gray-500 space-y-1">
               {product.category && (
                 <div>Category: {product.category.name}</div>
               )}
@@ -228,9 +280,42 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
                   >
                     −
                   </motion.button>
-                  <span className="px-3 py-2 text-sm font-medium min-w-[2ch] text-center">
-                    {quantity}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      min="0"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onBlur={() => {
+                        const newQty = parseInt(inputValue) || 0
+                        setQuantity(product.id, newQty)
+                        setIsEditing(false)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const newQty = parseInt(inputValue) || 0
+                          setQuantity(product.id, newQty)
+                          setIsEditing(false)
+                        }
+                        if (e.key === 'Escape') {
+                          setIsEditing(false)
+                        }
+                      }}
+                      autoFocus
+                      className="w-12 px-1 py-1 text-sm font-medium text-center bg-white/80 rounded border border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setInputValue(String(quantity))
+                        setIsEditing(true)
+                      }}
+                      className="px-3 py-2 text-sm font-medium min-w-[3ch] text-center hover:bg-white/30 transition-colors cursor-text"
+                      title="Click to edit quantity"
+                    >
+                      {quantity}
+                    </button>
+                  )}
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={handleIncrement}
@@ -249,6 +334,22 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
                     Edit
                   </motion.button>
                 )}
+              </div>
+            ) : product.inStock === false && product.allowPresell ? (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAddToCart}
+                className="relative w-full py-3 px-4 overflow-hidden rounded-xl font-medium text-white transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-amber-500/50"
+                style={{
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                }}
+              >
+                <span className="relative">Pre-order</span>
+              </motion.button>
+            ) : product.inStock === false ? (
+              <div className="w-full py-3 px-4 rounded-xl font-medium text-center bg-gray-300 text-gray-500 cursor-not-allowed">
+                Out of Stock
               </div>
             ) : (
               <motion.button

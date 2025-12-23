@@ -9,7 +9,8 @@ import {
   Palette,
   Layout,
   Sparkles,
-  Tag
+  Tag,
+  Wand2
 } from 'lucide-react'
 
 // Import our professional editors
@@ -19,8 +20,9 @@ import ImageEditorPro from '@/components/admin/ImageEditorPro'
 import GradientEditorPro from '@/components/admin/GradientEditorPro'
 import PresetLibraryPro from '@/components/admin/PresetLibraryPro'
 import CatalogLayoutBuilder from '@/components/admin/CatalogLayoutBuilder'
+import EffectsToolsPro from '@/components/admin/EffectsToolsPro'
 
-type EditorTab = 'products' | 'bundles' | 'images' | 'gradients' | 'presets' | 'layout'
+type EditorTab = 'products' | 'bundles' | 'images' | 'gradients' | 'presets' | 'layout' | 'effects'
 
 export default function DesignStudioPage() {
   const router = useRouter()
@@ -62,6 +64,12 @@ export default function DesignStudioPage() {
       label: 'Layout Builder',
       icon: Layout,
       description: 'Build catalog layout'
+    },
+    {
+      id: 'effects' as EditorTab,
+      label: 'Effects Lab',
+      icon: Wand2,
+      description: 'AI tools & animations'
     }
   ]
 
@@ -190,6 +198,23 @@ export default function DesignStudioPage() {
               </p>
             </div>
             <CatalogLayoutBuilder />
+          </div>
+        )}
+
+        {/* Effects Lab */}
+        {activeTab === 'effects' && (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+              <h3 className="font-semibold text-purple-900 mb-2 flex items-center gap-2">
+                <Wand2 className="w-5 h-5" />
+                Effects Lab
+                <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded">NEW</span>
+              </h3>
+              <p className="text-sm text-purple-700">
+                AI-powered background removal, image enhancement, and animated Lottie badges. All free, no API costs.
+              </p>
+            </div>
+            <EffectsToolsPro />
           </div>
         )}
       </div>

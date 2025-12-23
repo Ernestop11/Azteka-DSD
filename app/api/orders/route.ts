@@ -5,6 +5,8 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { ApiError, handleApiError } from '@/lib/apiErrors'
 import type { TApiResponse, ErrorResponse } from '@/types/api'
+import { processNewOrder } from '@/lib/services/autoWorkflow'
+import { getCustomerPrice } from '@/lib/pricing/getCustomerPrice'
 
 const OrderItemInputSchema = z.object({
   productId: z.string().min(1),
@@ -29,13 +31,8 @@ const toNumber = (value: unknown, fallback = 0) => {
 }
 
 async function recordOrderEvent(orderId: string, type: string, payload: Prisma.JsonValue) {
-  await prisma.orderEvent.create({
-    data: {
-      orderId,
-      type,
-      payload: payload as Prisma.InputJsonValue,
-    },
-  })
+  // TODO: OrderEvent model doesn't exist in schema - logging instead
+  console.log(`[OrderEvent] ${type}:`, { orderId, ...payload as object })
 }
 
 export async function GET(request: NextRequest) {
@@ -76,53 +73,53 @@ export async function POST(request: NextRequest) {
 
     const productIds = payload.items.map((item) => item.productId)
 
-    const [products, overrides] = await Promise.all([
-      prisma.product.findMany({
-        where: { id: { in: productIds } },
-        select: { id: true, price: true },
-      }),
-      prisma.customerPriceOverride.findMany({
-        where: { customerId: payload.customerId, productId: { in: productIds } },
-      }),
-    ])
-
-    const productPriceMap = new Map<string, number>()
-    products.forEach((product) => {
-      const price = toNumber(product.price)
-      productPriceMap.set(product.id, price)
+    // Fetch products
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true },
     })
 
-    const overrideMap = new Map<string, number>()
-    overrides.forEach((override) => {
-      overrideMap.set(override.productId, override.priceCase)
-    })
-
+    // Calculate prices with customer overrides
     let total = 0
+    let overridesUsed = 0
 
-    const itemsData = payload.items.map((item) => {
-      const basePrice = productPriceMap.get(item.productId)
-      if (basePrice === undefined) {
-        throw new ApiError(404, `Product ${item.productId} not found`)
-      }
+    const itemsData = await Promise.all(
+      payload.items.map(async (item) => {
+        const product = products.find((p) => p.id === item.productId)
+        if (!product) {
+          throw new ApiError(404, `Product ${item.productId} not found`)
+        }
 
-      const priceCase = overrideMap.get(item.productId) ?? basePrice
-      if (priceCase <= 0) {
-        throw new ApiError(400, `Invalid price for product ${item.productId}`)
-      }
+        // Get customer-specific price (includes overrides, tiers, etc.)
+        const priceResult = await getCustomerPrice(
+          item.productId,
+          payload.customerId,
+          item.quantity
+        )
 
-      total += priceCase * item.quantity
+        const priceCase = priceResult.finalPrice
+        if (priceCase <= 0) {
+          throw new ApiError(400, `Invalid price for product ${item.productId}`)
+        }
 
-      return {
-        productId: item.productId,
-        quantity: item.quantity,
-        priceCase,
-      }
-    })
+        // Track if override was used
+        if (priceResult.overridePrice !== null || priceResult.priceTierUsed !== null) {
+          overridesUsed++
+        }
 
-    const overridesUsed = itemsData.filter((item) => {
-      const overridePrice = overrideMap.get(item.productId)
-      return overridePrice !== undefined && overridePrice !== productPriceMap.get(item.productId)
-    }).length
+        total += priceCase * item.quantity
+
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          priceCase,
+          basePrice: priceResult.basePrice,
+          overridePrice: priceResult.overridePrice,
+          discountAmount: priceResult.discountAmount,
+          discountPercent: priceResult.discountPercent,
+        }
+      })
+    )
 
     const metadata: Prisma.JsonObject = {
       createdBy: payload.userId ?? null,
@@ -131,23 +128,45 @@ export async function POST(request: NextRequest) {
         productId: item.productId,
         quantity: item.quantity,
         priceCase: item.priceCase,
+        basePrice: item.basePrice,
+        overridePrice: item.overridePrice,
+        discountAmount: item.discountAmount,
+        discountPercent: item.discountPercent,
       })),
       createdAt: new Date().toISOString(),
     }
 
+    // Get customer name for the order
+    const customer = await prisma.customer.findUnique({
+      where: { id: payload.customerId },
+      select: { businessName: true, contactName: true },
+    })
+
+    const customerName = customer?.businessName || customer?.contactName || 'Unknown Customer'
+
+    // Generate unique IDs (schema doesn't use auto-generated UUIDs for Order/OrderItem)
+    const orderId = crypto.randomUUID()
+
     const order = await prisma.order.create({
       data: {
-        customerId: payload.customerId,
-        userId: payload.userId,
+        id: orderId,
+        customerName,
         total,
-        metadata,
-        items: {
-          create: itemsData,
+        userId: payload.userId,
+        updatedAt: new Date(),
+        OrderItem: {
+          create: itemsData.map((item) => ({
+            id: crypto.randomUUID(),
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.priceCase,
+            updatedAt: new Date(),
+          })),
         },
       },
       include: {
-        items: {
-          include: { product: { select: { id: true, name: true, sku: true } } },
+        OrderItem: {
+          include: { Product: { select: { id: true, name: true, sku: true } } },
         },
       },
     })
@@ -155,10 +174,24 @@ export async function POST(request: NextRequest) {
     await recordOrderEvent(order.id, 'ORDER_CREATED', {
       total,
       overridesUsed,
-      itemCount: order.items.length,
+      itemCount: order.OrderItem.length,
     } as Prisma.JsonObject)
 
-    const response: TApiResponse<typeof order> = { data: order }
+    // Auto-workflow: Create picking task, assign to employee, auto-print picking list
+    let workflow = null
+    try {
+      workflow = await processNewOrder(order.id)
+      if (workflow.success) {
+        console.log(`[Order ${order.id}] Workflow started: Task ${workflow.taskId}, Assignee: ${workflow.assigneeName || 'unassigned'}, Printed: ${workflow.printed}`)
+      }
+    } catch (workflowError) {
+      // Don't fail the order creation if workflow fails
+      console.error('[Order Workflow Error]', workflowError)
+    }
+
+    const response: TApiResponse<typeof order & { workflow?: typeof workflow }> = {
+      data: { ...order, workflow }
+    }
     return NextResponse.json(response)
   } catch (error) {
     if (error instanceof z.ZodError) {

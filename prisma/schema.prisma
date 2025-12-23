@@ -69,30 +69,35 @@ model ContractWorker {
 }
 
 model Customer {
-  id                 String    @id
+  id                 String                  @id
   businessName       String
   contactName        String
-  email              String    @unique
+  email              String                  @unique
   phone              String
   address            String
   city               String
   state              String
   zipCode            String
   salesRepId         String?
-  salesRep           SalesRep? @relation(fields: [salesRepId], references: [id])
-  active             Boolean   @default(true)
-  createdAt          DateTime  @default(now())
+  salesRep           SalesRep?               @relation(fields: [salesRepId], references: [id])
+  active             Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
   updatedAt          DateTime
   // Pricing tier (A=best, B=standard, C=basic)
-  priceTier          String    @default("B")
+  priceTier          String                  @default("B")
   // Geolocation for route optimization
   latitude           Float?
   longitude          Float?
   // Visit scheduling
-  visitFrequency     String?   @default("weekly") // 3x_week, 2x_week, weekly, biweekly
-  preferredDays      String[]  @default([])       // ["monday", "thursday"]
+  visitFrequency     String?                 @default("weekly") // 3x_week, 2x_week, weekly, biweekly
+  preferredDays      String[]                @default([]) // ["monday", "thursday"]
   lastVisitDate      DateTime?
   nextScheduledVisit DateTime?
+  // Customer group for multi-account reporting
+  groupId            String?
+  group              CustomerGroup?          @relation("CustomerGroupMembers", fields: [groupId], references: [id])
+  // Price overrides
+  priceOverrides     CustomerPriceOverride[]
 }
 
 model Incentive {
@@ -165,17 +170,20 @@ model OAuthState {
 }
 
 model Order {
-  id           String      @id
-  status       String      @default("pending")
-  customerName String
-  total        Decimal     @db.Decimal(10, 2)
-  userId       String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime
-  driverId     String?
-  notes        String?
-  User         User?       @relation(fields: [userId], references: [id])
-  OrderItem    OrderItem[]
+  id                   String                @id
+  status               String                @default("pending")
+  customerName         String
+  total                Decimal               @db.Decimal(10, 2)
+  userId               String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime
+  driverId             String?
+  notes                String?
+  User                 User?                 @relation(fields: [userId], references: [id])
+  OrderItem            OrderItem[]
+  tasks                Task[] // Picking/packing tasks for this order
+  boxes                Box[] // Boxes for this order
+  deliveryConfirmation DeliveryConfirmation?
 }
 
 model OrderItem {
@@ -191,66 +199,81 @@ model OrderItem {
 }
 
 model Product {
-  id                 String              @id @default(uuid())
+  id                 String                  @id @default(uuid())
   name               String
-  sku                String              @unique
+  sku                String                  @unique
   description        String?
-  price              Decimal             @db.Decimal(10, 2)
-  inStock            Boolean             @default(true)
-  createdAt          DateTime            @default(now())
+  price              Decimal                 @db.Decimal(10, 2)
+  inStock            Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
   updatedAt          DateTime
-  minStock           Int                 @default(10)
-  stock              Int                 @default(0)
-  supplier           String?             @default("Default Supplier")
-  cost               Decimal?            @db.Decimal(10, 2)
-  imageUrl           String?             @default("")
-  margin             Decimal?            @db.Decimal(5, 2)
-  backgroundColor    String?             @default("#f3f4f6")
+  minStock           Int                     @default(10)
+  stock              Int                     @default(0)
+  supplier           String?                 @default("Default Supplier")
+  cost               Decimal?                @db.Decimal(10, 2)
+  imageUrl           String?                 @default("")
+  margin             Decimal?                @db.Decimal(5, 2)
+  backgroundColor    String?                 @default("#f3f4f6")
   brandId            String?
   categoryId         String?
-  featured           Boolean             @default(false)
-  minOrderQty        Int                 @default(1)
+  featured           Boolean                 @default(false)
+  minOrderQty        Int                     @default(1)
   subcategoryId      String?
-  unitType           String              @default("case")
-  unitsPerCase       Int                 @default(1)
-  backgroundRemoved  Boolean             @default(false)
-  special            Boolean             @default(false)
-  splashImageUrl     String?             @default("")
+  unitType           String                  @default("case")
+  unitsPerCase       Int                     @default(1)
+  backgroundRemoved  Boolean                 @default(false)
+  special            Boolean                 @default(false)
+  splashImageUrl     String?                 @default("")
   gradientPresetId   String?
   glowPresetId       String?
   splashPresetId     String?
-  seasonal           Boolean             @default(false)
-  trending           Boolean             @default(false)
+  seasonal           Boolean                 @default(false)
+  trending           Boolean                 @default(false)
   backgroundGradient String?
   tier               String?
-  priceTierA         Decimal?            @db.Decimal(10, 2)
-  priceTierB         Decimal?            @db.Decimal(10, 2)
-  priceTierC         Decimal?            @db.Decimal(10, 2)
-  points             Int?                @default(0)
-  glossLevel         String?             @default("none")
-  sparkle            Boolean?            @default(false)
+  priceTierA         Decimal?                @db.Decimal(10, 2)
+  priceTierB         Decimal?                @db.Decimal(10, 2)
+  priceTierC         Decimal?                @db.Decimal(10, 2)
+  points             Int?                    @default(0)
+  glossLevel         String?                 @default("none")
+  sparkle            Boolean?                @default(false)
   badge              String?
-  theme              String?             @default("default")
+  theme              String?                 @default("default")
   // Weekend Special fields (for grocery-style UI)
-  isWeekendSpecial   Boolean             @default(false)
-  weekendPrice       Decimal?            @db.Decimal(10, 2)
+  isWeekendSpecial   Boolean                 @default(false)
+  weekendPrice       Decimal?                @db.Decimal(10, 2)
   weekendStartDate   DateTime?
   weekendEndDate     DateTime?
-  displayOrder       Int                 @default(0)
-  warehouseLocation  String?             // e.g., "A-12-3" (Aisle-Shelf-Bin)
-  expirationDate     DateTime?           // Product expiration date for inventory tracking
-  lotNumber          String?             // Batch/lot number for tracking
-  caseSku            String?             // Barcode/SKU on the case (different from individual unit SKU)
+  displayOrder       Int                     @default(0)
+  warehouseLocation  String? // e.g., "A-12-3" (Aisle-Shelf-Bin)
+  expirationDate     DateTime? // Product expiration date for inventory tracking
+  lotNumber          String? // Batch/lot number for tracking
+  caseSku            String? // Barcode/SKU on the case (different from individual unit SKU)
+  allowPresell       Boolean                 @default(false) // Allow selling even when out of stock (for pre-orders)
+  // Vendor & Cost fields
+  vendorId           String? // Primary vendor for this product
+  landedCost         Decimal?                @db.Decimal(10, 2) // Cost including shipping allocation
+  suggestedPrice     Decimal?                @db.Decimal(10, 2) // System-suggested price based on margin
+  // Master Case / Display fields (for DSD wholesale)
+  sellByUnit         String                  @default("case") // "case", "display", "unit" - what we sell
+  masterCaseUnits    Int? // How many sellable units in a master case
+  displayUnits       Int? // Units per display (if selling by display)
+  needsReview        Boolean                 @default(false) // Flag for new/updated products needing catalog review
   OrderItem          OrderItem[]
-  Brand              Brand?              @relation(fields: [brandId], references: [id])
-  Category           Category?           @relation(fields: [categoryId], references: [id])
-  Subcategory        Subcategory?        @relation(fields: [subcategoryId], references: [id])
+  Brand              Brand?                  @relation(fields: [brandId], references: [id])
+  Category           Category?               @relation(fields: [categoryId], references: [id])
+  Subcategory        Subcategory?            @relation(fields: [subcategoryId], references: [id])
+  Vendor             Vendor?                 @relation(fields: [vendorId], references: [id])
+  vendorSkuMappings  VendorSkuMapping[]
   PurchaseOrderItem  PurchaseOrderItem[]
-  ProductBundle      ProductBundle[]     @relation("BundleProducts")
-  SpecialOffer       SpecialOffer[]      @relation("OfferProducts")
-  Promotion          Promotion[]         @relation("PromotionProducts")
+  workOrders         WorkOrder[]
+  ProductBundle      ProductBundle[]         @relation("BundleProducts")
+  SpecialOffer       SpecialOffer[]          @relation("OfferProducts")
+  Promotion          Promotion[]             @relation("PromotionProducts")
   sectionItems       CatalogSectionItem[]
   blockProducts      CatalogBlockProduct[]
+  boxItems           BoxItem[] // Items packed in boxes
+  priceOverrides     CustomerPriceOverride[]
 
   @@index([isWeekendSpecial])
   @@index([displayOrder])
@@ -293,24 +316,115 @@ model Promotion {
   Product         Product[] @relation("PromotionProducts")
 }
 
+// ============================================
+// VENDOR & PURCHASE ORDER SYSTEM
+// ============================================
+
+model Vendor {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  code         String?  @unique // Short code like "SAB" for Sabritas
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  address      String?
+  paymentTerms String? // "Net 30", "COD", etc.
+  leadTimeDays Int      @default(7)
+  active       Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  purchaseOrders PurchaseOrder[]
+  skuMappings    VendorSkuMapping[]
+  products       Product[]
+
+  @@index([active])
+  @@index([name])
+}
+
+model VendorSkuMapping {
+  id          String   @id @default(uuid())
+  vendorId    String
+  vendorSku   String // Vendor's SKU on their PO
+  internalSku String // Our internal SKU
+  productId   String? // Direct link to product
+  confidence  Float    @default(1.0)
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  vendor  Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@unique([vendorId, vendorSku])
+  @@index([vendorId])
+  @@index([internalSku])
+}
+
 model PurchaseOrder {
-  id                String              @id
-  supplier          String
-  status            String              @default("pending")
-  total             Decimal             @default(0) @db.Decimal(10, 2)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime
-  PurchaseOrderItem PurchaseOrderItem[]
+  id           String    @id @default(uuid())
+  poNumber     String?   @unique // Vendor's PO number from PDF
+  vendorId     String?
+  supplier     String? // Legacy field for backwards compatibility
+  status       POStatus  @default(PENDING)
+  pdfUrl       String? // Uploaded PDF path
+  subtotal     Decimal   @default(0) @db.Decimal(10, 2)
+  shippingCost Decimal   @default(0) @db.Decimal(10, 2)
+  total        Decimal   @default(0) @db.Decimal(10, 2)
+  expectedDate DateTime?
+  receivedDate DateTime?
+  receivedById String? // Employee who received
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vendor        Vendor?             @relation(fields: [vendorId], references: [id])
+  receivedBy    Employee?           @relation(fields: [receivedById], references: [id])
+  items         PurchaseOrderItem[]
+  receivingTask Task?               @relation("POReceivingTask")
+
+  @@index([vendorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum POStatus {
+  PENDING // Just uploaded, not yet confirmed
+  CONFIRMED // Ana confirmed, waiting for delivery
+  IN_TRANSIT // Shipment on the way
+  RECEIVING // Employee actively receiving
+  RECEIVED // All items received
+  STOCKED // Items put away in warehouse
+  CANCELLED
 }
 
 model PurchaseOrderItem {
-  id              String        @id
-  productId       String
-  quantity        Int
-  cost            Decimal       @db.Decimal(10, 2)
-  purchaseOrderId String
-  Product         Product       @relation(fields: [productId], references: [id])
-  PurchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  id                String    @id @default(uuid())
+  purchaseOrderId   String
+  productId         String? // Null if new product not yet created
+  vendorSku         String
+  description       String
+  quantityOrdered   Int
+  quantityReceived  Int       @default(0)
+  unitCost          Decimal   @db.Decimal(10, 2)
+  totalCost         Decimal   @db.Decimal(10, 2)
+  unitsPerCase      Int       @default(1) // Master case contains X sellable units
+  sellableUnits     Int? // How many sellable units (for master case products)
+  isNewProduct      Boolean   @default(false)
+  needsReview       Boolean   @default(false) // Flagged for review
+  receivedAt        DateTime?
+  lotNumber         String?
+  expirationDate    DateTime?
+  warehouseLocation String?
+  notes             String?
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product?      @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@index([vendorSku])
 }
 
 model Reward {
@@ -379,22 +493,24 @@ model Subcategory {
 }
 
 model User {
-  id              String            @id
-  email           String            @unique
-  name            String
-  role            String            @default("CUSTOMER")
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime
-  password        String            @default("")
-  ApiKey          ApiKey[]
-  ContractWorker  ContractWorker?
-  LoyaltyAccount  LoyaltyAccount?
-  OAuthConnection OAuthConnection[]
-  Order           Order[]
-  Session         Session[]
-  UserBadge       UserBadge[]
-  SalesRep        SalesRep?
-  activities      EmployeeActivity[]
+  id                     String                  @id
+  email                  String                  @unique
+  name                   String
+  role                   String                  @default("CUSTOMER")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime
+  password               String                  @default("")
+  ApiKey                 ApiKey[]
+  ContractWorker         ContractWorker?
+  LoyaltyAccount         LoyaltyAccount?
+  OAuthConnection        OAuthConnection[]
+  Order                  Order[]
+  Session                Session[]
+  UserBadge              UserBadge[]
+  SalesRep               SalesRep?
+  activities             EmployeeActivity[]
+  createdPriceOverrides  CustomerPriceOverride[] @relation("PriceOverrideCreator")
+  approvedPriceOverrides CustomerPriceOverride[] @relation("PriceOverrideApprover")
 }
 
 model UserBadge {
@@ -472,18 +588,18 @@ enum CatalogSectionType {
 // ============================================
 
 model CatalogSettings {
-  id                  String   @id @default("default")
-  backgroundGradient  String   @default("linear-gradient(180deg, #0f3d0f 0%, #1a4d1a 50%, #0d2e0d 100%)")
-  backgroundPattern   String?
-  patternOpacity      Float    @default(0.1)
-  patternSize         String?  @default("40px 40px")
-  headerStyle         String   @default("default")
-  primaryColor        String   @default("#d4a853")
-  secondaryColor      String   @default("#059669")
-  animation           String?  // pulse, shimmer, gradient-shift, aurora
-  glowEffect          Boolean  @default(false)
-  particleEffect      String?  // confetti, sparkle, etc
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default("default")
+  backgroundGradient String   @default("linear-gradient(180deg, #0f3d0f 0%, #1a4d1a 50%, #0d2e0d 100%)")
+  backgroundPattern  String?
+  patternOpacity     Float    @default(0.1)
+  patternSize        String?  @default("40px 40px")
+  headerStyle        String   @default("default")
+  primaryColor       String   @default("#d4a853")
+  secondaryColor     String   @default("#059669")
+  animation          String? // pulse, shimmer, gradient-shift, aurora
+  glowEffect         Boolean  @default(false)
+  particleEffect     String? // confetti, sparkle, etc
+  updatedAt          DateTime @updatedAt
 }
 
 model CatalogBlock {
@@ -535,6 +651,8 @@ enum CatalogBlockType {
   BULK_BUILDER
   SEASONAL_THEME
   BRAND_SHOWCASE
+  // Creative/Visual Block Types
+  CHARACTER_STAGE
 }
 
 // ============================================
@@ -560,6 +678,7 @@ model BusinessSettings {
   businessHoursOpen  String   @default("06:00")
   businessHoursClose String   @default("18:00")
   businessDays       String   @default("Mon-Sat")
+  cartBlocksConfig   Json? // JSON config for cart checkout blocks
   updatedAt          DateTime @updatedAt
 }
 
@@ -568,38 +687,42 @@ model BusinessSettings {
 // ============================================
 
 model Employee {
-  id             String      @id @default(uuid())
-  firstName      String
-  lastName       String
-  phone          String      @unique  // Full phone number
-  pin            String                // Last 4 digits of phone (for kiosk login)
-  email          String?     @unique
-  role           EmployeeRole @default(WAREHOUSE)
-  hourlyRate     Decimal     @default(0) @db.Decimal(10, 2)
-  active         Boolean     @default(true)
-  photoUrl       String?              // Profile photo
-  hireDate       DateTime    @default(now())
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  timeEntries    TimeEntry[]
+  id           String          @id @default(uuid())
+  firstName    String
+  lastName     String
+  phone        String          @unique // Full phone number
+  pin          String // Last 4 digits of phone (for kiosk login)
+  email        String?         @unique
+  role         EmployeeRole    @default(WAREHOUSE)
+  hourlyRate   Decimal         @default(0) @db.Decimal(10, 2)
+  active       Boolean         @default(true)
+  photoUrl     String? // Profile photo
+  hireDate     DateTime        @default(now())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  timeEntries  TimeEntry[]
+  tasks        Task[] // Assigned tasks
+  receivedPOs  PurchaseOrder[] // POs this employee received
+  workOrders   WorkOrder[] // Work orders assigned to this employee
+  activityLogs ActivityLog[]   @relation("EmployeeActivityLogs")
 
   @@index([pin])
   @@index([active])
 }
 
 model TimeEntry {
-  id           String      @id @default(uuid())
-  employeeId   String
-  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  clockIn      DateTime
-  clockOut     DateTime?
-  clockInPhoto String?     // Photo URL taken at clock-in
-  clockOutPhoto String?    // Photo URL taken at clock-out
-  hoursWorked  Decimal?    @db.Decimal(5, 2)  // Calculated on clock-out
-  notes        String?
-  status       TimeEntryStatus @default(ACTIVE)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String          @id @default(uuid())
+  employeeId    String
+  employee      Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clockIn       DateTime
+  clockOut      DateTime?
+  clockInPhoto  String? // Photo URL taken at clock-in
+  clockOutPhoto String? // Photo URL taken at clock-out
+  hoursWorked   Decimal?        @db.Decimal(5, 2) // Calculated on clock-out
+  notes         String?
+  status        TimeEntryStatus @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([employeeId])
   @@index([clockIn])
@@ -614,33 +737,33 @@ enum EmployeeRole {
 }
 
 enum TimeEntryStatus {
-  ACTIVE      // Currently clocked in
-  COMPLETED   // Clocked out normally
-  ADJUSTED    // Manually adjusted by admin
+  ACTIVE // Currently clocked in
+  COMPLETED // Clocked out normally
+  ADJUSTED // Manually adjusted by admin
 }
 
 // Employee Activity Log - tracks all work activities for worksheets
 model EmployeeActivity {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Who did the action
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // What type of action
-  actionType  ActivityType
+  actionType ActivityType
 
   // Reference to related entity (productId, orderId, etc.)
-  entityType  String?   // "product", "order", "delivery", etc.
-  entityId    String?   // The ID of the related entity
-  entityName  String?   // Human-readable name (product name, order #, etc.)
+  entityType String? // "product", "order", "delivery", etc.
+  entityId   String? // The ID of the related entity
+  entityName String? // Human-readable name (product name, order #, etc.)
 
   // Details of what was done
-  description String    // Human-readable description
-  metadata    Json?     // Additional structured data (old/new values, quantities, etc.)
+  description String // Human-readable description
+  metadata    Json? // Additional structured data (old/new values, quantities, etc.)
 
   // Timestamps
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([actionType])
@@ -650,28 +773,404 @@ model EmployeeActivity {
 
 enum ActivityType {
   // Inventory actions
-  STOCK_UPDATE        // Changed stock quantity
-  LOCATION_UPDATE     // Changed warehouse location
-  SKU_UPDATE          // Updated product SKU
-  EXPIRATION_UPDATE   // Set/changed expiration date
-  IMAGE_UPLOAD        // Uploaded product image
-  PRODUCT_CLASSIFY    // Changed category/brand
+  STOCK_UPDATE // Changed stock quantity
+  LOCATION_UPDATE // Changed warehouse location
+  SKU_UPDATE // Updated product SKU
+  EXPIRATION_UPDATE // Set/changed expiration date
+  IMAGE_UPLOAD // Uploaded product image
+  PRODUCT_CLASSIFY // Changed category/brand
 
   // Order actions
-  ORDER_PICKED        // Picked an order item
-  ORDER_PACKED        // Packed an order
+  ORDER_PICKED // Picked an order item
+  ORDER_PACKED // Packed an order
   ORDER_STATUS_CHANGE // Changed order status
 
   // Delivery actions
-  DELIVERY_START      // Started a delivery route
-  DELIVERY_COMPLETE   // Completed a delivery
-  DELIVERY_ISSUE      // Reported delivery issue
+  DELIVERY_START // Started a delivery route
+  DELIVERY_COMPLETE // Completed a delivery
+  DELIVERY_ISSUE // Reported delivery issue
 
   // Receiving actions
-  SHIPMENT_RECEIVE    // Received incoming shipment
-  STOCK_COUNT         // Performed inventory count
+  SHIPMENT_RECEIVE // Received incoming shipment
+  STOCK_COUNT // Performed inventory count
 
   // Time clock
-  CLOCK_IN            // Clocked in
-  CLOCK_OUT           // Clocked out
+  CLOCK_IN // Clocked in
+  CLOCK_OUT // Clocked out
+
+  // Picking & Packing
+  PICK_STARTED // Started picking an order
+  PICK_ITEM // Picked an individual item
+  PICK_COMPLETED // Completed picking entire order
+  BOX_CREATED // Created a new box for packing
+  BOX_SEALED // Sealed a box for delivery
+}
+
+// ============================================
+// TASK MANAGEMENT SYSTEM (for auto-workflow)
+// ============================================
+
+model Task {
+  id          String   @id @default(uuid())
+  type        TaskType @default(PICKING)
+  title       String
+  description String?
+
+  // Assignment
+  assigneeId String?
+  assignee   Employee? @relation(fields: [assigneeId], references: [id])
+
+  // Related order (if applicable)
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  // Related purchase order (for receiving tasks)
+  purchaseOrderId String?        @unique
+  purchaseOrder   PurchaseOrder? @relation("POReceivingTask", fields: [purchaseOrderId], references: [id])
+
+  // Status tracking
+  status   TaskStatus   @default(PENDING)
+  priority TaskPriority @default(NORMAL)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Completion notes
+  notes String?
+
+  // Auto-print tracking
+  autoPrinted Boolean @default(false)
+  printJobId  String? // Reference to PrintJob if printed
+
+  @@index([assigneeId])
+  @@index([orderId])
+  @@index([purchaseOrderId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+enum TaskType {
+  PICKING // Pick items for an order
+  PACKING // Pack items into boxes
+  RECEIVING // Receive incoming inventory
+  STOCKING // Stock items on shelves
+  DELIVERY // Deliver to customer
+  COUNTING // Inventory count
+}
+
+enum TaskStatus {
+  PENDING // Not started
+  ASSIGNED // Assigned to employee
+  IN_PROGRESS // Being worked on
+  COMPLETED // Done
+  CANCELLED // Cancelled
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================
+// ACTIVITY LOG (simple audit trail)
+// ============================================
+
+model ActivityLog {
+  id          String @id @default(uuid())
+  type        String // e.g., "RECEIVING_CLAIMED", "ITEM_RECEIVED", "RECEIVING_COMPLETED"
+  description String
+  metadata    Json?
+
+  // Who performed the action
+  employeeId String?
+  employee   Employee? @relation("EmployeeActivityLogs", fields: [employeeId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// BOX & QR CODE SYSTEM (for delivery tracking)
+// ============================================
+
+model Box {
+  id String @id @default(uuid())
+
+  // Order relationship
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  // QR code for scanning
+  qrCode String @unique // Unique identifier for QR
+
+  // Contents
+  items BoxItem[]
+
+  // Status
+  status BoxStatus @default(PACKING)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  sealedAt    DateTime?
+  deliveredAt DateTime?
+
+  // Who packed it
+  packedById String?
+
+  @@index([orderId])
+  @@index([qrCode])
+  @@index([status])
+}
+
+model BoxItem {
+  id String @id @default(uuid())
+
+  boxId String
+  box   Box    @relation(fields: [boxId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity Int
+
+  // Track if picked/confirmed
+  picked Boolean @default(false)
+
+  @@index([boxId])
+  @@index([productId])
+}
+
+enum BoxStatus {
+  PACKING // Being packed
+  SEALED // Sealed and ready
+  IN_TRANSIT // On delivery truck
+  DELIVERED // Delivered to customer
+}
+
+// ============================================
+// DELIVERY CONFIRMATION SYSTEM
+// ============================================
+
+model DeliveryConfirmation {
+  id String @id @default(uuid())
+
+  // Order relationship
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  // Secure token for customer access (no login required)
+  token String @unique @default(uuid())
+
+  // Signatures (base64 encoded images)
+  driverSignature   String? @db.Text
+  customerSignature String? @db.Text
+
+  // Item confirmation (JSON array)
+  confirmedItems Json? // [{productId, confirmed: bool, issue?: string, photoUrl?: string}]
+
+  // Driver info (who initiated the delivery)
+  driverName String?
+  driverId   String?
+
+  // Customer info
+  customerName  String?
+  customerPhone String?
+
+  // Notes and issues
+  notes     String? @db.Text
+  hasIssues Boolean @default(false)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  @@index([token])
+  @@index([orderId])
+}
+
+// ============================================
+// PRINT JOB QUEUE (for auto-printing)
+// ============================================
+
+model PrintJob {
+  id String @id @default(uuid())
+
+  // Type of document
+  type PrintJobType
+
+  // Printer info
+  printerId String? // Printer ID/name
+
+  // Content
+  payload Json // Document data to print
+
+  // Status
+  status PrintJobStatus @default(QUEUED)
+  copies Int            @default(1)
+
+  // Reference to what triggered the print
+  sourceType String? // "order", "task", "box"
+  sourceId   String?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  printedAt DateTime?
+
+  // Error info if failed
+  errorMsg String?
+  retries  Int     @default(0)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PrintJobType {
+  PICKING_LIST // List of items to pick
+  PACKING_SLIP // Slip to include in box
+  BOX_LABEL // QR code label for box
+  INVOICE // Customer invoice
+  DELIVERY_SHEET // Driver delivery manifest
+}
+
+enum PrintJobStatus {
+  QUEUED // Waiting to print
+  PRINTING // Currently printing
+  COMPLETED // Successfully printed
+  FAILED // Print failed
+  CANCELLED // Cancelled
+}
+
+// ============================================
+// CUSTOMER GROUPS (for multi-account reporting)
+// ============================================
+
+model CustomerGroup {
+  id    String  @id @default(uuid())
+  name  String
+  email String // Primary contact email for reports
+  phone String?
+  notes String?
+
+  // Customers in this group
+  customers Customer[] @relation("CustomerGroupMembers")
+
+  // Report settings
+  sendWeeklyReport Boolean @default(true)
+  reportDay        Int     @default(1) // 0=Sunday, 1=Monday, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// ============================================
+// WORK ORDER SYSTEM (for catalog/admin tasks)
+// ============================================
+
+model WorkOrder {
+  id          String          @id @default(uuid())
+  type        WorkOrderType
+  title       String
+  description String?
+  status      WorkOrderStatus @default(PENDING)
+  priority    TaskPriority    @default(NORMAL)
+
+  // Assignment (optional - for Ernesto or other admin)
+  assigneeId String?
+  assignee   Employee? @relation(fields: [assigneeId], references: [id])
+
+  // Related product (for NEW_PRODUCT_CATALOG, PRICE_UPDATE, IMAGE_NEEDED)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Related PO (for receiving-triggered work orders)
+  purchaseOrderId String?
+
+  // Extra data (vendor info, suggested price, etc)
+  metadata Json?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([status])
+  @@index([type])
+  @@index([assigneeId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+enum WorkOrderType {
+  NEW_PRODUCT_CATALOG // New product needs to be added to catalog
+  PRICE_UPDATE // Price needs review/update
+  IMAGE_NEEDED // Product needs image
+  INVENTORY_COUNT // Inventory count required
+  VENDOR_SETUP // New vendor needs setup
+}
+
+enum WorkOrderStatus {
+  PENDING // Not started
+  IN_PROGRESS // Being worked on
+  COMPLETED // Done
+  CANCELLED // Cancelled
+}
+
+// ============================================
+// CUSTOMER PRICE OVERRIDE SYSTEM
+// ============================================
+
+model CustomerPriceOverride {
+  id         String   @id @default(uuid())
+  customerId String
+  productId  String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Pricing Options
+  overrideType    OverrideType @default(FIXED_PRICE)
+  fixedPrice      Decimal?     @db.Decimal(10, 2) // Fixed price override
+  discountPercent Decimal?     @db.Decimal(5, 2) // Percentage discount (e.g., 10 = 10% off)
+  discountAmount  Decimal?     @db.Decimal(10, 2) // Fixed discount amount
+
+  // Tiered Pricing (for volume discounts)
+  minQuantity Int? // Minimum quantity for this price
+  maxQuantity Int? // Maximum quantity (null = unlimited)
+
+  // Contract/Agreement
+  contractNumber String?
+  notes          String?
+  startDate      DateTime?
+  endDate        DateTime? // Expiration date (null = no expiration)
+
+  // Status
+  active Boolean @default(true)
+
+  // Audit Trail
+  createdById  String
+  createdBy    User     @relation("PriceOverrideCreator", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?    @relation("PriceOverrideApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([customerId, productId, minQuantity]) // Allow multiple tiers per product
+  @@index([customerId])
+  @@index([productId])
+  @@index([active])
+  @@index([endDate])
+}
+
+enum OverrideType {
+  FIXED_PRICE // Set exact price: $22.99
+  PERCENTAGE_DISCOUNT // 10% off standard price
+  FIXED_DISCOUNT // $2.00 off standard price
+  TIERED // Volume-based pricing
 }

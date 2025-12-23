@@ -1,0 +1,7 @@
+customerEmail,productSku,overrideType,fixedPrice,discountPercent,discountAmount,minQuantity,maxQuantity,contractNumber,notes,startDate,endDate,active
+las.superior@example.com,SKU-001,FIXED_PRICE,22.99,,,,,CONTRACT-LS-001,Las Superior special pricing,,,,true
+las.superior@example.com,SKU-002,PERCENTAGE_DISCOUNT,,10,,,,,CONTRACT-LS-001,10% volume discount,,,,true
+customer2@example.com,SKU-001,FIXED_PRICE,24.50,,,,,CONTRACT-C2-001,Standard pricing,,,,true
+
+
+

@@ -1,0 +1,614 @@
+'use client'
+
+import { useState, useCallback, useRef, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Upload, CheckCircle2, XCircle, Loader2, Search, Filter, Edit, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/toast'
+import ProductEditor from '../products/ProductEditor'
+import { getPublicImageUrl } from '@/lib/imageUrl'
+
+interface Product {
+  id: string
+  name: string
+  sku: string
+  imageUrl?: string | null
+  category?: { id: string; name: string } | null
+  brand?: { id: string; name: string } | null
+}
+
+export default function InventorySeedPage() {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const [draggedOverProduct, setDraggedOverProduct] = useState<string | null>(null)
+  const [uploadingProducts, setUploadingProducts] = useState<Set<string>>(new Set())
+  const [uploadedProducts, setUploadedProducts] = useState<Set<string>>(new Set())
+  const [imageVersions, setImageVersions] = useState<Map<string, number>>(new Map())
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  const [imageRetryCounts, setImageRetryCounts] = useState<Map<string, number>>(new Map())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showMissingOnly, setShowMissingOnly] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [isCreatingNew, setIsCreatingNew] = useState(false)
+  // Removed tabs - restoring v2.0 simple behavior
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
+
+  // Fetch all products - stable query key with proper error handling
+  const { data: productsData, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-products'], // Stable key - don't use Date.now() (causes infinite re-renders)
+    queryFn: async () => {
+      const res = await fetch('/api/admin/products', {
+        credentials: 'include', // Include cookies for authentication
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }))
+        throw new Error(errorData.error || errorData.details || `Failed to fetch products: ${res.status}`)
+      }
+      const response = await res.json()
+      // API returns { data: Product[] }
+      return (response.data || []) as Product[]
+    },
+    staleTime: 0,
+    retry: 1,
+  })
+
+  const allProducts = productsData || []
+
+  // Helper to check if image is missing or placeholder
+  const isMissingImage = useCallback((imageUrl: string | null | undefined): boolean => {
+    if (!imageUrl) return true
+    const url = imageUrl.trim()
+    
+    // Check for empty, placeholder, or default images
+    const isPlaceholder = (
+      url === '' ||
+      url === 'null' ||
+      url.toLowerCase().includes('placeholder') ||
+      url.toLowerCase().includes('no-image') ||
+      url.toLowerCase().includes('coming-soon') ||
+      url.toLowerCase().includes('via.placeholder.com') ||
+      url === '/placeholder-product.png' ||
+      url === '/product-placeholder.svg' ||
+      url === '/coming-soon.png'
+    )
+    
+    // If it's a placeholder, it's missing
+    if (isPlaceholder) return true
+    
+    // If it's a real upload path (/uploads/products/), it has an image
+    if (url.startsWith('/uploads/products/') || url.startsWith('/uploads/prod/')) {
+      return false
+    }
+    
+    // If it starts with /uploads/, assume it's a valid image path
+    if (url.startsWith('/uploads/')) {
+      return false
+    }
+    
+    // Default: if it has any URL that doesn't look like a placeholder, assume it might have an image
+    // The browser's onError handler will catch actual 404s and show placeholder
+    return false
+  }, [])
+
+  // Removed work orders tab - restoring v2.0 simple behavior
+
+  // Filter products - simple v2.0 behavior (no tabs)
+  const products = useMemo(() => {
+    let filtered = allProducts
+
+    // Safety check: ensure allProducts is an array
+    if (!Array.isArray(filtered)) {
+      console.warn('[Inventory Seed] allProducts is not an array:', filtered)
+      filtered = []
+    }
+
+    // Filter by missing images
+    if (showMissingOnly) {
+      filtered = filtered.filter(p => isMissingImage(p.imageUrl))
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(p => 
+        p.name?.toLowerCase().includes(searchLower) ||
+        p.sku?.toLowerCase().includes(searchLower) ||
+        p.category?.name?.toLowerCase().includes(searchLower) ||
+        p.brand?.name?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return filtered
+  }, [allProducts, searchTerm, showMissingOnly, isMissingImage])
+
+  const handleDragOver = useCallback((e: React.DragEvent, productId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDraggedOverProduct(productId)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDraggedOverProduct(null)
+  }, [])
+
+  const handleDrop = useCallback(async (e: React.DragEvent, productId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDraggedOverProduct(null)
+
+    const files = Array.from(e.dataTransfer.files)
+    const imageFile = files.find(file => file.type.startsWith('image/'))
+
+    if (!imageFile) {
+      toast('Please drop a PNG or image file', 'error')
+      return
+    }
+
+    await uploadImage(productId, imageFile)
+  }, [toast])
+
+  const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, productId: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast('Please select an image file', 'error')
+      return
+    }
+
+    await uploadImage(productId, file)
+    
+    // Reset input
+    if (fileInputRefs.current[productId]) {
+      fileInputRefs.current[productId]!.value = ''
+    }
+  }, [toast])
+
+  const uploadImage = async (productId: string, file: File) => {
+    setUploadingProducts(prev => new Set(prev).add(productId))
+    setUploadedProducts(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(productId)
+      return newSet
+    })
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('productId', productId)
+
+      console.log('[Upload] Starting upload for product:', productId, 'File:', file.name, 'Size:', file.size)
+
+      const res = await fetch('/api/admin/products/uploadImage', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Include cookies for authentication
+      })
+
+      console.log('[Upload] Response status:', res.status, res.statusText)
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }))
+        console.error('[Upload] Error response:', errorData)
+        throw new Error(errorData.error || errorData.details || `Upload failed: ${res.status} ${res.statusText}`)
+      }
+
+      const data = await res.json()
+      console.log('[Upload] Success:', data)
+      
+      // Update the product in the cache immediately with new image URL
+      queryClient.setQueryData(['admin-products'], (oldData: Product[] | undefined) => {
+        if (!oldData || !Array.isArray(oldData)) {
+          console.warn('[Upload] Cache data is not an array, cannot update:', oldData)
+          return oldData
+        }
+        const updated = oldData.map((p: Product) => 
+          p.id === productId 
+            ? { ...p, imageUrl: data.imageUrl } // Update with new URL from server
+            : p
+        )
+        console.log('[Upload] Updated cache for product:', productId, 'New imageUrl:', data.imageUrl)
+        return updated
+      })
+      
+      // Remove from failed images if it was there
+      setFailedImages(prev => {
+        if (!prev.has(productId)) return prev
+        const next = new Set(prev)
+        next.delete(productId)
+        return next
+      })
+      
+      // Force image refresh by incrementing version
+      setImageVersions(prev => {
+        const newMap = new Map(prev)
+        newMap.set(productId, (newMap.get(productId) || 0) + 1)
+        return newMap
+      })
+      
+      // Show success feedback
+      setUploadedProducts(prev => new Set(prev).add(productId))
+      
+      // Remove success indicator after 2 seconds
+      setTimeout(() => {
+        setUploadedProducts(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(productId)
+          return newSet
+        })
+      }, 2000)
+
+      // Invalidate and refetch to ensure everything is in sync
+      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await queryClient.refetchQueries({ queryKey: ['admin-products'] })
+      
+      toast('Image uploaded successfully', 'success')
+    } catch (error: any) {
+      console.error('Upload error:', error)
+      toast(error.message || 'Failed to upload image', 'error')
+    } finally {
+      setUploadingProducts(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(productId)
+        return newSet
+      })
+    }
+  }
+
+  const handleEditProduct = useCallback((product: Product) => {
+    setEditingProduct(product)
+  }, [])
+
+  const handleCloseEditor = useCallback(() => {
+    setEditingProduct(null)
+  }, [])
+
+  const handleSaveComplete = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+    toast('Product updated successfully', 'success')
+    setEditingProduct(null)
+  }, [queryClient, toast])
+
+  const handleCardClick = (productId: string) => {
+    fileInputRefs.current[productId]?.click()
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/admin')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Inventory Image Seeding</h1>
+                <p className="text-sm text-gray-600">
+                  Drag and drop PNG images from Finder to update product pictures
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                {products.length} of {allProducts.length} products
+                {isLoading && <span className="ml-2 text-xs text-gray-400">(loading...)</span>}
+              </div>
+              <button
+                onClick={() => setIsCreatingNew(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                New Product
+              </button>
+            </div>
+          </div>
+
+          {/* Search and Filter Bar */}
+          <div className="flex items-center gap-4">
+            {/* Search Bar */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, SKU, category, or brand..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Missing Images Filter */}
+            <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showMissingOnly}
+                onChange={(e) => setShowMissingOnly(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Missing Images Only</span>
+            </label>
+
+            {/* Clear Filters */}
+            {(searchTerm || showMissingOnly) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setShowMissingOnly(false)
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-600">Loading products...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 font-medium mb-2">Error loading products</p>
+            <p className="text-sm text-gray-500 mb-4">{error.message}</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No products found</p>
+            {allProducts.length > 0 && (
+              <p className="text-sm text-gray-400 mt-2">
+                {allProducts.length} products total, but none match current filters
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {products.map((product) => {
+              const isDraggedOver = draggedOverProduct === product.id
+              const isUploading = uploadingProducts.has(product.id)
+              const isUploaded = uploadedProducts.has(product.id)
+              const hasImage = !!product.imageUrl && !isMissingImage(product.imageUrl)
+
+              return (
+                <div
+                  key={product.id}
+                  onDragOver={(e) => handleDragOver(e, product.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, product.id)}
+                  className={`
+                    relative bg-white rounded-lg border-2 transition-all
+                    ${isDraggedOver 
+                      ? 'border-blue-500 bg-blue-50 scale-105 shadow-lg' 
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    }
+                    ${isUploading ? 'opacity-75' : ''}
+                    ${isUploaded ? 'border-green-500 bg-green-50' : ''}
+                  `}
+                >
+                  {/* Hidden file input */}
+                  <input
+                    ref={(el) => {
+                      fileInputRefs.current[product.id] = el
+                    }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={(e) => handleFileInputChange(e, product.id)}
+                    className="hidden"
+                  />
+
+                  {/* Product Image */}
+                  <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden relative">
+                    {hasImage ? (
+                      <img
+                        src={(() => {
+                          const imageUrl = getPublicImageUrl(product.imageUrl)
+                          const separator = imageUrl.includes('?') ? '&' : '?'
+                          const version = imageVersions.get(product.id)
+                          return version ? `${imageUrl}${separator}v=${version}` : imageUrl
+                        })()}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        key={`${product.id}-${imageVersions.get(product.id) || 0}`}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          const resolvedUrl = getPublicImageUrl(product.imageUrl)
+                          console.error('[Image Error] Failed to load:', product.imageUrl, 'for product:', product.name, 'Resolved URL:', resolvedUrl, 'Src:', target.src)
+                          setFailedImages(prev => {
+                            const next = new Set(prev)
+                            next.add(product.id)
+                            return next
+                          })
+
+                          // Retry a few times (uploads can briefly 404 while being written)
+                          const currentRetries = imageRetryCounts.get(product.id) || 0
+                          if (currentRetries < 3) {
+                            setImageRetryCounts(prev => {
+                              const next = new Map(prev)
+                              next.set(product.id, currentRetries + 1)
+                              return next
+                            })
+
+                            // Avoid broken-image icon while retrying
+                            target.src = '/coming-soon.png'
+
+                            setTimeout(() => {
+                              setImageVersions(prev => {
+                                const newMap = new Map(prev)
+                                newMap.set(product.id, (newMap.get(product.id) || 0) + 1)
+                                return newMap
+                              })
+                              setFailedImages(prev => {
+                                if (!prev.has(product.id)) return prev
+                                const next = new Set(prev)
+                                next.delete(product.id)
+                                return next
+                              })
+                            }, 800)
+                          }
+                        }}
+                        onLoad={() => {
+                          setFailedImages(prev => {
+                            if (!prev.has(product.id)) return prev
+                            const next = new Set(prev)
+                            next.delete(product.id)
+                            return next
+                          })
+
+                          setImageRetryCounts(prev => {
+                            if (!prev.has(product.id)) return prev
+                            const next = new Map(prev)
+                            next.delete(product.id)
+                            return next
+                          })
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                        <Upload className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Upload Status Overlay */}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                      </div>
+                    )}
+
+                    {isUploaded && (
+                      <div className="absolute inset-0 bg-green-500 bg-opacity-20 flex items-center justify-center z-20">
+                        <CheckCircle2 className="w-8 h-8 text-green-600" />
+                      </div>
+                    )}
+
+                    {/* Drag Over Indicator */}
+                    {isDraggedOver && (
+                      <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center z-20">
+                        <div className="text-center">
+                          <Upload className="w-10 h-10 text-blue-600 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-blue-600">Drop image here</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No Image Badge */}
+                    {!hasImage && !isDraggedOver && (
+                      <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                        No Image
+                      </div>
+                    )}
+
+                    {/* Edit Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEditProduct(product)
+                      }}
+                      className="absolute top-2 left-2 bg-white hover:bg-gray-100 text-gray-700 p-1.5 rounded-full shadow-md transition-colors z-30"
+                      title="Edit product"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="p-3">
+                    <h3 className="text-sm font-medium text-gray-900 truncate" title={product.name}>
+                      {product.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">{product.sku}</p>
+                    {product.category && (
+                      <p className="text-xs text-gray-400 mt-1">{product.category.name}</p>
+                    )}
+                  </div>
+
+                  {/* Instructions on hover */}
+                  {!isDraggedOver && !isUploading && (
+                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-5 transition-opacity rounded-lg flex items-center justify-center pointer-events-none z-0">
+                      <p className="text-xs text-gray-600 opacity-0 hover:opacity-100 transition-opacity px-2 text-center">
+                        Click or drag image
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Instructions Footer */}
+      <div className="max-w-7xl mx-auto px-6 py-4 border-t border-gray-200 bg-white">
+        <div className="flex items-start gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            <span><strong>Drag & Drop:</strong> Drag PNG files from Finder directly onto product cards</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-300">•</span>
+            <span><strong>Click:</strong> Click any product card to select an image file</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Editor Drawer */}
+      {editingProduct && (
+        <ProductEditor
+          isOpen={!!editingProduct}
+          onClose={handleCloseEditor}
+          onSave={handleSaveComplete}
+          product={{
+            id: editingProduct.id,
+            name: editingProduct.name,
+            sku: editingProduct.sku,
+            price: 0, // Will be loaded from API
+            unitsPerCase: 1, // Will be loaded from API
+            categoryId: editingProduct.category?.id || null,
+            brandId: editingProduct.brand?.id || null,
+            imageUrl: editingProduct.imageUrl || null,
+            category: editingProduct.category,
+            brand: editingProduct.brand,
+          }}
+        />
+      )}
+
+      {/* New Product Modal */}
+      {isCreatingNew && (
+        <ProductEditor
+          isOpen={true}
+          onClose={() => setIsCreatingNew(false)}
+          onSave={() => {
+            setIsCreatingNew(false)
+            queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+            toast('Product created successfully!', 'success')
+          }}
+          product={null} // null means create new
+        />
+      )}
+    </div>
+  )
+}

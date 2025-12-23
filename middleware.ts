@@ -50,12 +50,23 @@ function isPublicRoute(pathname: string): boolean {
     return true
   }
 
+  // Allow PWA files (critical for iOS standalone mode)
+  if (
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/browserconfig.xml' ||
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/splash/')
+  ) {
+    return true
+  }
+
   // Allow public assets (_next, static files, etc.)
   if (
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/uploads/') ||
     pathname.startsWith('/favicon.ico') ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff|woff2|ttf|eot)$/)
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff|woff2|ttf|eot|json)$/)
   ) {
     return true
   }

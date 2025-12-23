@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import prisma from '@/lib/prisma'
+import { requireAdmin, unauthorizedResponse } from '../../lib/auth'
 
 // GET all employees
 export async function GET() {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const employees = await prisma.employee.findMany({
       orderBy: [{ active: 'desc' }, { lastName: 'asc' }],
@@ -33,6 +38,10 @@ export async function GET() {
 
 // POST create new employee
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const data = await request.json()
 
@@ -84,6 +93,10 @@ export async function POST(request: NextRequest) {
 
 // PUT update employee
 export async function PUT(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const data = await request.json()
     const { id, firstName, lastName, phone, email, role, hourlyRate, active } = data
@@ -126,6 +139,10 @@ export async function PUT(request: NextRequest) {
 
 // DELETE employee (soft delete - set inactive)
 export async function DELETE(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

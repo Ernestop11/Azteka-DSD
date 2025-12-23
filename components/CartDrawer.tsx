@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 import { useCartStore } from '@/store/cart'
 import { calculateSubtotal } from '@/lib/calculateOrderTotal'
 import CartItemRow from './CartItemRow'
-import CartUpsells from '@/components/catalog/CartUpsells'
+import CartCheckoutBlocks from '@/components/cart/CartCheckoutBlocks'
 import Link from 'next/link'
 import { useCart as useCartContext } from '@/context/CartContext'
 import type { CatalogProduct } from '@/lib/queries/catalog'
@@ -16,7 +16,7 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const { items, increment, decrement, removeItem, clearCart, getCartCount } = useCartStore()
+  const { items, increment, decrement, removeItem, setQuantity, clearCart, getCartCount } = useCartStore()
   const { add } = useCartContext()
   const subtotal = calculateSubtotal(items)
   const cartCount = getCartCount()
@@ -105,12 +105,13 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         onIncrement={() => increment(item.id)}
                         onDecrement={() => decrement(item.id)}
                         onRemove={() => removeItem(item.id)}
+                        onSetQuantity={(qty) => setQuantity(item.id, qty)}
                       />
                     ))}
                   </div>
-                  
-                  {/* Upsell Suggestions */}
-                  <CartUpsells onAddProduct={handleAddUpsellProduct} />
+
+                  {/* Cart Checkout Blocks - Upsells, Previously Ordered, etc */}
+                  <CartCheckoutBlocks onAddProduct={handleAddUpsellProduct} />
                 </>
               )}
             </div>

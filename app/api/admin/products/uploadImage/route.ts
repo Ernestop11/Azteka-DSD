@@ -4,18 +4,26 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import prisma from '@/lib/prisma'
 import { revalidateTag, revalidatePath } from 'next/cache'
+import { catalogCache } from '@/lib/cache'
 import sharp from 'sharp'
+import { requireAdmin, unauthorizedResponse } from '../../../lib/auth'
+import { uploadToVps, isVpsUploadEnabled } from '@/lib/services/vpsUpload'
 
 /**
  * POST /api/admin/products/uploadImage
- * 
- * FIXED: Now matches employee upload endpoint strategy:
- * - Uses productId as filename (not timestamp) for consistency
+ *
+ * UPGRADED: Now uploads directly to VPS for single source of truth
+ * - Tries VPS upload first (production)
+ * - Falls back to local if VPS unavailable (dev)
+ * - Uses productId as filename for consistency
  * - Updates database after upload
  * - Invalidates cache for real-time sync
- * - Processes image with Sharp for optimization
  */
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const formData = await request.formData()
     const file = formData.get('image') as File
@@ -57,33 +65,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products')
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
-
-    // FIXED: Use productId as filename for consistency across all UIs
-    // This ensures the same product always uses the same filename
+    // Use productId as filename for consistency
     const filename = `${productId}.png`
-    const filepath = join(uploadsDir, filename)
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
-    let buffer = Buffer.from(bytes)
+    const inputBuffer = Buffer.from(bytes)
 
     // Process image with Sharp: resize and optimize
-    buffer = await sharp(buffer)
+    const processedBuffer = await sharp(inputBuffer)
       .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .png({ quality: 90 })
+      .png({ quality: 85, compressionLevel: 6 })
       .toBuffer()
 
-    // Save processed image
-    await writeFile(filepath, buffer)
+    let imageUrl: string
 
-    // FIXED: Update database - this was missing!
-    const imageUrl = `/uploads/products/${filename}`
+    // Try VPS upload first (single source of truth)
+    if (isVpsUploadEnabled()) {
+      console.log('[Upload] VPS upload enabled, uploading directly to VPS...')
+      const vpsResult = await uploadToVps(processedBuffer, filename, 'products')
 
+      if (vpsResult.success) {
+        imageUrl = vpsResult.url
+        console.log('[Upload] VPS upload successful:', imageUrl)
+      } else {
+        console.warn('[Upload] VPS upload failed, falling back to local:', vpsResult.error)
+        // Fall back to local
+        imageUrl = await saveLocally(processedBuffer, filename)
+      }
+    } else {
+      console.log('[Upload] VPS upload not available, saving locally...')
+      imageUrl = await saveLocally(processedBuffer, filename)
+    }
+
+    // Update database with the image URL
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: { imageUrl },
@@ -93,7 +108,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // FIXED: Invalidate ALL caches for real-time sync across ALL pages
+    // Invalidate ALL caches for real-time sync
     revalidateTag('products')
     revalidateTag('catalog')
     revalidatePath('/admin/products')
@@ -103,11 +118,15 @@ export async function POST(request: NextRequest) {
     revalidatePath('/catalog')
     revalidatePath('/')
 
+    // Clear catalogCache (TTLCache)
+    catalogCache.clear()
+
     return NextResponse.json({
       success: true,
-      imageUrl: updatedProduct.imageUrl
+      imageUrl: updatedProduct.imageUrl,
+      uploadedTo: isVpsUploadEnabled() ? 'vps' : 'local'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[POST /api/admin/products/uploadImage] Error:', error)
     return NextResponse.json(
       {
@@ -117,4 +136,19 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Save file locally (fallback for development)
+ */
+async function saveLocally(buffer: Buffer, filename: string): Promise<string> {
+  const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products')
+  if (!existsSync(uploadsDir)) {
+    await mkdir(uploadsDir, { recursive: true })
+  }
+
+  const filepath = join(uploadsDir, filename)
+  await writeFile(filepath, buffer)
+
+  return `/uploads/products/${filename}`
 }

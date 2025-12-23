@@ -11,13 +11,19 @@ interface Product {
   sku: string
   price: number
   imageUrl: string | null
-  brand?: { name: string } | null
-  category?: { name: string } | null
+  brand?: { id: string; name: string } | null
+  category?: { id: string; name: string } | null
+}
+
+interface Category {
+  id: string
+  name: string
+  slug: string
 }
 
 interface CatalogBlock {
   id: string
-  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE'
+  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE' | 'CHARACTER_STAGE'
   title: string | null
   subtitle: string | null
   badgeText: string | null
@@ -210,6 +216,49 @@ const PATTERN_PRESETS = [
     size: '60px 60px',
     preview: '🐉'
   },
+  // Mariachi Silver String Patterns - High Sparkle
+  {
+    id: 'mariachi-silver-strings',
+    name: '🎸 Mariachi Silver',
+    value: `repeating-linear-gradient(90deg, transparent 0px, transparent 8px, rgba(255,255,255,0.35) 8px, rgba(255,255,255,0.35) 9px, transparent 9px, transparent 20px), repeating-linear-gradient(0deg, transparent 0px, transparent 30px, rgba(192,192,192,0.25) 30px, rgba(192,192,192,0.25) 31px, transparent 31px, transparent 60px), radial-gradient(circle at 20% 50%, rgba(255,255,255,0.4) 0%, transparent 3%), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.35) 0%, transparent 2%), radial-gradient(circle at 50% 70%, rgba(255,255,255,0.3) 0%, transparent 2%)`,
+    size: '60px 60px',
+    preview: '🎸'
+  },
+  {
+    id: 'silver-sparkle-intense',
+    name: '✨ Silver Sparkle',
+    value: `radial-gradient(circle at 10% 20%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 2px, transparent 2px), radial-gradient(circle at 90% 10%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.45) 3px, transparent 3px), radial-gradient(circle at 30% 70%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.4) 2px, transparent 2px), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 2px, transparent 2px), radial-gradient(circle at 50% 40%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.55) 3px, transparent 3px), radial-gradient(circle at 85% 55%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.35) 2px, transparent 2px), radial-gradient(circle at 15% 85%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.4) 2px, transparent 2px), radial-gradient(circle at 60% 15%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.45) 2px, transparent 2px)`,
+    size: '120px 120px',
+    preview: '✨'
+  },
+  {
+    id: 'charro-embroidery',
+    name: '🪡 Charro Gold',
+    value: `repeating-linear-gradient(45deg, transparent 0px, transparent 15px, rgba(255,215,0,0.3) 15px, rgba(255,215,0,0.3) 16px, transparent 16px, transparent 30px), repeating-linear-gradient(-45deg, transparent 0px, transparent 15px, rgba(255,215,0,0.25) 15px, rgba(255,215,0,0.25) 16px, transparent 16px, transparent 30px), radial-gradient(circle at 50% 50%, rgba(255,215,0,0.4) 0%, transparent 20%)`,
+    size: '60px 60px',
+    preview: '🪡'
+  },
+  {
+    id: 'guitar-strings',
+    name: '🎵 Guitar Strings',
+    value: `repeating-linear-gradient(90deg, transparent 0px, transparent 12px, rgba(255,255,255,0.4) 12px, rgba(255,255,255,0.15) 13px, transparent 13px, transparent 25px), repeating-linear-gradient(90deg, transparent 0px, transparent 6px, rgba(192,192,192,0.3) 6px, rgba(192,192,192,0.1) 7px, transparent 7px, transparent 18px)`,
+    size: '50px 100%',
+    preview: '🎵'
+  },
+  {
+    id: 'diamond-sparkle',
+    name: '💎 Diamond Sparkle',
+    value: `linear-gradient(45deg, rgba(255,255,255,0.4) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.4) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.4) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.4) 75%), radial-gradient(circle at 50% 50%, rgba(255,255,255,0.5) 0%, transparent 30%)`,
+    size: '40px 40px',
+    preview: '💎'
+  },
+  {
+    id: 'fiesta-lights',
+    name: '🎉 Fiesta Lights',
+    value: `radial-gradient(circle at 20% 30%, rgba(255,0,0,0.4) 0%, transparent 15%), radial-gradient(circle at 50% 20%, rgba(0,255,0,0.35) 0%, transparent 12%), radial-gradient(circle at 80% 40%, rgba(255,255,255,0.5) 0%, transparent 10%), radial-gradient(circle at 35% 70%, rgba(255,215,0,0.4) 0%, transparent 12%), radial-gradient(circle at 70% 75%, rgba(0,200,255,0.35) 0%, transparent 10%), radial-gradient(circle at 90% 85%, rgba(255,100,200,0.3) 0%, transparent 8%)`,
+    size: '150px 150px',
+    preview: '🎉'
+  },
 ]
 
 // Animation presets
@@ -273,12 +322,15 @@ const BLOCK_TYPES = [
   { type: 'BULK_BUILDER', name: 'Bulk Builder', icon: '🏗️', description: 'Mix & match cases with volume pricing', category: 'dsd' },
   { type: 'SEASONAL_THEME', name: 'Seasonal Theme', icon: '🎄', description: 'Holiday/seasonal themed section', category: 'dsd' },
   { type: 'BRAND_SHOWCASE', name: 'Brand Showcase', icon: '🏷️', description: 'Brand logo banner + product carousel', category: 'dsd' },
+  // Creative/Visual blocks
+  { type: 'CHARACTER_STAGE', name: 'Character Stage', icon: '🎭', description: 'Character peeks behind products (Santa, mascots)', category: 'creative' },
 ]
 
 // Block type categories for organization
 const BLOCK_CATEGORIES = [
   { id: 'core', name: 'Core Blocks', description: 'Essential catalog building blocks' },
   { id: 'dsd', name: 'DSD Wholesale', description: 'Specialized blocks for wholesale/DSD' },
+  { id: 'creative', name: 'Creative & Visual', description: 'Eye-catching visual effects & scenes' },
 ]
 
 export default function BlockBuilderPage() {
@@ -329,6 +381,16 @@ export default function BlockBuilderPage() {
     queryKey: ['products-for-blocks'],
     queryFn: async () => {
       const res = await fetch('/api/admin/products?limit=500')
+      const json = await res.json()
+      return json.data || []
+    },
+  })
+
+  // Fetch categories for product picker filter
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['categories-for-blocks'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/categories')
       const json = await res.json()
       return json.data || []
     },
@@ -568,6 +630,7 @@ export default function BlockBuilderPage() {
             <BlockEditor
               block={selectedBlock}
               products={products}
+              categories={categories}
               onUpdate={(data) => updateBlockMutation.mutate({ id: selectedBlock.id, ...data })}
               onDelete={() => deleteBlockMutation.mutate(selectedBlock.id)}
               onAddProduct={(productId) => addProductToBlockMutation.mutate({ blockId: selectedBlock.id, productId })}
@@ -934,12 +997,12 @@ export default function BlockBuilderPage() {
                       <input
                         type="range"
                         min="5"
-                        max="80"
+                        max="100"
                         value={Math.round((localSettings.patternOpacity || 0.1) * 100)}
                         onChange={(e) => setLocalSettings({ ...localSettings, patternOpacity: parseInt(e.target.value) / 100 })}
                         className="flex-1 h-3 bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
                       />
-                      <span className="text-slate-400 text-sm">Bold</span>
+                      <span className="text-slate-400 text-sm">MAX</span>
                       <span className="text-white font-bold text-lg w-16 text-right">
                         {Math.round((localSettings.patternOpacity || 0.1) * 100)}%
                       </span>
@@ -1086,6 +1149,7 @@ export default function BlockBuilderPage() {
 function BlockEditor({
   block,
   products,
+  categories,
   onUpdate,
   onDelete,
   onAddProduct,
@@ -1093,6 +1157,7 @@ function BlockEditor({
 }: {
   block: CatalogBlock
   products: Product[]
+  categories: Category[]
   onUpdate: (data: Partial<CatalogBlock>) => void
   onDelete: () => void
   onAddProduct: (productId: string) => void
@@ -1105,6 +1170,7 @@ function BlockEditor({
   const [ctaLink, setCtaLink] = useState(block.ctaLink || '')
   const [showProductPicker, setShowProductPicker] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [blockConfig, setBlockConfig] = useState<Record<string, unknown>>(block.config || {})
 
   useEffect(() => {
@@ -1118,12 +1184,18 @@ function BlockEditor({
 
   const blockProductIds = new Set(block.products.map(p => p.productId))
   const availableProducts = products.filter(p => !blockProductIds.has(p.id))
+
+  // Filter by category first, then by search term
+  const categoryFilteredProducts = categoryFilter === 'all'
+    ? availableProducts
+    : availableProducts.filter(p => p.category?.id === categoryFilter)
+
   const filteredProducts = searchTerm
-    ? availableProducts.filter(p =>
+    ? categoryFilteredProducts.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchTerm.toLowerCase())
       )
-    : availableProducts
+    : categoryFilteredProducts
 
   const updateConfig = (key: string, value: unknown) => {
     const newConfig = { ...blockConfig, [key]: value }
@@ -1593,8 +1665,286 @@ function BlockEditor({
         </div>
       )}
 
+      {/* Character Stage Settings */}
+      {block.type === 'CHARACTER_STAGE' && (
+        <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 rounded-xl p-5 ring-1 ring-purple-500/30">
+          <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+            <span>🎭</span> Character Stage Settings
+          </h3>
+          <p className="text-sm text-purple-300/80 mb-4">
+            Create stunning scenes where characters appear behind your products - like Santa peeking through holiday snacks!
+          </p>
+
+          {/* Character/Scene Image Upload */}
+          <div className="mb-5 p-4 bg-purple-900/30 rounded-xl border border-purple-500/30">
+            <label className="block text-sm font-semibold text-purple-300 mb-2 flex items-center gap-2">
+              <span>🎅</span> Character/Scene Image
+            </label>
+            <p className="text-xs text-purple-400/70 mb-3">Upload character images (Santa, mascots, holiday figures) that will appear BEHIND the products</p>
+            {blockConfig.characterImageUrl ? (
+              <div className="relative mb-3">
+                <img
+                  src={blockConfig.characterImageUrl as string}
+                  alt="Character"
+                  className="w-full h-48 object-contain rounded-lg bg-black/20"
+                />
+                <button
+                  onClick={() => updateConfig('characterImageUrl', null)}
+                  className="absolute top-2 right-2 w-8 h-8 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-white font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            ) : null}
+            <label className="flex items-center gap-2 px-4 py-2.5 bg-purple-600/30 border border-purple-500/50 rounded-lg cursor-pointer hover:bg-purple-600/50 transition-colors">
+              <span>📤</span>
+              <span className="text-sm">{blockConfig.characterImageUrl ? 'Change Character' : 'Upload Character'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    formData.append('type', 'character')
+                    const res = await fetch('/api/admin/catalog/upload-image', {
+                      method: 'POST',
+                      body: formData,
+                    })
+                    const data = await res.json()
+                    if (data.url) updateConfig('characterImageUrl', data.url)
+                  } catch (err) {
+                    console.error('Upload failed:', err)
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Character Position & Size */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="block text-sm text-purple-300 mb-2">Character Position</label>
+              <select
+                value={(blockConfig.characterPosition as string) || 'center'}
+                onChange={(e) => updateConfig('characterPosition', e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-900 border border-purple-500/30 rounded-lg text-sm"
+              >
+                <option value="left">Left Side</option>
+                <option value="center">Center (Behind)</option>
+                <option value="right">Right Side</option>
+                <option value="peek-left">Peek from Left</option>
+                <option value="peek-right">Peek from Right</option>
+                <option value="peek-top">Peek from Top</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-purple-300 mb-2">Character Size</label>
+              <select
+                value={(blockConfig.characterSize as string) || 'large'}
+                onChange={(e) => updateConfig('characterSize', e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-900 border border-purple-500/30 rounded-lg text-sm"
+              >
+                <option value="small">Small (50%)</option>
+                <option value="medium">Medium (75%)</option>
+                <option value="large">Large (100%)</option>
+                <option value="xlarge">Extra Large (120%)</option>
+                <option value="full">Full Height</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Character Depth (z-index behavior) */}
+          <div className="mb-5">
+            <label className="block text-sm text-purple-300 mb-2">Depth Effect</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'behind', name: 'Behind All', icon: '⬇️', desc: 'Character fully behind products' },
+                { id: 'peek', name: 'Peeking', icon: '👀', desc: 'Character peeks around products' },
+                { id: 'overlay', name: 'Overlay', icon: '⬆️', desc: 'Character in front of products' },
+              ].map((depth) => (
+                <button
+                  key={depth.id}
+                  onClick={() => updateConfig('characterDepth', depth.id)}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    (blockConfig.characterDepth || 'behind') === depth.id
+                      ? 'bg-purple-600 border-purple-400 text-white'
+                      : 'bg-slate-900/50 border-slate-700 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="text-2xl block mb-1">{depth.icon}</span>
+                  <span className="text-xs font-medium">{depth.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scene Background (gradient behind character) */}
+          <div className="mb-5">
+            <label className="block text-sm text-purple-300 mb-2">Scene Background</label>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="color"
+                value={(blockConfig.sceneGradientStart as string) || '#1e3a5f'}
+                onChange={(e) => updateConfig('sceneGradientStart', e.target.value)}
+                className="w-14 h-10 rounded-lg cursor-pointer border border-purple-500/30 bg-transparent"
+              />
+              <input
+                type="color"
+                value={(blockConfig.sceneGradientEnd as string) || '#0c1929'}
+                onChange={(e) => updateConfig('sceneGradientEnd', e.target.value)}
+                className="w-14 h-10 rounded-lg cursor-pointer border border-purple-500/30 bg-transparent"
+              />
+              <select
+                value={(blockConfig.sceneGradientDirection as string) || '135deg'}
+                onChange={(e) => updateConfig('sceneGradientDirection', e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-900 border border-purple-500/30 rounded-lg text-sm"
+              >
+                <option value="0deg">Top to Bottom</option>
+                <option value="90deg">Left to Right</option>
+                <option value="135deg">Diagonal ↘</option>
+                <option value="180deg">Bottom to Top</option>
+                <option value="radial">Radial (Center Out)</option>
+              </select>
+            </div>
+            <div
+              className="h-16 rounded-lg border border-purple-500/30"
+              style={{
+                background: (blockConfig.sceneGradientDirection as string) === 'radial'
+                  ? `radial-gradient(circle, ${blockConfig.sceneGradientStart || '#1e3a5f'}, ${blockConfig.sceneGradientEnd || '#0c1929'})`
+                  : `linear-gradient(${blockConfig.sceneGradientDirection || '135deg'}, ${blockConfig.sceneGradientStart || '#1e3a5f'}, ${blockConfig.sceneGradientEnd || '#0c1929'})`
+              }}
+            />
+          </div>
+
+          {/* Ambient Effects */}
+          <div className="mb-5">
+            <label className="block text-sm text-purple-300 mb-2">Ambient Effects</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'none', name: 'None', icon: '⬜' },
+                { id: 'snow', name: 'Snowfall', icon: '❄️' },
+                { id: 'sparkle', name: 'Sparkles', icon: '✨' },
+                { id: 'bokeh', name: 'Bokeh Lights', icon: '💫' },
+                { id: 'confetti', name: 'Confetti', icon: '🎊' },
+                { id: 'hearts', name: 'Hearts', icon: '💕' },
+              ].map((effect) => (
+                <button
+                  key={effect.id}
+                  onClick={() => updateConfig('ambientEffect', effect.id)}
+                  className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition-all ${
+                    (blockConfig.ambientEffect || 'none') === effect.id
+                      ? 'bg-purple-600 border-purple-400 text-white'
+                      : 'bg-slate-900/50 border-slate-700 hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{effect.icon}</span>
+                  <span>{effect.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Frame/Border Style */}
+          <div className="mb-5">
+            <label className="block text-sm text-purple-300 mb-2">Frame Style</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'none', name: 'No Frame', icon: '⬜' },
+                { id: 'lights', name: 'String Lights', icon: '💡' },
+                { id: 'garland', name: 'Garland', icon: '🌿' },
+                { id: 'ornaments', name: 'Ornaments', icon: '🎄' },
+                { id: 'ribbon', name: 'Ribbon', icon: '🎀' },
+                { id: 'neon', name: 'Neon Glow', icon: '🌟' },
+              ].map((frame) => (
+                <button
+                  key={frame.id}
+                  onClick={() => updateConfig('frameStyle', frame.id)}
+                  className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition-all ${
+                    (blockConfig.frameStyle || 'none') === frame.id
+                      ? 'bg-purple-600 border-purple-400 text-white'
+                      : 'bg-slate-900/50 border-slate-700 hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{frame.icon}</span>
+                  <span className="text-xs">{frame.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Scene Presets */}
+          <div>
+            <label className="block text-sm text-purple-300 mb-2">Quick Scene Presets</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                {
+                  id: 'santa',
+                  name: '🎅 Santa\'s Workshop',
+                  config: {
+                    sceneGradientStart: '#1e3a5f',
+                    sceneGradientEnd: '#0c1929',
+                    ambientEffect: 'snow',
+                    frameStyle: 'lights',
+                    characterDepth: 'behind'
+                  }
+                },
+                {
+                  id: 'valentines',
+                  name: '💕 Valentine\'s Day',
+                  config: {
+                    sceneGradientStart: '#831843',
+                    sceneGradientEnd: '#500724',
+                    ambientEffect: 'hearts',
+                    frameStyle: 'ribbon',
+                    characterDepth: 'peek'
+                  }
+                },
+                {
+                  id: 'fiesta',
+                  name: '🎉 Fiesta',
+                  config: {
+                    sceneGradientStart: '#065f46',
+                    sceneGradientEnd: '#064e3b',
+                    ambientEffect: 'confetti',
+                    frameStyle: 'neon',
+                    characterDepth: 'behind'
+                  }
+                },
+                {
+                  id: 'gold',
+                  name: '✨ Golden Glow',
+                  config: {
+                    sceneGradientStart: '#78350f',
+                    sceneGradientEnd: '#451a03',
+                    ambientEffect: 'sparkle',
+                    frameStyle: 'ornaments',
+                    characterDepth: 'behind'
+                  }
+                },
+              ].map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => {
+                    Object.entries(preset.config).forEach(([key, value]) => {
+                      updateConfig(key, value)
+                    })
+                  }}
+                  className="px-3 py-3 rounded-lg border border-purple-500/30 bg-slate-900/50 hover:bg-purple-600/30 transition-all text-left"
+                >
+                  <span className="font-medium">{preset.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Product Card Style Editor - For blocks with product cards */}
-      {['PRODUCT_GRID', 'PRODUCT_CARDS', 'PROMO_SECTION', 'CATEGORY_ROW', 'RACK_BUNDLE', 'VENDOR_SPOTLIGHT', 'CASE_DEAL', 'NEW_ARRIVALS', 'QUICK_REORDER', 'BULK_BUILDER', 'SEASONAL_THEME', 'BRAND_SHOWCASE'].includes(block.type) && (
+      {['PRODUCT_GRID', 'PRODUCT_CARDS', 'PROMO_SECTION', 'CATEGORY_ROW', 'RACK_BUNDLE', 'VENDOR_SPOTLIGHT', 'CASE_DEAL', 'NEW_ARRIVALS', 'QUICK_REORDER', 'BULK_BUILDER', 'SEASONAL_THEME', 'BRAND_SHOWCASE', 'CHARACTER_STAGE'].includes(block.type) && (
         <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
           <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
             <span>🃏</span> Product Card Style
@@ -1997,23 +2347,43 @@ function BlockEditor({
               </button>
             </div>
 
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search products by name or SKU..."
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              autoFocus
-            />
+            {/* Search and Category Filter */}
+            <div className="flex gap-3 mb-4">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products by name or SKU..."
+                className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className={`min-w-[200px] px-4 py-3 rounded-xl font-medium cursor-pointer transition-colors ${
+                  categoryFilter !== 'all'
+                    ? 'bg-purple-600 text-white border-purple-500'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                } border`}
+              >
+                <option value="all">All Categories ({availableProducts.length})</option>
+                {categories.map(cat => {
+                  const count = availableProducts.filter(p => p.category?.id === cat.id).length
+                  return (
+                    <option key={cat.id} value={cat.id}>{cat.name} ({count})</option>
+                  )
+                })}
+              </select>
+            </div>
 
             <div className="flex-1 overflow-y-auto">
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-8 text-slate-400">
-                  No products found
+                  No products found. Try a different category or search term.
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-3">
-                  {filteredProducts.slice(0, 60).map((product) => (
+                  {filteredProducts.map((product) => (
                     <button
                       key={product.id}
                       onClick={() => onAddProduct(product.id)}

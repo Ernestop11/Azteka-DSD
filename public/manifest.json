@@ -1,14 +1,14 @@
 {
-  "name": "Azteka DSD Platform",
+  "name": "Azteka Foods Catalog",
   "short_name": "Azteka",
-  "description": "Direct Store Delivery platform - Catalog, Inventory, Orders & Fulfillment",
-  "start_url": "/",
+  "description": "Wholesale Catalog - Direct Store Delivery",
+  "start_url": "/catalog",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "background_color": "#0f172a",
-  "theme_color": "#10b981",
-  "orientation": "any",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
   "id": "azteka-dsd-pwa",
   "icons": [
     {

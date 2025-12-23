@@ -1,328 +1,197 @@
 #!/bin/bash
+# Deploy to VPS Script
+# Handles complete deployment to VPS server
 
-# Azteka DSD - Automated VPS Deployment Script
-# Safely deploys Next.js build to VPS without clashing with other services
+set -e
 
-set -e  # Exit on error
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
-VPS_HOST="77.243.85.8"
-VPS_USER="root"
-VPS_PATH="/srv/azteka-api-live"
-APP_NAME="azteka-nextjs"
-PM2_NAME="azteka-nextjs"
-PORT=3002
-DOMAIN="aztekafoods.com"
-
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
+echo -e "${BLUE}🚀 VPS Deployment Script${NC}"
+echo "=" | head -c 60; echo ""
 
-log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
+# Load environment variables
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
 
-log_success() {
-    echo -e "${GREEN}✅${NC} $1"
-}
+# VPS Configuration (from project docs)
+VPS_HOST="${VPS_HOST:-${VPS_SSH_HOST:-77.243.85.8}}"
+VPS_USER="${VPS_USER:-${VPS_SSH_USER:-root}}"
+VPS_PATH="${VPS_PATH:-/srv/azteka-api-live}"
+VPS_UPLOADS_PATH="${VPS_UPLOADS_PATH:-/srv/azteka-api-live/public/uploads/products}"
 
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
+# Check if VPS_HOST is set
+if [ -z "$VPS_HOST" ]; then
+    echo -e "${RED}❌ VPS_HOST not set${NC}"
+    echo ""
+    echo "Please set VPS_HOST in your .env file:"
+    echo "  VPS_HOST=your-vps-ip-or-hostname"
+    echo "  VPS_USER=your-ssh-user (default: root)"
+    echo "  VPS_PATH=/srv/azteka-dsd (default)"
+    echo ""
+    read -p "Enter VPS hostname/IP now (or press Ctrl+C to cancel): " VPS_HOST
+    if [ -z "$VPS_HOST" ]; then
+        echo -e "${RED}❌ VPS_HOST required. Exiting.${NC}"
+        exit 1
+    fi
+fi
 
-log_error() {
-    echo -e "${RED}❌${NC} $1"
-}
+echo -e "${YELLOW}VPS Configuration:${NC}"
+echo "  Host: $VPS_HOST"
+echo "  User: $VPS_USER"
+echo "  Path: $VPS_PATH"
+echo "  Uploads: $VPS_UPLOADS_PATH"
+echo ""
 
-# ============================================================================
-# PRE-DEPLOYMENT CHECKS
-# ============================================================================
-
-log_info "Starting deployment to VPS..."
-
-# Check if we're in the right directory
-if [ ! -f "package.json" ] || [ ! -f "next.config.js" ]; then
-    log_error "Must run from project root directory"
+# Test SSH connection
+echo -e "${YELLOW}1. Testing SSH connection...${NC}"
+if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VPS_USER@$VPS_HOST" "echo 'SSH OK'" 2>/dev/null; then
+    echo -e "${GREEN}   ✅ SSH connection successful${NC}"
+else
+    echo -e "${RED}   ❌ SSH connection failed${NC}"
+    echo ""
+    echo "Please ensure:"
+    echo "  1. SSH key is set up for passwordless login"
+    echo "  2. VPS hostname/IP is correct"
+    echo "  3. Test manually: ssh $VPS_USER@$VPS_HOST"
     exit 1
 fi
 
-# Check if Next.js is installed
-if [ ! -f "node_modules/.bin/next" ] && ! command -v next &> /dev/null; then
-    log_error "Next.js not found. Run: npm install"
-    exit 1
-fi
-
-# Check SSH access
-log_info "Checking SSH access to VPS..."
-if ! ssh -o ConnectTimeout=5 "${VPS_USER}@${VPS_HOST}" "echo 'SSH connection successful'" &> /dev/null; then
-    log_error "Cannot connect to VPS. Check SSH access."
-    exit 1
-fi
-log_success "SSH connection verified"
-
-# ============================================================================
-# LOCAL BUILD
-# ============================================================================
-
-log_info "Skipping local build (disk space issue) - will build on VPS instead..."
-log_warning "This is safe - VPS will build after code sync"
-
-# ============================================================================
-# CREATE PM2 ECOSYSTEM CONFIG
-# ============================================================================
-
-log_info "Creating PM2 ecosystem configuration..."
-
-cat > ecosystem.nextjs.config.cjs <<EOF
-module.exports = {
-  apps: [{
-    name: '${PM2_NAME}',
-    script: 'node_modules/next/dist/bin/next',
-    args: 'start',
-    cwd: '${VPS_PATH}',
-    instances: 1,
-    exec_mode: 'fork',
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env: {
-      NODE_ENV: 'production',
-      PORT: ${PORT}
-    },
-    error_file: '${VPS_PATH}/logs/pm2-error.log',
-    out_file: '${VPS_PATH}/logs/pm2-out.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    merge_logs: true,
-    time: true
-  }]
-};
-EOF
-
-log_success "PM2 config created"
-
-# ============================================================================
-# SYNC TO VPS
-# ============================================================================
-
-log_info "Syncing files to VPS (excluding node_modules, .git, etc.)..."
-
-rsync -avz \
-  --exclude 'node_modules' \
-  --exclude '.next' \
-  --exclude '.next-azteka' \
-  --exclude '.git' \
-  --exclude '*.log' \
-  --exclude '.env.local' \
-  --exclude '.env.development' \
-  --exclude '.env.production' \
-  --exclude 'dist' \
-  --exclude '.DS_Store' \
-  --exclude 'coverage' \
-  --exclude '.turbo' \
-  --exclude 'apps/' \
-  --exclude '_archived_apps/' \
-  ./ "${VPS_USER}@${VPS_HOST}:${VPS_PATH}/"
-
-log_success "Files synced to VPS"
-
-# ============================================================================
-# VPS SETUP
-# ============================================================================
-
-log_info "Setting up VPS..."
-
-ssh "${VPS_USER}@${VPS_HOST}" bash <<EOF
-set -e
-
-cd ${VPS_PATH}
-
-# Create logs directory
-mkdir -p logs
-mkdir -p public/uploads/products
-mkdir -p public/uploads/bundles
-
-# Install dependencies
-log_info() { echo "ℹ \$1"; }
-log_success() { echo "✅ \$1"; }
-
-log_info "Installing dependencies..."
-npm install --legacy-peer-deps --production=false
-
-log_info "Generating Prisma client..."
-npx prisma generate || echo "⚠ Prisma generate failed (may need manual fix)"
-
-log_info "Running database migrations..."
-npx prisma migrate deploy || echo "⚠ Migrations failed (may need manual fix)"
-
-log_info "Building Next.js on VPS..."
-npm run build:next || echo "⚠ Build failed (check logs)"
-
-# CRITICAL: Ensure .next-azteka/package.json has correct module type
-# This prevents "require is not defined in ES module scope" errors
-log_info "Verifying .next-azteka/package.json module type..."
-if [ -f ".next-azteka/package.json" ]; then
-    # Check if it has the wrong type
-    if grep -q '"type": "module"' ".next-azteka/package.json"; then
-        echo '{"type": "commonjs"}' > .next-azteka/package.json
-        echo "⚠ Fixed .next-azteka/package.json (was 'module', now 'commonjs')"
-    else
-        echo "✅ .next-azteka/package.json is correct"
+# Check if git is clean
+echo -e "\n${YELLOW}2. Checking git status...${NC}"
+if [ -n "$(git status --porcelain)" ]; then
+    echo -e "${YELLOW}   ⚠️  Uncommitted changes detected${NC}"
+    read -p "   Continue anyway? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
     fi
 else
-    echo '{"type": "commonjs"}' > .next-azteka/package.json
-    echo "✅ Created .next-azteka/package.json with type: commonjs"
+    echo -e "${GREEN}   ✅ Git is clean${NC}"
 fi
 
-log_success "VPS setup completed"
+# Get current branch
+CURRENT_BRANCH=$(git branch --show-current)
+echo -e "   Current branch: ${BLUE}$CURRENT_BRANCH${NC}"
+
+# Build locally first
+echo -e "\n${YELLOW}3. Building Next.js application...${NC}"
+npm run build:next || npm run build
+echo -e "${GREEN}   ✅ Build complete${NC}"
+
+# Deploy code to VPS
+echo -e "\n${YELLOW}4. Deploying code to VPS...${NC}"
+echo "   Pushing to VPS..."
+
+# Option 1: Git pull on VPS (recommended)
+echo "   Using git pull method..."
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    set -e
+    cd $VPS_PATH || { echo "❌ Directory $VPS_PATH not found"; exit 1; }
+    echo "   📥 Pulling latest code..."
+    git fetch origin
+    git checkout $CURRENT_BRANCH || git checkout main
+    git pull origin $CURRENT_BRANCH || git pull origin main
+    echo "   ✅ Code updated"
 EOF
 
-log_success "VPS setup completed"
-
-# ============================================================================
-# PM2 DEPLOYMENT
-# ============================================================================
-
-log_info "Deploying with PM2..."
-
-ssh "${VPS_USER}@${VPS_HOST}" bash <<EOF
-set -e
-
-cd ${VPS_PATH}
-
-# Check if old process exists
-if pm2 list | grep -q "azteka-api"; then
-    echo "⚠ Found old azteka-api process, stopping it..."
-    pm2 stop azteka-api || true
-    pm2 delete azteka-api || true
-    echo "✅ Old process stopped"
-fi
-
-# Deploy both Next.js and Express worker
-# Use ecosystem.config.cjs which includes both processes
-if pm2 list | grep -q "azteka-nextjs"; then
-    echo "⚠ Restarting azteka-nextjs..."
-    pm2 restart azteka-nextjs || pm2 delete azteka-nextjs
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}   ✅ Code deployed${NC}"
 else
-    echo "ℹ Starting azteka-nextjs..."
+    echo -e "${RED}   ❌ Code deployment failed${NC}"
+    exit 1
 fi
 
-if pm2 list | grep -q "azteka-worker"; then
-    echo "⚠ Restarting azteka-worker..."
-    pm2 restart azteka-worker || pm2 delete azteka-worker
-else
-    echo "ℹ Starting azteka-worker..."
-fi
-
-# Start/restart with new config (both processes)
-pm2 start ecosystem.config.cjs || pm2 restart all
-
-# Save PM2 configuration
-pm2 save
-
-echo "✅ PM2 deployment completed (Next.js + Worker)"
+# Install dependencies on VPS
+echo -e "\n${YELLOW}5. Installing dependencies on VPS...${NC}"
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    set -e
+    cd $VPS_PATH
+    echo "   📦 Installing npm packages..."
+    npm install --production
+    echo "   🔧 Generating Prisma client..."
+    npx prisma generate
+    echo "   ✅ Dependencies installed"
 EOF
 
-log_success "PM2 deployment completed"
+# Run image fix on VPS
+echo -e "\n${YELLOW}6. Running image fix on VPS...${NC}"
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    set -e
+    cd $VPS_PATH
+    echo "   🔍 Checking images..."
+    node scripts/fix-image-issues.mjs || echo "   ⚠️  Fix script completed with warnings"
+    echo "   ✅ Image check complete"
+EOF
 
-# ============================================================================
-# VERIFY DEPLOYMENT
-# ============================================================================
-
-log_info "Verifying deployment..."
-
-# Wait a few seconds for app to start
-sleep 5
-
-# Check PM2 status
-log_info "Checking PM2 status..."
-ssh "${VPS_USER}@${VPS_HOST}" "pm2 list | grep -E '(azteka-nextjs|azteka-worker)'"
-
-# Check if ports are listening
-log_info "Checking if port ${PORT} (Next.js) is listening..."
-if ssh "${VPS_USER}@${VPS_HOST}" "lsof -iTCP:${PORT} -sTCP:LISTEN" &> /dev/null; then
-    log_success "Port ${PORT} (Next.js) is listening"
+# Sync images from local to VPS (if needed)
+echo -e "\n${YELLOW}7. Syncing images to VPS...${NC}"
+if [ -d "public/uploads/products" ] && [ "$(ls -A public/uploads/products 2>/dev/null)" ]; then
+    echo "   📤 Syncing images..."
+    rsync -avz --progress \
+        --exclude='.DS_Store' \
+        public/uploads/products/ \
+        "$VPS_USER@$VPS_HOST:$VPS_UPLOADS_PATH/"
+    echo -e "${GREEN}   ✅ Images synced${NC}"
 else
-    log_warning "Port ${PORT} (Next.js) not yet listening (may need a moment)"
+    echo -e "${YELLOW}   ⚠️  No local images to sync${NC}"
 fi
 
-log_info "Checking if port 3003 (Express Worker) is listening..."
-if ssh "${VPS_USER}@${VPS_HOST}" "lsof -iTCP:3003 -sTCP:LISTEN" &> /dev/null; then
-    log_success "Port 3003 (Express Worker) is listening"
-else
-    log_warning "Port 3003 (Express Worker) not yet listening (may need a moment)"
-fi
+# Build on VPS
+echo -e "\n${YELLOW}8. Building on VPS...${NC}"
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    set -e
+    cd $VPS_PATH
+    echo "   🔨 Building Next.js..."
+    npm run build:next || npm run build
+    echo "   ✅ Build complete"
+EOF
 
-# Test health endpoint (if available)
-log_info "Testing application health..."
-if ssh "${VPS_USER}@${VPS_HOST}" "curl -s http://localhost:${PORT}/api/warehouse/print-slip" &> /dev/null; then
-    log_success "Application is responding"
-else
-    log_warning "Health check failed (app may still be starting)"
-fi
-
-# ============================================================================
-# NGINX UPDATE (if needed)
-# ============================================================================
-
-log_info "Checking Nginx configuration..."
-
-ssh "${VPS_USER}@${VPS_HOST}" bash <<'NGINX_EOF'
-set -e
-
-NGINX_CONFIG="/etc/nginx/sites-available/azteka-dsd"
-
-if [ -f "$NGINX_CONFIG" ]; then
-    # Check if config already points to port 3002
-    if grep -q "proxy_pass http://127.0.0.1:3002" "$NGINX_CONFIG"; then
-        echo "✅ Nginx already configured for port 3002"
-    else
-        echo "⚠ Nginx config may need updating"
-        echo "   Check: $NGINX_CONFIG"
-        echo "   Should have: proxy_pass http://127.0.0.1:3002"
-    fi
+# Restart services on VPS
+echo -e "\n${YELLOW}9. Restarting services on VPS...${NC}"
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    set -e
+    cd $VPS_PATH
     
-    # Test nginx config
-    if nginx -t &> /dev/null; then
-        echo "✅ Nginx configuration is valid"
-        # Reload nginx
-        systemctl reload nginx || echo "⚠ Nginx reload failed (may need manual reload)"
-    else
-        echo "⚠ Nginx configuration has errors"
-    fi
-else
-    echo "⚠ Nginx config not found at $NGINX_CONFIG"
-fi
-NGINX_EOF
+    # Restart PM2
+    echo "   🔄 Restarting PM2..."
+    pm2 restart all || pm2 start ecosystem.config.cjs || echo "   ⚠️  PM2 restart skipped"
+    
+    # Reload Nginx
+    echo "   🔄 Reloading Nginx..."
+    sudo systemctl reload nginx || sudo service nginx reload || echo "   ⚠️  Nginx reload skipped"
+    
+    # Clear Next.js cache
+    echo "   🧹 Clearing cache..."
+    rm -rf .next-azteka .next || true
+    
+    echo "   ✅ Services restarted"
+EOF
 
-# ============================================================================
-# DEPLOYMENT SUMMARY
-# ============================================================================
+# Verify deployment
+echo -e "\n${YELLOW}10. Verifying deployment...${NC}"
+ssh "$VPS_USER@$VPS_HOST" << EOF
+    cd $VPS_PATH
+    echo "   📊 PM2 Status:"
+    pm2 status || echo "   ⚠️  PM2 not running"
+    echo ""
+    echo "   📁 Checking uploads directory:"
+    ls -la public/uploads/products/ 2>/dev/null | head -5 || echo "   ⚠️  Uploads directory not found"
+EOF
 
-log_success "Deployment completed!"
+# Summary
+echo -e "\n" 
+echo "=" | head -c 60; echo ""
+echo -e "${GREEN}✅ VPS Deployment Complete!${NC}"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📋 Deployment Summary"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Next steps:"
+echo "  1. Check PM2: ssh $VPS_USER@$VPS_HOST 'pm2 status'"
+echo "  2. Check logs: ssh $VPS_USER@$VPS_HOST 'pm2 logs'"
+echo "  3. Test diagnostics: https://your-domain.com/api/admin/diagnostics/images"
+echo "  4. Test image upload: https://your-domain.com/admin/inventory-seed"
 echo ""
-echo "  🌐 Production URL: https://${DOMAIN}"
-echo "  📦 App Name: ${APP_NAME}"
-echo "  🔌 Port: ${PORT}"
-echo "  📍 VPS Path: ${VPS_PATH}"
-echo ""
-echo "  📝 Next Steps:"
-echo "    1. Visit https://${DOMAIN} to test"
-echo "    2. Check logs: ssh ${VPS_USER}@${VPS_HOST} 'pm2 logs ${PM2_NAME}'"
-echo "    3. Monitor: ssh ${VPS_USER}@${VPS_HOST} 'pm2 monit'"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-

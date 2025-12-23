@@ -1,39 +1,41 @@
-// Azteka DSD Service Worker - PWA Support v4
-const CACHE_NAME = 'azteka-dsd-v4'
-const STATIC_CACHE = 'azteka-static-v4'
-const DYNAMIC_CACHE = 'azteka-dynamic-v4'
-const IMAGE_CACHE = 'azteka-images-v4'
+// Azteka DSD Service Worker - PWA Support v6
+// NOTE: Admin/employee routes are intentionally excluded from caching.
+const CACHE_NAME = 'azteka-dsd-v7'
+const STATIC_CACHE = 'azteka-static-v7'
+const DYNAMIC_CACHE = 'azteka-dynamic-v7'
+const IMAGE_CACHE = 'azteka-images-v7'
 
-// Static assets to cache on install - includes all main UI entry points
+// Static assets to cache on install - PUBLIC ONLY
+// Do NOT include auth-protected pages (e.g. /admin/*, /employee/*) here.
 const STATIC_ASSETS = [
   '/',
   '/catalog',
   '/cart',
-  '/employee',
-  '/employee/inventory',
-  '/employee/orders',
-  '/employee/delivery',
-  '/admin',
-  '/admin/products',
-  '/admin/categories',
-  '/admin/brands',
   '/login',
   '/manifest.json',
 ]
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW v4] Installing service worker...')
+  console.log('[SW v7] Installing service worker...')
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      console.log('[SW v4] Caching static assets')
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.log('[SW v4] Some assets failed to cache, continuing...', err)
-        // Don't fail install if some assets aren't available
+      console.log('[SW v7] Caching static assets')
+      // Only cache assets that definitely exist - skip ones that might fail
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url => 
+          cache.add(url).catch(err => {
+            console.log(`[SW v7] Failed to cache ${url}, skipping...`, err)
+            return null
+          })
+        )
+      ).then(() => {
+        console.log('[SW v7] Static assets cached (some may have been skipped)')
         return Promise.resolve()
       })
     }).catch(err => {
-      console.log('[SW v4] Cache install error:', err)
+      console.log('[SW v7] Cache install error (non-fatal):', err)
+      return Promise.resolve()
     })
   )
   self.skipWaiting()
@@ -41,14 +43,14 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW v4] Activating service worker...')
+  console.log('[SW v7] Activating service worker...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => !name.includes('-v4'))
+          .filter((name) => !name.includes('-v7'))
           .map((name) => {
-            console.log('[SW v4] Deleting old cache:', name)
+            console.log('[SW v7] Deleting old cache:', name)
             return caches.delete(name)
           })
       )
@@ -82,8 +84,29 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Handle image requests - cache first, background update
+  // Never cache admin/employee routes (avoid stale/broken authenticated UI)
+  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/employee')) {
+    event.respondWith(fetch(request))
+    return
+  }
+
+  // Never cache Next.js build assets to avoid serving stale JS/CSS after deploy
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(fetch(request))
+    return
+  }
+
+  // Handle image requests - NEVER cache /uploads/ images (bypass service worker entirely)
+  if (url.pathname.startsWith('/uploads/')) {
+    // Bypass service worker completely for uploads - go directly to network
+    event.respondWith(fetch(request))
+    return
+  }
+  
+  // Use cache-first for other images (icons, logos)
   if (request.destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico)$/i)) {
+    
+    // For other images (icons, logos), use cache-first
     event.respondWith(
       caches.open(IMAGE_CACHE).then((cache) => {
         return cache.match(request).then((cachedResponse) => {
@@ -231,4 +254,4 @@ self.addEventListener('message', (event) => {
   }
 })
 
-console.log('[SW v4] Service worker loaded')
+console.log('[SW v7] Service worker loaded')

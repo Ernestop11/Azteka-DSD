@@ -9,9 +9,13 @@ import { normalizeProductImage } from '@/lib/imageUrl'
 import { ProductCreateSchema, ProductUpdateSchema } from '@/lib/validation/productSchema'
 import type { TApiResponse, ErrorResponse } from '@/types/api'
 import { sanitizeIdForFilename } from '@/lib/utils/imageSanitize'
-import { requireAdmin } from '../../lib/auth'
+import { requireAdmin, unauthorizedResponse } from '../../lib/auth'
 
 export async function GET(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -40,6 +44,7 @@ export async function GET(request: NextRequest) {
 
     // Use minimal select with only core fields that definitely exist
     // Use include for relations to avoid field-by-field selection issues
+    // Added take limit to prevent timeout with large datasets
     const products = await prisma.product.findMany({
       where,
       select: {
@@ -63,6 +68,8 @@ export async function GET(request: NextRequest) {
         categoryId: true,
         brandId: true,
         inStock: true,
+        allowPresell: true,
+        needsReview: true, // Direct field on Product
         createdAt: true,
         updatedAt: true,
         Category: {
@@ -79,25 +86,74 @@ export async function GET(request: NextRequest) {
             slug: true,
           },
         },
+        // Include PurchaseOrderItem to check if product is new from PO
+        PurchaseOrderItem: {
+          select: {
+            isNewProduct: true,
+            needsReview: true,
+          },
+          where: {
+            OR: [
+              { isNewProduct: true },
+              { needsReview: true },
+            ],
+          },
+          take: 1, // Just need to know if any exist
+        },
       },
       orderBy: {
         name: 'asc',
       },
+      take: 10000, // Limit to prevent timeout (adjust if needed)
     })
 
-    // Normalize image URLs in response and transform relation names for frontend
-    const normalizedProducts = products.map((p) => ({
-      ...p,
-      imageUrl: normalizeProductImage({ imageUrl: p.imageUrl }),
-      // inStock is already included in select, default to true if null/undefined
-      inStock: p.inStock ?? true,
-      // Map Prisma relation names to lowercase for frontend consistency
-      category: p.Category,
-      brand: p.Brand,
-    }))
+    // Transform relation names and preserve image URLs exactly as stored in database
+    const normalizedProducts = products.map((p) => {
+      // DON'T normalize imageUrl - return it exactly as stored in database
+      // The database has the correct path, and normalization was breaking it
+      let imageUrl = p.imageUrl
+      
+      // Only fix the /prod/ to /products/ path shortening issue
+      if (imageUrl && imageUrl.includes('/uploads/prod/')) {
+        imageUrl = imageUrl.replace('/uploads/prod/', '/uploads/products/')
+      }
+      
+      // If imageUrl is null/empty, set to null (frontend will handle placeholder)
+      if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null') {
+        imageUrl = null
+      }
+      
+      // Check if product needs review (from PO imports)
+      // Use direct field first, then check PurchaseOrderItem relation
+      const directNeedsReview = p.needsReview === true
+      const hasNeedsReviewItem = p.PurchaseOrderItem && p.PurchaseOrderItem.length > 0
+      const poNeedsReview = hasNeedsReviewItem && p.PurchaseOrderItem[0]?.needsReview === true
+      const isNewProduct = hasNeedsReviewItem && p.PurchaseOrderItem[0]?.isNewProduct === true
+
+      return {
+        ...p,
+        imageUrl: imageUrl, // Return as-is from database (or null if empty)
+        // inStock is already included in select, default to true if null/undefined
+        inStock: p.inStock ?? true,
+        // allowPresell defaults to false
+        allowPresell: p.allowPresell ?? false,
+        // Map Prisma relation names to lowercase for frontend consistency
+        category: p.Category,
+        brand: p.Brand,
+        // Add flags for new products from PO (use direct field or PO relation)
+        needsReview: directNeedsReview || poNeedsReview || false,
+        isNewProduct: isNewProduct || false,
+      }
+    })
 
     const response: TApiResponse<typeof normalizedProducts> = { data: normalizedProducts }
-    return NextResponse.json(response)
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   } catch (error: any) {
     console.error('[GET /api/admin/products] Error fetching products:', {
       message: error?.message,
@@ -115,6 +171,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     // Check if request is FormData (browser sets boundary, so check for multipart)
     const contentType = request.headers.get('content-type') || ''
@@ -282,6 +342,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const contentType = request.headers.get('content-type') || ''
     let id: string = ''
@@ -401,6 +465,10 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin(request)
+  if (!user) return unauthorizedResponse()
+
   try {
     const body = await request.json()
     const { id } = body

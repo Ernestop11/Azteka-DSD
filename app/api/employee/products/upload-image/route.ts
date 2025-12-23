@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { revalidateTag, revalidatePath } from 'next/cache'
+import { catalogCache } from '@/lib/cache'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import sharp from 'sharp'
+import { uploadToVps, isVpsUploadEnabled } from '@/lib/services/vpsUpload'
 
 // Dynamic import for HEIC conversion
 let heicConvert: ((options: { buffer: Buffer; format: 'JPEG' | 'PNG'; quality?: number }) => Promise<Buffer>) | null = null
@@ -135,11 +137,27 @@ export async function POST(request: NextRequest) {
         .toBuffer()
     }
 
-    // Write file
-    await writeFile(filepath, processedBuffer)
+    let imageUrl: string
 
-    // Update product in database
-    const imageUrl = `/uploads/products/${filename}`
+    // Try VPS upload first (single source of truth)
+    if (isVpsUploadEnabled()) {
+      console.log('[Employee Upload] VPS upload enabled, uploading directly to VPS...')
+      const vpsResult = await uploadToVps(processedBuffer, filename, 'products')
+
+      if (vpsResult.success) {
+        imageUrl = vpsResult.url
+        console.log('[Employee Upload] VPS upload successful:', imageUrl)
+      } else {
+        console.warn('[Employee Upload] VPS upload failed, falling back to local:', vpsResult.error)
+        // Fall back to local
+        await writeFile(filepath, processedBuffer)
+        imageUrl = `/uploads/products/${filename}`
+      }
+    } else {
+      console.log('[Employee Upload] VPS upload not available, saving locally...')
+      await writeFile(filepath, processedBuffer)
+      imageUrl = `/uploads/products/${filename}`
+    }
 
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
@@ -161,10 +179,15 @@ export async function POST(request: NextRequest) {
     revalidatePath('/admin/products')
     revalidatePath('/admin')
 
+    // CRITICAL: Clear catalogCache (TTLCache) used by frontend catalog
+    // This ensures frontend catalog sees updates immediately without refresh
+    catalogCache.clear()
+
     return NextResponse.json({
       success: true,
       imageUrl: updatedProduct.imageUrl,
       enhanced: enhanceImage,
+      uploadedTo: isVpsUploadEnabled() ? 'vps' : 'local',
       message: 'Image uploaded successfully. Use /api/products/background-removal for background removal if needed.'
     })
   } catch (error: any) {

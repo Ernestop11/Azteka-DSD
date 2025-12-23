@@ -23,6 +23,7 @@ import {
   Image,
   Menu,
   Clock,
+  DollarSign,
   type LucideIcon
 } from 'lucide-react'
 
@@ -130,6 +131,20 @@ export default function AdminDashboard() {
       icon: Package,
       href: '/admin/products',
       color: 'from-blue-500 to-blue-600'
+    },
+    {
+      title: 'Inventory Image Seed',
+      description: 'Drag & drop PNG images to update product pictures',
+      icon: Image,
+      href: '/admin/inventory-seed',
+      color: 'from-pink-500 to-rose-600'
+    },
+    {
+      title: 'Price Management',
+      description: 'Manage customer-specific pricing and overrides',
+      icon: DollarSign,
+      href: '/admin/pricing',
+      color: 'from-green-500 to-emerald-600'
     },
     {
       title: 'Bundles Manager',

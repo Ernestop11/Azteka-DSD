@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import prisma from '@/lib/prisma'
+import { requireAdmin, unauthorizedResponse } from '../../lib/auth'
 
 // GET time entries with optional filters
 export async function GET(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const employeeId = searchParams.get('employeeId')
@@ -117,6 +122,10 @@ export async function GET(request: NextRequest) {
 
 // PUT to adjust a time entry
 export async function PUT(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const data = await request.json()
     const { id, clockIn, clockOut, notes } = data
@@ -166,6 +175,10 @@ export async function PUT(request: NextRequest) {
 
 // DELETE a time entry
 export async function DELETE(request: NextRequest) {
+  // Require admin authentication
+  const user = await requireAdmin()
+  if (!user) return unauthorizedResponse()
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(customers)
+    return NextResponse.json({ data: customers })
   } catch (error: any) {
     console.error('Error fetching customers:', error)
     return NextResponse.json(

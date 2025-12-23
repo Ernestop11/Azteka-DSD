@@ -25,8 +25,9 @@ interface CartContextValue {
   add: (product: CartProduct, storeId?: string) => void
   remove: (productId: string) => void
   updateQty: (productId: string, qty: number) => void
+  setQuantity: (productId: string, qty: number) => void
   clear: () => void
-  
+
   // Getters
   items: CartProduct[]
   totals: {
@@ -35,10 +36,10 @@ interface CartContextValue {
     tax: number
     total: number
   }
-  
+
   // Store grouping for MultiStoreOrder
   storeGroups: StoreGroup[]
-  
+
   // Utilities
   getQuantity: (productId: string) => number
   getCartCount: () => number
@@ -56,6 +57,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     removeItem,
     increment,
     decrement,
+    setQuantity: setZustandQuantity,
     clearCart,
     getTotal,
     getQuantity: getZustandQuantity,
@@ -196,6 +198,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     add,
     remove,
     updateQty,
+    setQuantity: setZustandQuantity,
     clear,
     items,
     totals,

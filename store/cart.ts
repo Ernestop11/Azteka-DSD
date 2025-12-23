@@ -15,6 +15,7 @@ interface CartStore {
   removeItem: (productId: string) => void
   increment: (productId: string) => void
   decrement: (productId: string) => void
+  setQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
   getTotal: () => number
   getQuantity: (productId: string) => number
@@ -27,18 +28,35 @@ export const useCartStore = create<CartStore>()(
       items: [],
 
       addItem: (item) => {
+        // Ensure price is a clean number (handles Prisma Decimal, strings, etc.)
+        let cleanPrice = 0
+        if (item.price !== null && item.price !== undefined) {
+          if (typeof item.price === 'number') {
+            cleanPrice = item.price
+          } else if (typeof item.price === 'string') {
+            cleanPrice = parseFloat(item.price) || 0
+          } else if (typeof item.price === 'object' && 'toNumber' in (item.price as object)) {
+            cleanPrice = (item.price as { toNumber(): number }).toNumber()
+          } else {
+            cleanPrice = Number(item.price) || 0
+          }
+        }
+        // Round to 2 decimal places
+        cleanPrice = Math.round(cleanPrice * 100) / 100
+
+        const cleanItem = { ...item, price: cleanPrice }
         const existingItem = get().items.find((i) => i.id === item.id)
         if (existingItem) {
           set((state) => ({
             items: state.items.map((i) =>
               i.id === item.id
-                ? { ...i, quantity: i.quantity + item.quantity }
+                ? { ...i, quantity: i.quantity + cleanItem.quantity }
                 : i
             ),
           }))
         } else {
           set((state) => ({
-            items: [...state.items, item],
+            items: [...state.items, cleanItem],
           }))
         }
       },
@@ -65,6 +83,27 @@ export const useCartStore = create<CartStore>()(
             )
             .filter((i) => i.quantity > 0),
         }))
+      },
+
+      setQuantity: (productId, quantity) => {
+        if (quantity <= 0) {
+          // Remove item if quantity is 0 or less
+          set((state) => ({
+            items: state.items.filter((i) => i.id !== productId),
+          }))
+        } else {
+          const existingItem = get().items.find((i) => i.id === productId)
+          if (existingItem) {
+            // Update existing item quantity
+            set((state) => ({
+              items: state.items.map((i) =>
+                i.id === productId ? { ...i, quantity } : i
+              ),
+            }))
+          }
+          // Note: If item doesn't exist, setQuantity won't add it
+          // Use addItem instead for new items
+        }
       },
 
       clearCart: () => {
