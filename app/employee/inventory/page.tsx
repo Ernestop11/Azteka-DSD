@@ -102,6 +102,15 @@ export default function InventoryPage() {
   const [imageKey, setImageKey] = useState(Date.now()) // Cache buster for image preview
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // New product modal state
+  const [showNewProductModal, setShowNewProductModal] = useState(false)
+  const [newProductName, setNewProductName] = useState('')
+  const [newProductSku, setNewProductSku] = useState('')
+  const [newProductPrice, setNewProductPrice] = useState('')
+  const [newProductCategoryId, setNewProductCategoryId] = useState('')
+  const [newProductBrandId, setNewProductBrandId] = useState('')
+  const [creatingProduct, setCreatingProduct] = useState(false)
+
   // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
@@ -161,6 +170,52 @@ export default function InventoryPage() {
       setBrands(data.data || [])
     } catch (err) {
       console.error('Failed to load brands:', err)
+    }
+  }
+
+  // Create new product
+  const handleCreateProduct = async () => {
+    if (!newProductName.trim()) {
+      setError('Product name is required')
+      return
+    }
+
+    setCreatingProduct(true)
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newProductName.trim(),
+          sku: newProductSku.trim() || `PROD-${Date.now()}`,
+          price: parseFloat(newProductPrice) || 0,
+          categoryId: newProductCategoryId || null,
+          brandId: newProductBrandId || null,
+          inStock: true,
+          stock: 0,
+          needsReview: true
+        })
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to create product')
+      }
+
+      setSuccess('Product created successfully!')
+      setShowNewProductModal(false)
+      setNewProductName('')
+      setNewProductSku('')
+      setNewProductPrice('')
+      setNewProductCategoryId('')
+      setNewProductBrandId('')
+      loadProducts()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to create product')
+    } finally {
+      setCreatingProduct(false)
     }
   }
 
@@ -394,8 +449,19 @@ export default function InventoryPage() {
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-600">Manage stock, SKUs & products</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+              <p className="text-sm text-gray-600">Manage stock, SKUs & products</p>
+            </div>
+            <button
+              onClick={() => setShowNewProductModal(true)}
+              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
+              title="Add New Product"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scan Button */}
@@ -524,19 +590,20 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Edit Modal - Simple fixed positioning, no createPortal */}
+      {/* Edit Modal - iOS Safari scroll fix */}
       {selectedProduct && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center"
           style={{ zIndex: 50 }}
           onClick={() => setSelectedProduct(null)}
         >
           <div
-            className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-auto"
+            className="bg-white rounded-t-2xl sm:rounded-xl w-full sm:max-w-lg max-h-[85vh] flex flex-col"
+            style={{ WebkitOverflowScrolling: 'touch' }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center gap-3 z-10">
+            {/* Modal Header - Fixed at top */}
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 p-4 flex items-center gap-3 rounded-t-2xl sm:rounded-t-xl">
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 relative">
                 {selectedProduct.imageUrl ? (
                   <img
@@ -574,8 +641,8 @@ export default function InventoryPage() {
               </button>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="flex border-b border-gray-200">
+            {/* Tab Navigation - Fixed */}
+            <div className="flex-shrink-0 flex border-b border-gray-200 bg-white">
               {(['stock', 'location', 'details'] as const).map((tab) => (
                 <button
                   key={tab}
@@ -591,8 +658,8 @@ export default function InventoryPage() {
               ))}
             </div>
 
-            {/* Tab Content */}
-            <div className="p-4 space-y-4">
+            {/* Tab Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
               {/* Messages */}
               {success && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
@@ -670,6 +737,34 @@ export default function InventoryPage() {
                   {/* Units per Case */}
                   <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
                     <label className="text-sm font-medium text-purple-700 mb-3 block">Units per Case</label>
+
+                    {/* +/- Controls */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <button
+                        onClick={() => setEditUnitsPerCase(Math.max(1, editUnitsPerCase - 1))}
+                        className="w-12 h-12 bg-purple-200 text-purple-700 rounded-xl flex items-center justify-center"
+                      >
+                        <Minus className="w-5 h-5" />
+                      </button>
+                      <div className="flex-1 text-center">
+                        <input
+                          type="number"
+                          min="1"
+                          value={editUnitsPerCase}
+                          onChange={(e) => setEditUnitsPerCase(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20 text-center text-2xl font-bold text-gray-900 bg-white border border-purple-300 rounded-lg py-2"
+                        />
+                        <div className="text-xs text-purple-600 mt-1">units/case</div>
+                      </div>
+                      <button
+                        onClick={() => setEditUnitsPerCase(editUnitsPerCase + 1)}
+                        className="w-12 h-12 bg-purple-200 text-purple-700 rounded-xl flex items-center justify-center"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Preset Buttons */}
                     <div className="flex items-center gap-2 flex-wrap">
                       {[6, 12, 20, 24, 30, 48].map((units) => (
                         <button
@@ -870,18 +965,40 @@ export default function InventoryPage() {
                     />
                   </div>
 
+                  {/* Category Dropdown */}
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <label className="text-sm font-medium text-blue-700 mb-3 block">Category</label>
+                    <select
+                      value={editCategoryId || ''}
+                      onChange={(e) => setEditCategoryId(e.target.value || null)}
+                      className="w-full px-4 py-3 border border-blue-300 rounded-lg text-gray-900 bg-white font-medium"
+                    >
+                      <option value="">No Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Brand Dropdown */}
+                  <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+                    <label className="text-sm font-medium text-indigo-700 mb-3 block">Brand</label>
+                    <select
+                      value={editBrandId || ''}
+                      onChange={(e) => setEditBrandId(e.target.value || null)}
+                      className="w-full px-4 py-3 border border-indigo-300 rounded-lg text-gray-900 bg-white font-medium"
+                    >
+                      <option value="">No Brand</option>
+                      {brands.map((brand) => (
+                        <option key={brand.id} value={brand.id}>{brand.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Product Info */}
                   <div className="bg-gray-50 rounded-xl p-4">
                     <label className="text-sm font-medium text-gray-700 mb-2 block">Product Info</label>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Category</span>
-                        <span className="text-gray-900">{selectedProduct.category?.name || 'None'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Brand</span>
-                        <span className="text-gray-900">{selectedProduct.brand?.name || 'None'}</span>
-                      </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Price</span>
                         <span className="text-gray-900 font-semibold">${Number(selectedProduct.price).toFixed(2)}</span>
@@ -892,8 +1009,8 @@ export default function InventoryPage() {
               )}
             </div>
 
-            {/* Save Button */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
+            {/* Save Button - Fixed at bottom */}
+            <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 pb-safe">
               <button
                 onClick={saveChanges}
                 disabled={saving}
@@ -914,6 +1031,126 @@ export default function InventoryPage() {
           onClose={() => setScannerOpen(false)}
           mode={scanMode}
         />
+      )}
+
+      {/* New Product Modal */}
+      {showNewProductModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center"
+          style={{ zIndex: 60 }}
+          onClick={() => setShowNewProductModal(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl sm:rounded-xl w-full sm:max-w-md max-h-[85vh] flex flex-col"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-xl">
+              <h2 className="text-xl font-bold text-gray-900">Create New Product</h2>
+              <button
+                onClick={() => setShowNewProductModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Name *
+                </label>
+                <input
+                  type="text"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  placeholder="Enter product name..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  SKU / Barcode
+                </label>
+                <input
+                  type="text"
+                  value={newProductSku}
+                  onChange={(e) => setNewProductSku(e.target.value)}
+                  placeholder="Leave blank for auto-generated"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <select
+                  value={newProductCategoryId}
+                  onChange={(e) => setNewProductCategoryId(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                >
+                  <option value="">Select category...</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand
+                </label>
+                <select
+                  value={newProductBrandId}
+                  onChange={(e) => setNewProductBrandId(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white"
+                >
+                  <option value="">Select brand...</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>{brand.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 pb-safe flex gap-3">
+              <button
+                onClick={() => setShowNewProductModal(false)}
+                className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateProduct}
+                disabled={creatingProduct || !newProductName.trim()}
+                className="flex-1 py-3 px-4 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {creatingProduct ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Plus className="w-5 h-5" />
+                )}
+                {creatingProduct ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -1,23 +1,45 @@
 # VPS Single Source of Truth Plan
 
-## Current State Analysis
+## ⚠️ CRITICAL: CORRECT VPS PATH
 
-### Database: Already VPS-Ready
-- **All data queries** go through Prisma to PostgreSQL
-- **No hardcoded data** - products, categories, brands, bundles, orders all from DB
-- **Authentication** validates sessions against database
-- **Customer pricing** fetched from database per request
+```
+CORRECT PATH: /srv/azteka-dsd
+WRONG PATH:   /srv/azteka-api-live  (DEPRECATED - DO NOT USE)
 
-### Images: Split Architecture (PROBLEM)
-- **Uploads save LOCALLY** to `/public/uploads/products/`
-- **Manual sync required** via `rsync` in deploy script
-- **Database stores relative paths** like `/uploads/products/{id}.png`
-- **No direct VPS upload** - no SSH libraries in codebase
+PM2 PROCESS:  azteka-nextjs
+VPS HOST:     77.243.85.8
+VPS USER:     root
+```
 
-### Build: Dual Location (PROBLEM)
-- **Local builds** in `.next-azteka/`
-- **VPS builds** also in `.next-azteka/`
-- **Manual rsync** of builds during deployment
+**Why this keeps breaking:**
+1. Old documentation/scripts reference `/srv/azteka-api-live`
+2. Claude permissions in `.claude/settings.local.json` have old paths
+3. When deploying, sometimes wrong paths are used from bash history
+
+**The fix:**
+- ALWAYS use `scripts/deploy-vps.sh` for deployments
+- NEVER manually rsync to `/srv/azteka-api-live`
+- The correct PM2 config is in `/srv/azteka-dsd/pm2.config.cjs`
+
+---
+
+## Current State (UPDATED Dec 2025)
+
+### Database: VPS PostgreSQL ✅
+- All data through Prisma
+- PostgreSQL on VPS localhost:5432
+- Database: `azteka_dsd`
+
+### Images: Direct VPS Write ✅
+- Uploads go directly to `/srv/azteka-dsd/public/uploads/`
+- `lib/services/vpsUpload.ts` handles this
+- Nginx serves static files directly
+- Cache busting via `?v=timestamp`
+
+### Builds: Local Build → rsync to VPS ✅
+- Build locally: `npm run build:next`
+- Deploy: `rsync .next-azteka/ root@77.243.85.8:/srv/azteka-dsd/.next-azteka/`
+- Restart: `pm2 restart azteka-nextjs`
 
 ---
 
@@ -36,7 +58,7 @@
 │  └────────────────────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │            Image Storage                               │  │
-│  │  /srv/azteka-api-live/public/uploads/                  │  │
+│  │  /srv/azteka-dsd/public/uploads/                       │  │
 │  │  - products/                                           │  │
 │  │  - brands/                                             │  │
 │  │  - categories/                                         │  │
@@ -85,7 +107,7 @@ import { NodeSSH } from 'node-ssh';
 
 const ssh = new NodeSSH();
 await ssh.connect({ host: '77.243.85.8', username: 'root', privateKey: ... });
-await ssh.putFile(localBuffer, `/srv/azteka-api-live/public/uploads/products/${productId}.png`);
+await ssh.putFile(localBuffer, `/srv/azteka-dsd/public/uploads/products/${productId}.png`);
 ```
 
 **Option B: VPS-as-origin (Simpler)**
@@ -129,7 +151,7 @@ This allows local testing with VPS data but images still served from VPS.
 
 ### Proposed (Single Source)
 ```
-1. Developer uploads image → Directly uploaded to VPS /srv/azteka-api-live/public/uploads/
+1. Developer uploads image → Directly uploaded to VPS /srv/azteka-dsd/public/uploads/
 2. Database updated with /uploads/products/xxx.png
 3. User visits site → Image loads from VPS immediately
 ```
@@ -202,6 +224,7 @@ Admin seeds images for new products
 
 - VPS IP: `77.243.85.8`
 - VPS User: `root`
-- VPS Path: `/srv/azteka-api-live`
+- VPS Path: `/srv/azteka-dsd` (NOT azteka-api-live!)
 - Domain: `aztekafoods.com`
-- PM2 Process: `azteka-api-live`
+- PM2 Process: `azteka-nextjs`
+- Deploy Script: `./scripts/deploy-vps.sh`

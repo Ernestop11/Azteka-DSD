@@ -24,6 +24,7 @@ import {
   Menu,
   Clock,
   DollarSign,
+  MapPin,
   type LucideIcon
 } from 'lucide-react'
 
@@ -81,6 +82,13 @@ export default function AdminDashboard() {
       icon: Printer,
       href: '/warehouse/print-queue',
       color: 'from-slate-500 to-slate-600'
+    },
+    {
+      title: 'Warehouse Map',
+      description: 'Visual product location editor',
+      icon: MapPin,
+      href: '/admin/warehouse-map',
+      color: 'from-teal-500 to-emerald-600'
     }
   ]
 

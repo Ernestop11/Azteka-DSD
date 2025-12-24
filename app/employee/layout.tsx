@@ -34,6 +34,21 @@ export default function EmployeeLayout({
   const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Update theme color for employee section
+  useEffect(() => {
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]')
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', '#065f46')
+    }
+
+    return () => {
+      const themeMeta = document.querySelector('meta[name="theme-color"]')
+      if (themeMeta) {
+        themeMeta.setAttribute('content', '#0f172a')
+      }
+    }
+  }, [])
+
   useEffect(() => {
     async function checkAuth() {
       try {
