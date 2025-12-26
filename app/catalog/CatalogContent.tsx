@@ -362,10 +362,24 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
       return
     }
     if (!product.inStock) return
+
     if (!showControls) {
-      // First click - show controls and add 1 to cart
+      // First tap - show controls and add 1 to cart
       setShowControls(true)
       onAddToCart(product, 1)
+    }
+    // Note: Deselect is handled by tapping the image area (handleImageTap)
+  }
+
+  // TAP TO DESELECT - Tapping the image area when selected removes from cart
+  const handleImageTap = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!showControls) return // Only works when selected
+
+    // Remove from cart entirely
+    setShowControls(false)
+    if (onSetQuantity) {
+      onSetQuantity(product.id, 0)
     }
   }
 
@@ -439,8 +453,10 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
       }}
     >
       {/* PRODUCT IMAGE - v2.0 style: transparent background when image exists, shorter on mobile */}
+      {/* TAP TO DESELECT: Tapping image area when selected removes from cart */}
       <div
-        className="relative h-36 sm:h-44 md:h-52 overflow-hidden flex items-center justify-center p-2 sm:p-3 md:p-4"
+        onClick={handleImageTap}
+        className={`relative h-36 sm:h-44 md:h-52 overflow-hidden flex items-center justify-center p-2 sm:p-3 md:p-4 ${showControls ? 'cursor-pointer' : ''}`}
         style={{
           background: product.imageUrl
             ? `radial-gradient(ellipse at center, ${cardImageBg.replace('linear-gradient', '').includes('#') ? 'rgba(30,41,59,0.3)' : 'rgba(30,41,59,0.2)'} 0%, transparent 70%)`
@@ -556,7 +572,7 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                 −
               </button>
 
-              {/* Quantity Display - Editable */}
+              {/* Quantity Display - Editable with GLOWING border */}
               {isEditing ? (
                 <input
                   type="number"
@@ -570,11 +586,13 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                   }}
                   onClick={(e) => e.stopPropagation()}
                   autoFocus
-                  className="w-10 h-10 sm:w-14 sm:h-12 rounded-full text-center font-black text-lg sm:text-xl shadow-lg z-20 border-2"
+                  className="w-12 h-12 sm:w-16 sm:h-14 rounded-full text-center font-black text-xl sm:text-2xl z-20 border-3 animate-pulse"
                   style={{
                     background: 'white',
                     color: cardAccentColor,
-                    borderColor: cardAccentColor
+                    borderColor: cardAccentColor,
+                    boxShadow: `0 0 20px ${cardAccentColor}, 0 0 40px ${cardAccentColor}80, 0 0 60px ${cardAccentColor}40`,
+                    outline: 'none',
                   }}
                 />
               ) : (
