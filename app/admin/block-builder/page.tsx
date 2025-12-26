@@ -3,6 +3,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { CartBlocksBuilder, RewardsBuilder, CategoryBuilder, BrandBuilder } from '@/components/admin/builders'
+
+// Main Tabs for Block Builder
+type MainTab = 'catalog' | 'cart' | 'rewards' | 'categories' | 'brands'
+
+const MAIN_TABS: { id: MainTab; name: string; icon: string; description: string }[] = [
+  { id: 'catalog', name: 'Catalog', icon: '📦', description: 'Build catalog page layout' },
+  { id: 'cart', name: 'Cart', icon: '🛒', description: 'Customize cart upsells & blocks' },
+  { id: 'rewards', name: 'Rewards', icon: '🏆', description: 'Trade-offs, tiers & prizes' },
+  { id: 'categories', name: 'Categories', icon: '📂', description: 'Category page layouts' },
+  { id: 'brands', name: 'Brands', icon: '🏷️', description: 'Brand showcase pages' },
+]
 
 // Types
 interface Product {
@@ -337,6 +349,7 @@ export default function BlockBuilderPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const previewRef = useRef<HTMLIFrameElement>(null)
+  const [mainTab, setMainTab] = useState<MainTab>('catalog')
   const [selectedBlock, setSelectedBlock] = useState<CatalogBlock | null>(null)
   const [showAddBlock, setShowAddBlock] = useState(false)
   const [newBlockType, setNewBlockType] = useState<string>('PRODUCT_GRID')
@@ -525,45 +538,69 @@ export default function BlockBuilderPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {/* Header */}
+      {/* Header with Page Title */}
       <div className="bg-slate-900 border-b border-slate-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Catalog Block Builder</h1>
-            <p className="text-slate-400 text-sm mt-1">Build and arrange your catalog layout</p>
+            <h1 className="text-2xl font-bold">Block Builder</h1>
+            <p className="text-slate-400 text-sm mt-1">Design and customize your storefront pages</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setEditingSettings(true)}
-              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-lg flex items-center gap-2 transition-all shadow-lg font-medium"
-            >
-              <span>🎨</span> Design Studio
-            </button>
-            <button
-              onClick={() => setShowAddBlock(true)}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 transition-colors font-medium"
-            >
-              <span>➕</span> Add Block
-            </button>
-            <button
-              onClick={() => setShowLivePreview(!showLivePreview)}
-              className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors font-medium ${
-                showLivePreview ? 'bg-amber-600 hover:bg-amber-500' : 'bg-slate-700 hover:bg-slate-600'
-              }`}
-            >
-              <span>{showLivePreview ? '📺' : '👁️'}</span> {showLivePreview ? 'Hide Preview' : 'Preview'}
-            </button>
-            <a
-              href="/catalog"
-              target="_blank"
-              className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center gap-2 transition-colors font-medium"
-            >
-              <span>🔗</span> Open Catalog
-            </a>
-          </div>
+          {mainTab === 'catalog' && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingSettings(true)}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-lg flex items-center gap-2 transition-all shadow-lg font-medium"
+              >
+                <span>🎨</span> Design Studio
+              </button>
+              <button
+                onClick={() => setShowAddBlock(true)}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 transition-colors font-medium"
+              >
+                <span>➕</span> Add Block
+              </button>
+              <button
+                onClick={() => setShowLivePreview(!showLivePreview)}
+                className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors font-medium ${
+                  showLivePreview ? 'bg-amber-600 hover:bg-amber-500' : 'bg-slate-700 hover:bg-slate-600'
+                }`}
+              >
+                <span>{showLivePreview ? '📺' : '👁️'}</span> {showLivePreview ? 'Hide Preview' : 'Preview'}
+              </button>
+              <a
+                href="/catalog"
+                target="_blank"
+                className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center gap-2 transition-colors font-medium"
+              >
+                <span>🔗</span> Open Catalog
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Main Tab Navigation */}
+      <div className="bg-slate-900/50 border-b border-slate-800">
+        <div className="flex gap-1 px-4 py-2">
+          {MAIN_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setMainTab(tab.id)}
+              className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all font-medium ${
+                mainTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700 hover:text-white'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {mainTab === 'catalog' && (
       <div className="flex">
         {/* Block List Sidebar */}
         <div className="w-72 bg-slate-900 border-r border-slate-800 min-h-[calc(100vh-73px)] p-4">
@@ -671,6 +708,35 @@ export default function BlockBuilderPage() {
           </div>
         )}
       </div>
+      )}
+
+      {/* Cart Tab */}
+      {mainTab === 'cart' && (
+        <div className="p-6">
+          <CartBlocksBuilder products={products} />
+        </div>
+      )}
+
+      {/* Rewards Tab */}
+      {mainTab === 'rewards' && (
+        <div className="p-6">
+          <RewardsBuilder products={products} />
+        </div>
+      )}
+
+      {/* Categories Tab */}
+      {mainTab === 'categories' && (
+        <div className="p-6">
+          <CategoryBuilder />
+        </div>
+      )}
+
+      {/* Brands Tab */}
+      {mainTab === 'brands' && (
+        <div className="p-6">
+          <BrandBuilder />
+        </div>
+      )}
 
       {/* Add Block Modal - Enhanced with Categories */}
       {showAddBlock && (

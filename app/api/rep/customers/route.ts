@@ -1,8 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getCurrentUser } from '@/app/api/lib/auth'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
+
+// POST /api/rep/customers - Add a new customer
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const {
+      businessName,
+      contactName,
+      email,
+      phone,
+      address,
+      city,
+      state,
+      zipCode,
+      priceTier = 'B',
+    } = body
+
+    // Validate required fields
+    if (!businessName || !contactName || !email || !phone || !address || !city || !state || !zipCode) {
+      return NextResponse.json(
+        { error: 'All fields are required' },
+        { status: 400 }
+      )
+    }
+
+    // Check if email already exists
+    const existing = await prisma.customer.findUnique({
+      where: { email: email.toLowerCase() },
+    })
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'A customer with this email already exists' },
+        { status: 409 }
+      )
+    }
+
+    // Create the customer
+    const customer = await prisma.customer.create({
+      data: {
+        id: crypto.randomUUID(),
+        businessName,
+        contactName,
+        email: email.toLowerCase(),
+        phone,
+        address,
+        city,
+        state: state.toUpperCase(),
+        zipCode,
+        priceTier: priceTier.toUpperCase(),
+        active: true,
+        updatedAt: new Date(),
+      },
+    })
+
+    return NextResponse.json({
+      success: true,
+      customer: {
+        id: customer.id,
+        businessName: customer.businessName,
+        contactName: customer.contactName,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        city: customer.city,
+        state: customer.state,
+        zipCode: customer.zipCode,
+        priceTier: customer.priceTier,
+        lastVisitDate: null,
+        nextScheduledVisit: null,
+        visitFrequency: null,
+        orderCount: 0,
+        lastOrderDate: null,
+        totalSpent: 0,
+      },
+    })
+  } catch (error) {
+    console.error('[Rep Customers API] POST Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to add customer' },
+      { status: 500 }
+    )
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

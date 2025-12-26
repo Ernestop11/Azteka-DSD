@@ -12,6 +12,16 @@ Azteka DSD is a wholesale distribution management system with a Next.js frontend
 - **PM2 Process**: `azteka-nextjs` (runs on port 3002)
 - **Domain**: `aztekafoods.com`
 - **Database**: PostgreSQL on VPS (port 5432)
+  - Database name: `azteka_dsd`
+  - User: `azteka_user`
+  - Connection: `postgresql://azteka_user:azteka_pass_2024@localhost:5432/azteka_dsd`
+
+### CRITICAL: Image Upload Rules
+- **VPS is the SINGLE SOURCE OF TRUTH for product images**
+- **NEVER sync `public/uploads/` from local to VPS** - this overwrites real images with placeholders!
+- Images are uploaded via `/admin/inventory-seed` directly to VPS
+- Local `public/uploads/products/` contains only placeholders (~10KB each)
+- Real product images on VPS are 20KB-300KB each
 
 ### Deployment Workflow (ALWAYS follow these steps after making changes)
 
@@ -20,9 +30,9 @@ Azteka DSD is a wholesale distribution management system with a Next.js frontend
    npm run build:next
    ```
 
-2. **Sync ALL source files to VPS** (not just the build):
+2. **Sync ALL source files to VPS** (EXCLUDES uploads to protect images):
    ```bash
-   rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' /Users/ernestoponce/dev/azteka-dsd/ root@77.243.85.8:/srv/azteka-dsd/
+   rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' --exclude='public/uploads' /Users/ernestoponce/dev/azteka-dsd/ root@77.243.85.8:/srv/azteka-dsd/
    ```
 
 3. **Sync the build folder**:
@@ -48,9 +58,15 @@ Azteka DSD is a wholesale distribution management system with a Next.js frontend
 For routine deployments:
 ```bash
 npm run build:next && \
-rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' /Users/ernestoponce/dev/azteka-dsd/ root@77.243.85.8:/srv/azteka-dsd/ && \
+rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' --exclude='public/uploads' /Users/ernestoponce/dev/azteka-dsd/ root@77.243.85.8:/srv/azteka-dsd/ && \
 rsync -avz --delete /Users/ernestoponce/dev/azteka-dsd/.next-azteka/ root@77.243.85.8:/srv/azteka-dsd/.next-azteka/ && \
 ssh root@77.243.85.8 "cd /srv/azteka-dsd && npx prisma generate && pm2 restart azteka-nextjs"
+```
+
+### Backup Before Deploy (Recommended)
+```bash
+# Create backup of VPS images before any risky operation
+ssh root@77.243.85.8 "tar -czf /srv/azteka-backup-images-$(date +%Y%m%d-%H%M).tar.gz /srv/azteka-dsd/public/uploads/"
 ```
 
 ## VPS Architecture

@@ -1,0 +1,39 @@
+# Environment files - NEVER sync these
+.env
+.env.local
+.env.production
+.env.production.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Node modules (install on server)
+node_modules/
+
+# Next.js dev cache (not production build)
+.next/
+
+# Local database
+*.db
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude settings (local only)
+.claude/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

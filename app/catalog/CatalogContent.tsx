@@ -7,6 +7,7 @@ import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import { ShoppingCart, Plus, Minus, X, Package, ChevronLeft, ChevronRight, Box } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
 import { getPublicImageUrl } from '@/lib/imageUrl'
+import EnhancedCartDrawer from '@/components/cart/EnhancedCartDrawer'
 
 // Types
 interface CatalogProduct {
@@ -1481,63 +1482,7 @@ function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity }: { blo
   }
 }
 
-// Cart Drawer
-function CartDrawer({ isOpen, onClose, items, onUpdateQuantity, onRemove, totals }: any) {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 z-50" />
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed right-0 top-0 h-full w-full max-w-md bg-slate-900 z-50 flex flex-col border-l border-slate-700">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700">
-              <h2 className="text-2xl font-bold text-white">Your Cart</h2>
-              <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg"><X className="w-6 h-6 text-slate-400" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              {items.length === 0 ? (
-                <div className="text-center py-12">
-                  <ShoppingCart className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400">Your cart is empty</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {items.map((item: any) => (
-                    <div key={item.id} className="flex gap-4 bg-slate-800 rounded-xl p-4">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 flex items-center justify-center">
-                        <ProductImage src={getPublicImageUrl(item.imageUrl)} alt={item.name} className="max-h-full max-w-full object-contain p-2" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-white truncate">{item.name}</h4>
-                        <p className="text-lg font-bold text-amber-500">${(Number(item.price) * item.quantity).toFixed(2)}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center bg-slate-700 rounded-lg overflow-hidden">
-                            <button onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1.5"><Minus className="w-3 h-3 text-white" /></button>
-                            <span className="px-3 text-sm text-white font-medium">{item.quantity}</span>
-                            <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5"><Plus className="w-3 h-3 text-white" /></button>
-                          </div>
-                          <button onClick={() => onRemove(item.id)} className="text-red-400 hover:text-red-300 text-sm">Remove</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {items.length > 0 && (
-              <div className="p-6 border-t border-slate-700">
-                <div className="flex justify-between mb-4">
-                  <span className="text-slate-400">Subtotal</span>
-                  <span className="text-2xl font-bold text-amber-500">${totals.subtotal.toFixed(2)}</span>
-                </div>
-                <button className="w-full py-4 rounded-xl font-bold text-lg bg-amber-500 text-slate-900 hover:bg-amber-400">Checkout</button>
-              </div>
-            )}
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  )
-}
+// Cart Drawer - Now using EnhancedCartDrawer component imported above
 
 // Main Catalog Component
 export default function CatalogContent() {
@@ -1682,8 +1627,8 @@ export default function CatalogContent() {
         />
       )}
 
-      {/* Header - Optimized for mobile */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/40 border-b border-white/10">
+      {/* Header - Optimized for mobile + iPhone safe area */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/40 border-b border-white/10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-[1400px] mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -1731,7 +1676,12 @@ export default function CatalogContent() {
         )}
       </button>
 
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={items} onUpdateQuantity={updateQty} onRemove={remove} totals={totals} />
+      {/* TODO: Get customerId from auth context when customer is logged in */}
+      <EnhancedCartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        customerId="test-customer-maria"
+      />
     </div>
   )
 }
