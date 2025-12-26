@@ -11,6 +11,7 @@ import ProductImageUpload from './ProductImageUpload'
 import VisualDesignPanel from '@/components/admin/VisualDesignPanel'
 import { useToast } from '@/components/ui/toast'
 import { ProductCreateSchema, ProductUpdateSchema } from '@/lib/validation/productSchema'
+import { Plus } from 'lucide-react'
 
 interface Product {
   id?: string
@@ -32,6 +33,9 @@ interface Product {
   featured?: boolean
   seasonal?: boolean
   trending?: boolean
+  // Sell-by options
+  sellByPiece?: boolean
+  sellByHalfCase?: boolean
   // Background customization
   backgroundColor?: string | null
   backgroundGradient?: string | null
@@ -76,6 +80,8 @@ export default function ProductEditor({
     featured: false,
     seasonal: false,
     trending: false,
+    sellByPiece: false,
+    sellByHalfCase: false,
     backgroundColor: null,
     backgroundGradient: null,
     glossLevel: 'none',
@@ -85,6 +91,10 @@ export default function ProductEditor({
     inStock: true,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [showNewCategoryModal, setShowNewCategoryModal] = useState(false)
+  const [showNewBrandModal, setShowNewBrandModal] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newBrandName, setNewBrandName] = useState('')
 
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -317,6 +327,54 @@ export default function ProductEditor({
     },
   })
 
+  // Create new category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, slug: name.toLowerCase().replace(/\s+/g, '-') }),
+      })
+      if (!res.ok) throw new Error('Failed to create category')
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-categories'] })
+      setFormData((prev) => ({ ...prev, categoryId: data.data?.id || data.id }))
+      setShowNewCategoryModal(false)
+      setNewCategoryName('')
+      toast('Category created!', 'success')
+    },
+    onError: () => {
+      toast('Failed to create category', 'error')
+    },
+  })
+
+  // Create new brand mutation
+  const createBrandMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch('/api/admin/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, slug: name.toLowerCase().replace(/\s+/g, '-') }),
+      })
+      if (!res.ok) throw new Error('Failed to create brand')
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-brands'] })
+      setFormData((prev) => ({ ...prev, brandId: data.data?.id || data.id }))
+      setShowNewBrandModal(false)
+      setNewBrandName('')
+      toast('Brand created!', 'success')
+    },
+    onError: () => {
+      toast('Failed to create brand', 'error')
+    },
+  })
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -447,40 +505,60 @@ export default function ProductEditor({
             <label className="block text-sm font-medium text-gray-900 mb-1">
               Category
             </label>
-            <Select
-              value={formData.categoryId || ''}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, categoryId: e.target.value || null }))
-              }
-              className="text-gray-900 bg-white"
-            >
-              <option value="" className="text-gray-900">No category</option>
-              {categories.map((cat: { id: string; name: string }) => (
-                <option key={cat.id} value={cat.id} className="text-gray-900">
-                  {cat.name}
-                </option>
-              ))}
-            </Select>
+            <div className="flex gap-2">
+              <Select
+                value={formData.categoryId || ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, categoryId: e.target.value || null }))
+                }
+                className="text-gray-900 bg-white flex-1"
+              >
+                <option value="" className="text-gray-900">No category</option>
+                {categories.map((cat: { id: string; name: string }) => (
+                  <option key={cat.id} value={cat.id} className="text-gray-900">
+                    {cat.name}
+                  </option>
+                ))}
+              </Select>
+              <button
+                type="button"
+                onClick={() => setShowNewCategoryModal(true)}
+                className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                title="Create new category"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-1">
               Brand
             </label>
-            <Select
-              value={formData.brandId || ''}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, brandId: e.target.value || null }))
-              }
-              className="text-gray-900 bg-white"
-            >
-              <option value="" className="text-gray-900">No brand</option>
-              {brands.map((brand: { id: string; name: string }) => (
-                <option key={brand.id} value={brand.id} className="text-gray-900">
-                  {brand.name}
-                </option>
-              ))}
-            </Select>
+            <div className="flex gap-2">
+              <Select
+                value={formData.brandId || ''}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, brandId: e.target.value || null }))
+                }
+                className="text-gray-900 bg-white flex-1"
+              >
+                <option value="" className="text-gray-900">No brand</option>
+                {brands.map((brand: { id: string; name: string }) => (
+                  <option key={brand.id} value={brand.id} className="text-gray-900">
+                    {brand.name}
+                  </option>
+                ))}
+              </Select>
+              <button
+                type="button"
+                onClick={() => setShowNewBrandModal(true)}
+                className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                title="Create new brand"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -533,6 +611,32 @@ export default function ProductEditor({
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
                 <span className="text-sm font-medium">Trending</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Sell-by Options */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sell-by Options</label>
+            <p className="text-xs text-gray-500 mb-2">Enable these to allow customers to order in smaller quantities</p>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.sellByHalfCase || false}
+                  onChange={(e) => setFormData({ ...formData, sellByHalfCase: e.target.checked })}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm font-medium">Sell by Half Case</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.sellByPiece || false}
+                  onChange={(e) => setFormData({ ...formData, sellByPiece: e.target.checked })}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm font-medium">Sell by Piece</span>
               </label>
             </div>
           </div>
@@ -663,14 +767,102 @@ export default function ProductEditor({
       </form>
   )
 
+  // Modal for creating new category
+  const categoryModal = showNewCategoryModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Category</h3>
+        <Input
+          value={newCategoryName}
+          onChange={(e) => setNewCategoryName(e.target.value)}
+          placeholder="Category name..."
+          className="mb-4"
+          autoFocus
+        />
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setShowNewCategoryModal(false)
+              setNewCategoryName('')
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (newCategoryName.trim()) {
+                createCategoryMutation.mutate(newCategoryName.trim())
+              }
+            }}
+            disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+          >
+            {createCategoryMutation.isPending ? 'Creating...' : 'Create'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Modal for creating new brand
+  const brandModal = showNewBrandModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Brand</h3>
+        <Input
+          value={newBrandName}
+          onChange={(e) => setNewBrandName(e.target.value)}
+          placeholder="Brand name..."
+          className="mb-4"
+          autoFocus
+        />
+        <div className="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setShowNewBrandModal(false)
+              setNewBrandName('')
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (newBrandName.trim()) {
+                createBrandMutation.mutate(newBrandName.trim())
+              }
+            }}
+            disabled={!newBrandName.trim() || createBrandMutation.isPending}
+          >
+            {createBrandMutation.isPending ? 'Creating...' : 'Create'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+
   // If inline mode, return form directly. Otherwise wrap in Drawer
   if (isInlineMode) {
-    return formContent
+    return (
+      <>
+        {formContent}
+        {categoryModal}
+        {brandModal}
+      </>
+    )
   }
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose!} title={product ? 'Edit Product' : 'New Product'}>
-      {formContent}
-    </Drawer>
+    <>
+      <Drawer isOpen={isOpen} onClose={onClose!} title={product ? 'Edit Product' : 'New Product'}>
+        {formContent}
+      </Drawer>
+      {categoryModal}
+      {brandModal}
+    </>
   )
 }

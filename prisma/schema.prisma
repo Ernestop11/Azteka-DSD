@@ -258,6 +258,8 @@ model Product {
   sellByUnit         String                  @default("case") // "case", "display", "unit" - what we sell
   masterCaseUnits    Int? // How many sellable units in a master case
   displayUnits       Int? // Units per display (if selling by display)
+  sellByPiece        Boolean                 @default(false) // Allow selling individual pieces
+  sellByHalfCase     Boolean                 @default(false) // Allow selling half cases
   needsReview        Boolean                 @default(false) // Flag for new/updated products needing catalog review
   OrderItem          OrderItem[]
   Brand              Brand?                  @relation(fields: [brandId], references: [id])
@@ -1046,6 +1048,25 @@ enum PrintJobStatus {
   COMPLETED // Successfully printed
   FAILED // Print failed
   CANCELLED // Cancelled
+}
+
+// Print Agent registration (local print agents that poll for jobs)
+model PrintAgent {
+  id            String   @id @default(uuid())
+  name          String   @unique // e.g., "warehouse-mac"
+  secret        String   // API key for authentication
+  lastHeartbeat DateTime?
+  printerStatus String   @default("UNKNOWN") // ONLINE, OFFLINE, ERROR, UNKNOWN
+  printerName   String?  // e.g., "HP_Color_LaserJet_MFP_M281fdw"
+  queueDepth    Int      @default(0)
+  lastError     String?
+  ipAddress     String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([active])
+  @@index([lastHeartbeat])
 }
 
 // ============================================

@@ -14,7 +14,7 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Upload, CheckCircle2, XCircle, Loader2, Search, Filter, Package, Plus, X } from 'lucide-react'
+import { ArrowLeft, Upload, CheckCircle2, XCircle, Loader2, Search, Filter, Package, Plus, X, Image, Camera, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 import ProductCard from '@/components/catalog/ProductCard'
@@ -25,9 +25,11 @@ interface Product {
   name: string
   sku: string
   imageUrl?: string | null
+  splashImageUrl?: string | null  // Secondary image (case image, angle shot, etc.)
   category?: { id: string; name: string } | null
   brand?: { id: string; name: string } | null
   price: number
+  unitsPerCase?: number
   inStock: boolean
   needsReview?: boolean
   isNewProduct?: boolean
@@ -45,6 +47,7 @@ export default function InventorySeedPage() {
   const [draggedOverProduct, setDraggedOverProduct] = useState<string | null>(null)
   const [uploadingProducts, setUploadingProducts] = useState<Set<string>>(new Set())
   const [uploadedProducts, setUploadedProducts] = useState<Set<string>>(new Set())
+  const [removingBgProducts, setRemovingBgProducts] = useState<Set<string>>(new Set())
   const [imageVersions, setImageVersions] = useState<Map<string, number>>(new Map())
   const [searchTerm, setSearchTerm] = useState('')
   const [showMissingOnly, setShowMissingOnly] = useState(false)
@@ -57,6 +60,13 @@ export default function InventorySeedPage() {
   const [newProductCategoryId, setNewProductCategoryId] = useState('')
   const [newProductBrandId, setNewProductBrandId] = useState('')
   const [creatingProduct, setCreatingProduct] = useState(false)
+
+  // Image gallery modal state
+  const [showImageGallery, setShowImageGallery] = useState(false)
+  const [galleryProduct, setGalleryProduct] = useState<Product | null>(null)
+  const [uploadingSecondary, setUploadingSecondary] = useState(false)
+  const [dragOverSecondary, setDragOverSecondary] = useState(false)
+  const secondaryInputRef = useRef<HTMLInputElement>(null)
   const [categories, setCategories] = useState<{id: string, name: string}[]>([])
   const [brands, setBrands] = useState<{id: string, name: string}[]>([])
 
@@ -100,6 +110,7 @@ export default function InventorySeedPage() {
           name: newProductName.trim(),
           sku: newProductSku.trim() || `PROD-${Date.now()}`,
           price: parseFloat(newProductPrice) || 0,
+          unitsPerCase: 1,
           categoryId: newProductCategoryId || null,
           brandId: newProductBrandId || null,
           inStock: true,
@@ -304,6 +315,125 @@ export default function InventorySeedPage() {
     }
   }, [uploadImage])
 
+  // Open image gallery modal for a product
+  const openImageGallery = useCallback((product: Product) => {
+    setGalleryProduct(product)
+    setShowImageGallery(true)
+  }, [])
+
+  // Upload secondary image (case image, angle, etc.)
+  const uploadSecondaryImage = useCallback(async (productId: string, file: File) => {
+    setUploadingSecondary(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('productId', productId)
+      formData.append('imageType', 'splash') // Use splashImageUrl field
+
+      const res = await fetch('/api/admin/products/uploadImage', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Upload failed' }))
+        throw new Error(error.error || error.details || 'Upload failed')
+      }
+
+      const data = await res.json()
+      console.log('[Gallery] Upload response:', data)
+
+      // Update gallery product state immediately for instant preview
+      if (galleryProduct && data.splashImageUrl) {
+        console.log('[Gallery] Updating preview with:', data.splashImageUrl)
+        setGalleryProduct({ ...galleryProduct, splashImageUrl: data.splashImageUrl })
+      }
+
+      // Force refetch to sync list
+      queryClient.setQueryData(['admin-products'], undefined)
+      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await refetch()
+
+      toast('Secondary image uploaded!', 'success')
+    } catch (error) {
+      console.error('Secondary upload error:', error)
+      toast(error instanceof Error ? error.message : 'Failed to upload image', 'error')
+    } finally {
+      setUploadingSecondary(false)
+    }
+  }, [galleryProduct, queryClient, toast, refetch])
+
+  // Handle secondary image drop
+  const handleSecondaryDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverSecondary(false)
+
+    if (!galleryProduct) return
+
+    const files = Array.from(e.dataTransfer.files)
+    const imageFile = files.find(f => f.type.startsWith('image/'))
+
+    if (!imageFile) {
+      toast('Please drop a PNG or image file', 'error')
+      return
+    }
+
+    uploadSecondaryImage(galleryProduct.id, imageFile)
+  }, [galleryProduct, uploadSecondaryImage, toast])
+
+  // Handle secondary file input
+  const handleSecondaryFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/') && galleryProduct) {
+      uploadSecondaryImage(galleryProduct.id, file)
+    }
+  }, [galleryProduct, uploadSecondaryImage])
+
+  // Remove background from product image
+  const removeBackground = useCallback(async (productId: string, imageUrl: string) => {
+    setRemovingBgProducts(prev => new Set(prev).add(productId))
+
+    try {
+      const res = await fetch('/api/products/background-removal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ productId, imageUrl }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Background removal failed' }))
+        throw new Error(error.error || error.details || 'Background removal failed')
+      }
+
+      // Update image version to force browser reload
+      setImageVersions(prev => {
+        const next = new Map(prev)
+        next.set(productId, Date.now())
+        return next
+      })
+
+      // Force refetch
+      queryClient.setQueryData(['admin-products'], undefined)
+      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await refetch()
+
+      toast('Background removed successfully!', 'success')
+    } catch (error) {
+      console.error('BG removal error:', error)
+      toast(error instanceof Error ? error.message : 'Failed to remove background', 'error')
+    } finally {
+      setRemovingBgProducts(prev => {
+        const next = new Set(prev)
+        next.delete(productId)
+        return next
+      })
+    }
+  }, [queryClient, toast, refetch])
+
   // Counts for tabs
   const allProductsCount = allProducts.length
   const newProductsCount = allProducts.filter(p => p.needsReview === true || p.isNewProduct === true).length
@@ -452,6 +582,7 @@ export default function InventorySeedPage() {
               const isDraggedOver = draggedOverProduct === product.id
               const isUploading = uploadingProducts.has(product.id)
               const isUploaded = uploadedProducts.has(product.id)
+              const isRemovingBg = removingBgProducts.has(product.id)
               const productHasImage = hasImage(product.imageUrl)
 
               return (
@@ -481,6 +612,14 @@ export default function InventorySeedPage() {
                     </div>
                   )}
 
+                  {/* Background Removal Overlay */}
+                  {isRemovingBg && (
+                    <div className="absolute inset-0 bg-purple-900/70 rounded-xl z-20 flex flex-col items-center justify-center">
+                      <Sparkles className="w-8 h-8 text-purple-300 animate-pulse mb-2" />
+                      <span className="text-white text-xs font-medium">Removing BG...</span>
+                    </div>
+                  )}
+
                   {isUploaded && (
                     <div className="absolute inset-0 bg-green-500/20 rounded-xl z-20 flex items-center justify-center pointer-events-none">
                       <CheckCircle2 className="w-8 h-8 text-green-600" />
@@ -495,20 +634,41 @@ export default function InventorySeedPage() {
                         name: product.name,
                         sku: product.sku,
                         price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0,
+                        unitsPerCase: product.unitsPerCase || 1,
                         // Add cache busting timestamp to image URL to force refresh
                         imageUrl: product.imageUrl ? `${product.imageUrl}${product.imageUrl.includes('?') ? '&' : '?'}v=${imageVersions.get(product.id) || Date.now()}` : null,
                         inStock: product.inStock ?? true,
                         allowPresell: false,
-                        category: product.category?.name || null,
-                        brand: product.brand?.name || null,
+                        category: product.category ? { id: product.category.id, name: product.category.name } : null,
+                        brand: product.brand ? { id: product.brand.id, name: product.brand.name } : null,
                       }}
                       index={0}
                       mode="preview"
                     />
 
                     {/* Upload Button Overlay */}
-                    {!isUploading && (
-                      <div className="absolute bottom-2 right-2 z-30">
+                    {!isUploading && !isRemovingBg && (
+                      <div className="absolute bottom-2 right-2 z-30 flex gap-1">
+                        {/* Remove BG button - only show if product has an image */}
+                        {productHasImage && (
+                          <button
+                            onClick={() => removeBackground(product.id, product.imageUrl!)}
+                            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white p-2 rounded-lg shadow-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                            title="Remove background (AI)"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                          </button>
+                        )}
+                        {/* Gallery button - only show if product has an image */}
+                        {productHasImage && (
+                          <button
+                            onClick={() => openImageGallery(product)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-lg shadow-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                            title="Manage product images"
+                          >
+                            <Image className="w-3 h-3" />
+                          </button>
+                        )}
                         <label
                           htmlFor={`file-input-${product.id}`}
                           className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-lg transition-colors flex items-center gap-1 text-xs font-medium"
@@ -575,7 +735,7 @@ export default function InventorySeedPage() {
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
                   placeholder="Enter product name..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -588,7 +748,7 @@ export default function InventorySeedPage() {
                   value={newProductSku}
                   onChange={(e) => setNewProductSku(e.target.value)}
                   placeholder="Leave blank for auto-generated"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -602,7 +762,7 @@ export default function InventorySeedPage() {
                   value={newProductPrice}
                   onChange={(e) => setNewProductPrice(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -658,6 +818,119 @@ export default function InventorySeedPage() {
                 )}
                 {creatingProduct ? 'Creating...' : 'Create Product'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Gallery Modal */}
+      {showImageGallery && galleryProduct && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setShowImageGallery(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Product Images</h2>
+                <p className="text-sm text-gray-600">{galleryProduct.name}</p>
+              </div>
+              <button
+                onClick={() => setShowImageGallery(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Main Product Image */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Main Product Image</h3>
+                <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative">
+                  {galleryProduct.imageUrl ? (
+                    <img
+                      src={getPublicImageUrl(`${galleryProduct.imageUrl}?v=${Date.now()}`)}
+                      alt={galleryProduct.name}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <Camera className="w-12 h-12" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Drag & drop on product card to replace main image
+                </p>
+              </div>
+
+              {/* Secondary Image (Case/Angle) */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Secondary Image (Case/Angle)</h3>
+                <div
+                  className={`aspect-square bg-gray-100 rounded-xl overflow-hidden relative border-2 border-dashed transition-colors ${
+                    dragOverSecondary ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragOverSecondary(true)
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragOverSecondary(false)
+                  }}
+                  onDrop={handleSecondaryDrop}
+                >
+                  {uploadingSecondary ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+                    </div>
+                  ) : galleryProduct.splashImageUrl ? (
+                    <img
+                      src={getPublicImageUrl(`${galleryProduct.splashImageUrl}?v=${Date.now()}`)}
+                      alt={`${galleryProduct.name} - Secondary`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 p-4">
+                      <Upload className="w-12 h-12 mb-2" />
+                      <p className="text-sm text-center">Drag & drop or click to add</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => secondaryInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {galleryProduct.splashImageUrl ? 'Replace' : 'Upload'}
+                  </button>
+                  <input
+                    ref={secondaryInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSecondaryFileInput}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Add case photo, angle shot, or detail view
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                <strong>Tip:</strong> Use secondary images for case packaging, different angles, or detail shots.
+                These can be showcased in the Menu Block Builder for premium products.
+              </p>
             </div>
           </div>
         </div>

@@ -29,11 +29,19 @@ export const ProductCreateSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
   description: z.string().nullable().optional(),
   price: z.number().nonnegative('Price cannot be negative'),
-  unitsPerCase: z.number().int().positive('Units per case must be positive'),
+  unitsPerCase: z.number().int().positive('Units per case must be positive').default(1),
   categoryId: z.string().uuid().nullable().optional(),
   brandId: z.string().uuid().nullable().optional(),
-  imageUrl: z.string().url().nullable().optional(),
+  // Allow URLs, relative paths (like /uploads/...), data URIs, empty strings, or null
+  imageUrl: z.union([
+    z.string().url(),
+    z.string().startsWith('/'),
+    z.string().startsWith('data:'),
+    z.string().length(0),
+    z.null(),
+  ]).optional(),
   inStock: z.boolean().default(true).optional(),
+  needsReview: z.boolean().default(false).optional(),
   // Inventory fields
   stock: z.number().int().nonnegative().optional(),
   warehouseLocation: z.string().nullable().optional(),
@@ -52,9 +60,11 @@ export const ProductUpdateSchema = z.object({
   unitsPerCase: z.number().int().positive().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   brandId: z.string().uuid().nullable().optional(),
-  // More lenient imageUrl - accepts URL, empty string, null, or undefined
+  // More lenient imageUrl - accepts URL, relative paths, data URIs, empty string, null, or undefined
   imageUrl: z.union([
     z.string().url(),
+    z.string().startsWith('/'),
+    z.string().startsWith('data:'),
     z.string().length(0),
     z.null(),
     z.undefined()

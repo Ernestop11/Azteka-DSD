@@ -522,6 +522,11 @@ export async function printToHPLaserJet(
 
 /**
  * Print a picking list for an order
+ *
+ * UPDATED: Now queues the job for the print agent instead of printing directly.
+ * The local print agent will poll for pending jobs and print them.
+ *
+ * This allows the VPS to work even though it can't directly reach the local printer.
  */
 export async function printPickingList(
   orderId: string,
@@ -545,7 +550,7 @@ export async function printPickingList(
       return { success: false, error: 'Order not found' }
     }
 
-    // Generate warehouse locations (simulated - in production this would come from inventory system)
+    // Generate warehouse locations
     const items = order.OrderItem.map((item) => ({
       product: {
         name: item.Product.name,
@@ -553,11 +558,11 @@ export async function printPickingList(
         imageUrl: item.Product.imageUrl || undefined,
       },
       quantity: item.quantity,
-      location: generateWarehouseLocation(item.Product.id), // Simulated location
+      location: item.Product.warehouseLocation || generateWarehouseLocation(item.Product.id),
     }))
 
-    // Generate text-based picking list (printer doesn't support HTML)
-    const text = generatePickingListText({
+    // Generate text-based picking list content
+    const textContent = generatePickingListText({
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
       customer: order.customerName ? {
@@ -568,47 +573,59 @@ export async function printPickingList(
       priority,
     })
 
-    // Queue the print job in database
-    await queuePrintJob('PICKING_LIST', {
-      orderId,
-      priority,
-      itemCount: items.length,
-    }, copies)
-
-    // Send to printer using text format
-    const result = await printTextToHPLaserJet(
-      text,
-      `Picking List - Order ${order.id.slice(-8).toUpperCase()}`,
-      copies
-    )
-
-    // Update print job status
-    if (result.success) {
-      // Mark as printed in database
-      await prisma.printJob.updateMany({
-        where: {
-          type: 'PICKING_LIST',
-          status: 'QUEUED',
-          payload: {
-            path: ['orderId'],
-            equals: orderId,
-          },
+    // Queue the print job for the local print agent
+    // Instead of printing directly, we store the job in the database
+    const printJob = await prisma.printJob.create({
+      data: {
+        type: 'PICKING_LIST',
+        payload: {
+          orderId,
+          orderNumber: order.id.slice(-8).toUpperCase(),
+          customerName: order.customerName,
+          priority,
+          itemCount: items.length,
+          items: items.map(i => ({
+            name: i.product.name,
+            sku: i.product.sku,
+            quantity: i.quantity,
+            location: i.location,
+          })),
+          textContent, // Pre-generated text for easy printing
+          createdAt: order.createdAt.toISOString(),
         },
-        data: {
-          status: 'PRINTED',
-          printedAt: new Date(),
-        },
-      })
+        sourceType: 'order',
+        sourceId: orderId,
+        copies,
+        status: 'QUEUED',
+      },
+    })
+
+    console.log(`[printPickingList] Queued job ${printJob.id} for order ${orderId}`)
+
+    // Return success - the job is queued, print agent will pick it up
+    return {
+      success: true,
+      jobId: printJob.id,
     }
-
-    return result
   } catch (error) {
     console.error('[printPickingList] Error:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to print picking list',
+      error: error instanceof Error ? error.message : 'Failed to queue print job',
     }
   }
+}
+
+/**
+ * Print directly to local printer (used by print agent only)
+ * This function is called by the local print agent, NOT by the VPS
+ */
+export async function printDirectlyToLocalPrinter(
+  text: string,
+  jobName: string = 'Azteka Print Job',
+  copies: number = 1
+): Promise<PrintResult> {
+  return printTextToHPLaserJet(text, jobName, copies)
 }
 
 /**

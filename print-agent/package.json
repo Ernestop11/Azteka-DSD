@@ -1,0 +1,22 @@
+{
+  "name": "azteka-print-agent",
+  "version": "1.0.0",
+  "description": "Local print agent for Azteka DSD - polls VPS for print jobs and prints to local printer",
+  "type": "module",
+  "main": "agent.mjs",
+  "scripts": {
+    "start": "node agent.mjs",
+    "dev": "node --watch agent.mjs"
+  },
+  "keywords": [
+    "printing",
+    "cups",
+    "azteka",
+    "dsd"
+  ],
+  "author": "Azteka DSD",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

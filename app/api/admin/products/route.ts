@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         expirationDate: true,
         lotNumber: true,
         imageUrl: true,
+        splashImageUrl: true,
         backgroundColor: true,
         backgroundGradient: true,
         featured: true,
@@ -70,6 +71,8 @@ export async function GET(request: NextRequest) {
         inStock: true,
         allowPresell: true,
         needsReview: true, // Direct field on Product
+        sellByPiece: true,
+        sellByHalfCase: true,
         createdAt: true,
         updatedAt: true,
         Category: {
@@ -202,6 +205,8 @@ export async function POST(request: NextRequest) {
         featured: formData.get('featured') === 'true',
         seasonal: formData.get('seasonal') === 'true',
         trending: formData.get('trending') === 'true',
+        sellByPiece: formData.get('sellByPiece') === 'true',
+        sellByHalfCase: formData.get('sellByHalfCase') === 'true',
         backgroundColor: formData.get('backgroundColor') || null,
         backgroundGradient: formData.get('backgroundGradient') || null,
       }
@@ -238,8 +243,9 @@ export async function POST(request: NextRequest) {
         sku: data.sku,
         description: data.description || null,
         price: data.price,
-        unitsPerCase: data.unitsPerCase,
+        unitsPerCase: data.unitsPerCase ?? 1,
         inStock: data.inStock ?? true,
+        needsReview: (data as any).needsReview ?? false,
         categoryId: data.categoryId || null,
         brandId: data.brandId || null,
         imageUrl: data.imageUrl || null,
@@ -256,6 +262,9 @@ export async function POST(request: NextRequest) {
         featured: data.featured || false,
         seasonal: data.seasonal || false,
         trending: data.trending || false,
+        // Sell-by options
+        sellByPiece: (data as any).sellByPiece ?? false,
+        sellByHalfCase: (data as any).sellByHalfCase ?? false,
         // Background customization
         backgroundColor: data.backgroundColor || null,
         backgroundGradient: data.backgroundGradient || null,
@@ -264,6 +273,8 @@ export async function POST(request: NextRequest) {
         sparkle: (data as any).sparkle ?? false,
         badge: (data as any).badge || null,
         theme: (data as any).theme || 'default',
+        // Required timestamp (schema doesn't have @updatedAt)
+        updatedAt: new Date(),
       },
     })
 
@@ -395,7 +406,7 @@ export async function PUT(request: NextRequest) {
     if (body.points !== undefined) updateData.points = body.points ? parseInt(body.points) : null
 
     // Boolean fields
-    const boolFields = ['inStock', 'featured', 'seasonal', 'trending', 'sparkle']
+    const boolFields = ['inStock', 'featured', 'seasonal', 'trending', 'sparkle', 'sellByPiece', 'sellByHalfCase']
     boolFields.forEach(field => {
       if (body[field] !== undefined) {
         updateData[field] = body[field] === true || body[field] === 'true'

@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('image') as File
     const productId = formData.get('productId') as string | null
+    const imageType = formData.get('imageType') as string | null // 'main' or 'splash'
 
     if (!file) {
       return NextResponse.json(
@@ -42,6 +43,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Determine if this is a splash/secondary image
+    const isSplashImage = imageType === 'splash'
 
     // Verify product exists
     const product = await prisma.product.findUnique({
@@ -66,14 +70,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Use productId as filename for consistency
-    const filename = `${productId}.png`
+    // Append '-splash' suffix for secondary images
+    const filename = isSplashImage ? `${productId}-splash.png` : `${productId}.png`
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
     const inputBuffer = Buffer.from(bytes)
 
-    // Process image with Sharp: resize and optimize
-    const processedBuffer = await sharp(inputBuffer)
+    // Process image with Sharp:
+    // 1. First trim dark borders (removes screenshot headers, status bars, etc.)
+    // 2. Then resize and optimize
+    const trimmedBuffer = await sharp(inputBuffer)
+      .trim({
+        background: '#000000',  // Trim black/dark pixels
+        threshold: 40           // Sensitivity (0-255, higher = more aggressive)
+      })
+      .toBuffer()
+      .catch(() => inputBuffer) // Fall back to original if trim fails
+
+    const processedBuffer = await sharp(trimmedBuffer)
       .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
       .png({ quality: 85, compressionLevel: 6 })
       .toBuffer()
@@ -100,19 +115,23 @@ export async function POST(request: NextRequest) {
 
     // Update database with the image URL (add cache busting timestamp)
     const cacheBustUrl = `${imageUrl}?v=${Date.now()}`
+
+    // Update the appropriate field based on image type
+    const updateData = isSplashImage
+      ? { splashImageUrl: cacheBustUrl, updatedAt: new Date() }
+      : { imageUrl: cacheBustUrl, updatedAt: new Date() }
+
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
-      data: {
-        imageUrl: cacheBustUrl,
-        updatedAt: new Date() // Force updatedAt to change
-      },
+      data: updateData,
       select: {
         id: true,
         imageUrl: true,
+        splashImageUrl: true,
         updatedAt: true
       }
     })
-    console.log('[Upload] Database updated:', updatedProduct.id, updatedProduct.imageUrl)
+    console.log('[Upload] Database updated:', updatedProduct.id, isSplashImage ? updatedProduct.splashImageUrl : updatedProduct.imageUrl)
 
     // Invalidate ALL caches for real-time sync
     revalidateTag('products')
@@ -130,6 +149,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       imageUrl: updatedProduct.imageUrl,
+      splashImageUrl: updatedProduct.splashImageUrl,
       uploadedTo: isVpsUploadEnabled() ? 'vps' : 'local'
     })
   } catch (error: unknown) {

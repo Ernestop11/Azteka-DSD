@@ -1,6 +1,11 @@
 /**
  * Smart Upsell Bundle Generator
  * Generates intelligent upsell suggestions based on product, brand, and category
+ *
+ * Domino's-style features:
+ * - Cart-aware exclusions (don't suggest items already in cart)
+ * - Complementary product suggestions
+ * - Bundle deals with prominent savings display
  */
 
 import type { CatalogProduct } from '@/lib/queries/catalog'
@@ -12,7 +17,72 @@ export interface UpsellBundle {
   products: CatalogProduct[]
   totalPrice: number
   savings?: number
-  type: 'variety' | 'bulk' | 'complementary' | 'sameBrand'
+  savingsPercent?: number
+  type: 'variety' | 'bulk' | 'complementary' | 'sameBrand' | 'quickAdd'
+}
+
+export interface CartItem {
+  id: string
+  productId?: string
+}
+
+/**
+ * Filter out products that are already in the cart
+ * Domino's pattern: never suggest what customer already has
+ */
+export function excludeCartItems(
+  products: CatalogProduct[],
+  cartItems: CartItem[]
+): CatalogProduct[] {
+  const cartProductIds = new Set(cartItems.map(item => item.id || item.productId))
+  return products.filter(p => !cartProductIds.has(p.id))
+}
+
+/**
+ * Get quick-add complementary products (Domino's "Complete Your Order" style)
+ * Returns individual products, not bundles - for single-click add
+ */
+export function getQuickAddSuggestions(
+  product: CatalogProduct,
+  allProducts: CatalogProduct[],
+  cartItems: CartItem[] = [],
+  limit: number = 4
+): CatalogProduct[] {
+  const categoryName = typeof product.category === 'string' ? product.category : product.category?.name
+
+  // Define what goes well together
+  const complementaryPairs: Record<string, string[]> = {
+    'Drinks': ['Snacks', 'Chips', 'Candy'],
+    'Beverages': ['Snacks', 'Chips', 'Candy'],
+    'Refrescos': ['Botanas', 'Dulces', 'Chips'],
+    'Snacks': ['Drinks', 'Beverages', 'Refrescos'],
+    'Botanas': ['Refrescos', 'Drinks', 'Beverages'],
+    'Chips': ['Drinks', 'Beverages', 'Refrescos'],
+    'Candy': ['Drinks', 'Beverages'],
+    'Dulces': ['Refrescos', 'Drinks'],
+  }
+
+  // Start with available products (not in cart)
+  let availableProducts = excludeCartItems(allProducts, cartItems)
+    .filter(p => p.id !== product.id)
+
+  // First priority: complementary categories
+  const complementaryCategories = complementaryPairs[categoryName || ''] || []
+  const complementary = availableProducts.filter(p => {
+    const pCategory = typeof p.category === 'string' ? p.category : p.category?.name
+    return pCategory && complementaryCategories.includes(pCategory)
+  })
+
+  // Second priority: popular/featured products
+  const featured = availableProducts.filter(p => p.featured || p.trending)
+
+  // Combine: complementary first, then featured, then random
+  const suggestions = [
+    ...complementary.slice(0, 3),
+    ...featured.filter(p => !complementary.find(c => c.id === p.id)).slice(0, 2),
+  ].slice(0, limit)
+
+  return suggestions
 }
 
 /**
@@ -159,28 +229,43 @@ export function generateSameBrandUpsell(
 
 /**
  * Get all upsell bundles for a product
+ * Now with cart-aware exclusions (Domino's pattern)
  */
 export function getUpsellBundles(
   product: CatalogProduct,
-  allProducts: CatalogProduct[]
+  allProducts: CatalogProduct[],
+  cartItems: CartItem[] = []
 ): UpsellBundle[] {
+  // Filter out products already in cart
+  const availableProducts = excludeCartItems(allProducts, cartItems)
+
   const bundles: UpsellBundle[] = []
 
   // 1. Variety pack (most relevant for wholesale)
-  const varietyBundle = generateVarietyPackUpsell(product, allProducts)
-  if (varietyBundle) bundles.push(varietyBundle)
+  const varietyBundle = generateVarietyPackUpsell(product, availableProducts)
+  if (varietyBundle) {
+    varietyBundle.savingsPercent = 10
+    bundles.push(varietyBundle)
+  }
 
   // 2. Bulk discount
   const bulkBundle = generateBulkUpsell(product)
+  bulkBundle.savingsPercent = 15
   bundles.push(bulkBundle)
 
   // 3. Complementary products
-  const complementaryBundle = generateComplementaryUpsell(product, allProducts)
-  if (complementaryBundle) bundles.push(complementaryBundle)
+  const complementaryBundle = generateComplementaryUpsell(product, availableProducts)
+  if (complementaryBundle) {
+    complementaryBundle.savingsPercent = 8
+    bundles.push(complementaryBundle)
+  }
 
   // 4. Same brand products
-  const sameBrandBundle = generateSameBrandUpsell(product, allProducts)
-  if (sameBrandBundle) bundles.push(sameBrandBundle)
+  const sameBrandBundle = generateSameBrandUpsell(product, availableProducts)
+  if (sameBrandBundle) {
+    sameBrandBundle.savingsPercent = 10
+    bundles.push(sameBrandBundle)
+  }
 
   return bundles.slice(0, 3) // Return top 3 most relevant bundles
 }

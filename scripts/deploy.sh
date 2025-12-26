@@ -12,7 +12,8 @@
 set -e
 
 VPS="root@77.243.85.8"
-APP_PATH="/srv/azteka-api-live"
+# CRITICAL: Use /srv/azteka-dsd - NOT /srv/azteka-api-live
+APP_PATH="/srv/azteka-dsd"
 
 echo ""
 echo "🚀 Azteka DSD Deployment"
@@ -45,7 +46,7 @@ echo ""
 echo "🔄 Deploying on VPS..."
 ssh $VPS << 'DEPLOY_SCRIPT'
 set -e
-cd /srv/azteka-api-live
+cd /srv/azteka-dsd
 
 echo ""
 echo "📥 Pulling latest from git..."

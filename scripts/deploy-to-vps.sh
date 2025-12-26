@@ -22,8 +22,9 @@ fi
 # VPS Configuration (from project docs)
 VPS_HOST="${VPS_HOST:-${VPS_SSH_HOST:-77.243.85.8}}"
 VPS_USER="${VPS_USER:-${VPS_SSH_USER:-root}}"
-VPS_PATH="${VPS_PATH:-/srv/azteka-api-live}"
-VPS_UPLOADS_PATH="${VPS_UPLOADS_PATH:-/srv/azteka-api-live/public/uploads/products}"
+# CRITICAL: Use /srv/azteka-dsd - NOT /srv/azteka-api-live
+VPS_PATH="${VPS_PATH:-/srv/azteka-dsd}"
+VPS_UPLOADS_PATH="${VPS_UPLOADS_PATH:-/srv/azteka-dsd/public/uploads/products}"
 
 # Check if VPS_HOST is set
 if [ -z "$VPS_HOST" ]; then
@@ -129,18 +130,14 @@ ssh "$VPS_USER@$VPS_HOST" << EOF
     echo "   ✅ Image check complete"
 EOF
 
-# Sync images from local to VPS (if needed)
-echo -e "\n${YELLOW}7. Syncing images to VPS...${NC}"
-if [ -d "public/uploads/products" ] && [ "$(ls -A public/uploads/products 2>/dev/null)" ]; then
-    echo "   📤 Syncing images..."
-    rsync -avz --progress \
-        --exclude='.DS_Store' \
-        public/uploads/products/ \
-        "$VPS_USER@$VPS_HOST:$VPS_UPLOADS_PATH/"
-    echo -e "${GREEN}   ✅ Images synced${NC}"
-else
-    echo -e "${YELLOW}   ⚠️  No local images to sync${NC}"
-fi
+# DISABLED: Do NOT sync images from local to VPS
+# VPS is the single source of truth for images
+# Local images are placeholders from the seeder - syncing them OVERWRITES real images!
+echo -e "\n${YELLOW}7. Image sync DISABLED (VPS is source of truth)${NC}"
+echo -e "${GREEN}   ✅ Images stay on VPS - no overwrite risk${NC}"
+# If you need to copy NEW images to VPS, use:
+#   rsync -avz --ignore-existing public/uploads/products/ $VPS_USER@$VPS_HOST:$VPS_UPLOADS_PATH/
+# The --ignore-existing flag prevents overwriting existing files
 
 # Build on VPS
 echo -e "\n${YELLOW}8. Building on VPS...${NC}"

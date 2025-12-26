@@ -160,31 +160,17 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
           {/* Product Image */}
           {!imageError && product.imageUrl ? (
             <img
-              src={(() => {
-                const resolvedUrl = getPublicImageUrl(product.imageUrl)
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:163',message:'Catalog ProductCard image src',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-                return resolvedUrl
-              })()}
+              src={getPublicImageUrl(product.imageUrl)}
               alt={product.name}
               className="relative w-full h-full object-contain transform group-hover:scale-110 group-hover:rotate-2 transition-transform duration-700 drop-shadow-2xl"
               loading="lazy"
               decoding="async"
               onError={(e) => {
                 const target = e.target as HTMLImageElement
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:168',message:'Catalog ProductCard image onError',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl:getPublicImageUrl(product.imageUrl),naturalWidth:target.naturalWidth,naturalHeight:target.naturalHeight},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                // #endregion
                 // Only set error if image truly failed (no dimensions)
                 if (target.naturalWidth === 0 && target.naturalHeight === 0) {
                   setImageError(true)
                 }
-              }}
-              onLoad={() => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/38d2a8e7-bc44-4be1-978b-45bb3bb902e1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/catalog/ProductCard.tsx:175',message:'Catalog ProductCard image onLoad',data:{productId:product.id,productName:product.name,dbImageUrl:product.imageUrl,resolvedUrl:getPublicImageUrl(product.imageUrl)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
               }}
             />
           ) : (

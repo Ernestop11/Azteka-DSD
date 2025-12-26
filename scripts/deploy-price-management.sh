@@ -11,7 +11,8 @@
 set -e
 
 VPS_HOST="root@77.243.85.8"
-VPS_PATH="/srv/azteka-api-live"
+# CRITICAL: Use /srv/azteka-dsd - NOT /srv/azteka-api-live
+VPS_PATH="/srv/azteka-dsd"
 LOCAL_PATH="/Users/ernestoponce/dev/azteka-dsd"
 
 echo "🚀 Deploying Price Management System to VPS..."
@@ -29,7 +30,7 @@ rsync -avz --progress \
 # 2. SSH into VPS and run migration
 echo "🗄️  Running database migration..."
 ssh "${VPS_HOST}" << 'ENDSSH'
-cd /srv/azteka-api-live
+cd /srv/azteka-dsd
 
 # Run manual migration if Prisma migrate fails
 echo "Running CustomerPriceOverride migration..."

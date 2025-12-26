@@ -7,7 +7,8 @@ set -e
 
 VPS_HOST="77.243.85.8"
 VPS_USER="root"
-VPS_PATH="/srv/azteka-api-live"
+# CRITICAL: Use /srv/azteka-dsd - NOT /srv/azteka-api-live
+VPS_PATH="/srv/azteka-dsd"
 PORT=3002
 
 echo "🔍 Verifying Inventory Seed Setup..."
@@ -19,7 +20,7 @@ if [ "$HOSTNAME" != "localhost" ] && [ "$HOSTNAME" != "$(hostname)" ]; then
     ssh "${VPS_USER}@${VPS_HOST}" bash <<'EOF'
 set -e
 
-cd /srv/azteka-api-live
+cd /srv/azteka-dsd
 
 echo "✅ Checking database schema..."
 npx prisma db pull > /dev/null 2>&1 || echo "⚠ Could not pull schema (may need manual check)"
@@ -86,7 +87,7 @@ echo "📝 How to use:"
 echo "   1. Navigate to the URL above"
 echo "   2. Log in as admin (admin@aztekafoods.com)"
 echo "   3. Drag PNG files from Finder onto product cards"
-echo "   4. Images will be saved to: /srv/azteka-api-live/public/uploads/products/"
+echo "   4. Images will be saved to: /srv/azteka-dsd/public/uploads/products/"
 echo ""
 echo "🔍 To check server status:"
 echo "   ssh root@77.243.85.8 'pm2 logs azteka-nextjs --lines 50'"

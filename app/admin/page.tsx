@@ -27,6 +27,7 @@ import {
   MapPin,
   type LucideIcon
 } from 'lucide-react'
+import PrintStatusAlert from '@/components/admin/PrintStatusAlert'
 
 interface PageCard {
   title: string
@@ -361,6 +362,9 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+
+        {/* Print System Status Alert */}
+        <PrintStatusAlert />
 
         {/* Operations */}
         <section>

@@ -36,6 +36,9 @@ type CatalogProductPayload = {
   sparkle: boolean
   badge: string | null
   theme: string | null
+  // Sell-by options
+  sellByPiece: boolean
+  sellByHalfCase: boolean
 }
 
 export async function GET(request: NextRequest) {
@@ -209,6 +212,9 @@ export async function GET(request: NextRequest) {
         sparkle: false,
         badge: null,
         theme: 'default',
+        // Sell-by options
+        sellByPiece: p.sellByPiece ?? false,
+        sellByHalfCase: p.sellByHalfCase ?? false,
       }
     })
 

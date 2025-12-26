@@ -17,6 +17,9 @@ import {
   Calendar,
   Hash,
   Edit3,
+  Trash2,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react'
 import { getPublicImageUrl } from '@/lib/imageUrl'
 
@@ -111,6 +114,12 @@ export default function InventoryPage() {
   const [newProductBrandId, setNewProductBrandId] = useState('')
   const [creatingProduct, setCreatingProduct] = useState(false)
 
+  // Delete/Archive confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+
   // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
@@ -190,6 +199,7 @@ export default function InventoryPage() {
           name: newProductName.trim(),
           sku: newProductSku.trim() || `PROD-${Date.now()}`,
           price: parseFloat(newProductPrice) || 0,
+          unitsPerCase: 1,
           categoryId: newProductCategoryId || null,
           brandId: newProductBrandId || null,
           inStock: true,
@@ -216,6 +226,65 @@ export default function InventoryPage() {
       setError(err.message || 'Failed to create product')
     } finally {
       setCreatingProduct(false)
+    }
+  }
+
+  // Delete product permanently
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedProduct.id })
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to delete product')
+      }
+      setSuccess('Product deleted successfully!')
+      setShowDeleteConfirm(false)
+      setSelectedProduct(null)
+      loadProducts()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete product')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Archive product (hide from catalog by setting inStock to false)
+  const handleArchiveProduct = async () => {
+    if (!selectedProduct) return
+    setArchiving(true)
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: selectedProduct.id,
+          inStock: !selectedProduct.inStock // Toggle archive state
+        })
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to update product')
+      }
+      const action = selectedProduct.inStock ? 'archived' : 'restored'
+      setSuccess(`Product ${action} successfully!`)
+      setShowArchiveConfirm(false)
+      // Update local state
+      setSelectedProduct({ ...selectedProduct, inStock: !selectedProduct.inStock })
+      loadProducts()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update product')
+    } finally {
+      setArchiving(false)
     }
   }
 
@@ -737,40 +806,30 @@ export default function InventoryPage() {
                   {/* Units per Case */}
                   <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
                     <label className="text-sm font-medium text-purple-700 mb-3 block">Units per Case</label>
-
-                    {/* +/- Controls */}
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3">
                       <button
                         onClick={() => setEditUnitsPerCase(Math.max(1, editUnitsPerCase - 1))}
-                        className="w-12 h-12 bg-purple-200 text-purple-700 rounded-xl flex items-center justify-center"
+                        className="w-14 h-14 bg-purple-100 text-purple-700 rounded-xl flex items-center justify-center"
                       >
-                        <Minus className="w-5 h-5" />
+                        <Minus className="w-6 h-6" />
                       </button>
                       <div className="flex-1 text-center">
-                        <input
-                          type="number"
-                          min="1"
-                          value={editUnitsPerCase}
-                          onChange={(e) => setEditUnitsPerCase(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-20 text-center text-2xl font-bold text-gray-900 bg-white border border-purple-300 rounded-lg py-2"
-                        />
-                        <div className="text-xs text-purple-600 mt-1">units/case</div>
+                        <div className="text-4xl font-bold text-gray-900">{editUnitsPerCase}</div>
+                        <div className="text-xs text-gray-500">units/case</div>
                       </div>
                       <button
                         onClick={() => setEditUnitsPerCase(editUnitsPerCase + 1)}
-                        className="w-12 h-12 bg-purple-200 text-purple-700 rounded-xl flex items-center justify-center"
+                        className="w-14 h-14 bg-purple-100 text-purple-700 rounded-xl flex items-center justify-center"
                       >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-6 h-6" />
                       </button>
                     </div>
-
-                    {/* Preset Buttons */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {[6, 12, 20, 24, 30, 48].map((units) => (
+                    <div className="flex justify-center gap-2 mt-3">
+                      {[6, 12, 24, 48].map((units) => (
                         <button
                           key={units}
                           onClick={() => setEditUnitsPerCase(units)}
-                          className={`px-4 py-2 rounded-lg text-sm font-bold ${
+                          className={`px-3 py-2 text-sm font-bold rounded-lg ${
                             editUnitsPerCase === units
                               ? 'bg-purple-600 text-white'
                               : 'bg-purple-100 text-purple-700'
@@ -780,9 +839,13 @@ export default function InventoryPage() {
                         </button>
                       ))}
                     </div>
-                    <div className="mt-3 p-3 bg-emerald-50 rounded-lg text-center">
-                      <span className="text-sm text-emerald-700">Total: </span>
-                      <span className="text-2xl font-bold text-emerald-800">
+                  </div>
+
+                  {/* Total Units Display */}
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <div className="text-center">
+                      <span className="text-sm text-emerald-700">Total Inventory: </span>
+                      <span className="text-3xl font-bold text-emerald-800">
                         {(editStock * editUnitsPerCase) + editExtraPieces}
                       </span>
                       <span className="text-sm text-emerald-700"> pieces</span>
@@ -1003,7 +1066,50 @@ export default function InventoryPage() {
                         <span className="text-gray-500">Price</span>
                         <span className="text-gray-900 font-semibold">${Number(selectedProduct.price).toFixed(2)}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Status</span>
+                        <span className={`font-semibold ${selectedProduct.inStock ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {selectedProduct.inStock ? 'Active' : 'Archived'}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Archive & Delete Actions */}
+                  <div className="bg-red-50 rounded-xl p-4 border border-red-200">
+                    <label className="text-sm font-medium text-red-700 mb-3 block">Product Actions</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowArchiveConfirm(true)}
+                        className={`flex-1 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                          selectedProduct.inStock
+                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                            : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        }`}
+                      >
+                        {selectedProduct.inStock ? (
+                          <>
+                            <Archive className="w-4 h-4" />
+                            Archive
+                          </>
+                        ) : (
+                          <>
+                            <ArchiveRestore className="w-4 h-4" />
+                            Restore
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="flex-1 py-3 px-4 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg font-medium flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
+                    <p className="text-xs text-red-600 mt-2">
+                      Archive hides from catalog. Delete is permanent.
+                    </p>
                   </div>
                 </>
               )}
@@ -1065,7 +1171,7 @@ export default function InventoryPage() {
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
                   placeholder="Enter product name..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -1078,7 +1184,7 @@ export default function InventoryPage() {
                   value={newProductSku}
                   onChange={(e) => setNewProductSku(e.target.value)}
                   placeholder="Leave blank for auto-generated"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -1092,7 +1198,7 @@ export default function InventoryPage() {
                   value={newProductPrice}
                   onChange={(e) => setNewProductPrice(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 bg-white placeholder-gray-400"
                 />
               </div>
 
@@ -1148,6 +1254,107 @@ export default function InventoryPage() {
                 )}
                 {creatingProduct ? 'Creating...' : 'Create'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedProduct && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center"
+          style={{ zIndex: 70 }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-sm mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Product?</h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to permanently delete <span className="font-semibold">{selectedProduct.name}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteProduct}
+                  disabled={deleting}
+                  className="flex-1 py-3 px-4 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {showArchiveConfirm && selectedProduct && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center"
+          style={{ zIndex: 70 }}
+          onClick={() => setShowArchiveConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-sm mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                selectedProduct.inStock ? 'bg-amber-100' : 'bg-emerald-100'
+              }`}>
+                {selectedProduct.inStock ? (
+                  <Archive className="w-8 h-8 text-amber-600" />
+                ) : (
+                  <ArchiveRestore className="w-8 h-8 text-emerald-600" />
+                )}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {selectedProduct.inStock ? 'Archive Product?' : 'Restore Product?'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {selectedProduct.inStock
+                  ? `Archive "${selectedProduct.name}"? It will be hidden from the catalog but can be restored later.`
+                  : `Restore "${selectedProduct.name}"? It will appear in the catalog again.`
+                }
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowArchiveConfirm(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleArchiveProduct}
+                  disabled={archiving}
+                  className={`flex-1 py-3 px-4 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 ${
+                    selectedProduct.inStock
+                      ? 'bg-amber-600 text-white hover:bg-amber-700'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {archiving ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : selectedProduct.inStock ? (
+                    <Archive className="w-5 h-5" />
+                  ) : (
+                    <ArchiveRestore className="w-5 h-5" />
+                  )}
+                  {archiving ? 'Processing...' : selectedProduct.inStock ? 'Archive' : 'Restore'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

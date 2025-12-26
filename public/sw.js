@@ -1,9 +1,9 @@
-// Azteka DSD Service Worker - PWA Support v6
+// Azteka DSD Service Worker - PWA Support v9 (Dec 26 2025)
 // NOTE: Admin/employee routes are intentionally excluded from caching.
-const CACHE_NAME = 'azteka-dsd-v7'
-const STATIC_CACHE = 'azteka-static-v7'
-const DYNAMIC_CACHE = 'azteka-dynamic-v7'
-const IMAGE_CACHE = 'azteka-images-v7'
+const CACHE_NAME = 'azteka-dsd-v9'
+const STATIC_CACHE = 'azteka-static-v9'
+const DYNAMIC_CACHE = 'azteka-dynamic-v9'
+const IMAGE_CACHE = 'azteka-images-v9'
 
 // Static assets to cache on install - PUBLIC ONLY
 // Do NOT include auth-protected pages (e.g. /admin/*, /employee/*) here.
@@ -17,24 +17,24 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('[SW v7] Installing service worker...')
+  console.log('[SW v9] Installing service worker...')
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      console.log('[SW v7] Caching static assets')
+      console.log('[SW v9] Caching static assets')
       // Only cache assets that definitely exist - skip ones that might fail
       return Promise.allSettled(
         STATIC_ASSETS.map(url => 
           cache.add(url).catch(err => {
-            console.log(`[SW v7] Failed to cache ${url}, skipping...`, err)
+            console.log(`[SW v9] Failed to cache ${url}, skipping...`, err)
             return null
           })
         )
       ).then(() => {
-        console.log('[SW v7] Static assets cached (some may have been skipped)')
+        console.log('[SW v9] Static assets cached (some may have been skipped)')
         return Promise.resolve()
       })
     }).catch(err => {
-      console.log('[SW v7] Cache install error (non-fatal):', err)
+      console.log('[SW v9] Cache install error (non-fatal):', err)
       return Promise.resolve()
     })
   )
@@ -43,14 +43,14 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW v7] Activating service worker...')
+  console.log('[SW v9] Activating service worker...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => !name.includes('-v7'))
+          .filter((name) => !name.includes('-v9'))
           .map((name) => {
-            console.log('[SW v7] Deleting old cache:', name)
+            console.log('[SW v9] Deleting old cache:', name)
             return caches.delete(name)
           })
       )
@@ -233,12 +233,12 @@ self.addEventListener('sync', (event) => {
 })
 
 async function syncOfflineOrders() {
-  console.log('[SW v4] Syncing offline orders...')
+  console.log('[SW v9] Syncing offline orders...')
   // Future: retrieve orders from IndexedDB and POST to API
 }
 
 async function syncInventoryChanges() {
-  console.log('[SW v4] Syncing inventory changes...')
+  console.log('[SW v9] Syncing inventory changes...')
   // Future: retrieve inventory updates from IndexedDB and PATCH to API
 }
 
@@ -254,4 +254,4 @@ self.addEventListener('message', (event) => {
   }
 })
 
-console.log('[SW v7] Service worker loaded')
+console.log('[SW v9] Service worker loaded')
