@@ -373,8 +373,10 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
 
   // TAP TO DESELECT - Tapping the image area when selected removes from cart
   const handleImageTap = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!showControls) return // Only works when selected
+    // Only handle deselect when already in cart - otherwise let it bubble to card click
+    if (!showControls) return
+
+    e.stopPropagation() // Only stop propagation when we're actually handling deselect
 
     // Remove from cart entirely
     setShowControls(false)
