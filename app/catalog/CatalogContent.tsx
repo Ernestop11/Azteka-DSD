@@ -548,29 +548,38 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
         </span>
       </div>
 
-      {/* Quantity Controls - OPTIMIZED: No AnimatePresence, instant show/hide */}
+      {/* Quantity Controls - GLOWING PREMIUM STYLE */}
       {/* Tapping here does NOT deselect - only image area does */}
       {showControls && (
         <div
           onClick={(e) => e.stopPropagation()}
           className="border-t-2"
-          style={{ borderColor: cardAccentColor }}
+          style={{
+            borderColor: cardAccentColor,
+            boxShadow: `0 -4px 20px ${cardAccentColor}40`,
+          }}
         >
-          <div className="flex items-center justify-center gap-4 sm:gap-6 py-2 sm:py-3 px-2" style={{ background: 'rgba(0,0,0,0.15)' }}>
-            {/* Minus Button */}
+          <div
+            className="flex items-center justify-center gap-5 sm:gap-8 py-3 sm:py-4 px-3"
+            style={{
+              background: `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.35))`,
+            }}
+          >
+            {/* Minus Button - LARGER with glow */}
             <button
               onClick={(e) => handleQuantityChange(-1, e)}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-2xl active:scale-90 border-2"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl active:scale-90 border-2 transition-all"
               style={{
                 borderColor: cardAccentColor,
                 color: cardAccentColor,
-                background: 'white'
+                background: 'white',
+                boxShadow: `0 0 12px ${cardAccentColor}50, 0 2px 8px rgba(0,0,0,0.3)`,
               }}
             >
               −
             </button>
 
-            {/* Quantity Display - Tap to edit */}
+            {/* Quantity Display - Tap to edit - LARGER with intense glow */}
             {isEditing ? (
               <input
                 type="number"
@@ -584,33 +593,37 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                 }}
                 onClick={(e) => e.stopPropagation()}
                 autoFocus
-                className="w-14 h-12 rounded-full text-center font-black text-2xl border-3"
+                className="w-16 h-14 sm:w-18 sm:h-16 rounded-2xl text-center font-black text-2xl sm:text-3xl border-3"
                 style={{
                   background: 'white',
                   color: cardAccentColor,
                   borderColor: cardAccentColor,
-                  boxShadow: `0 0 15px ${cardAccentColor}`,
+                  boxShadow: `0 0 25px ${cardAccentColor}, 0 0 50px ${cardAccentColor}60`,
                   outline: 'none',
                 }}
               />
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-xl text-white active:scale-95"
-                style={{ background: cardAccentColor }}
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center font-black text-2xl sm:text-3xl text-white active:scale-95 transition-all"
+                style={{
+                  background: `linear-gradient(135deg, ${cardAccentColor}, ${cardAccentColor}dd)`,
+                  boxShadow: `0 0 20px ${cardAccentColor}80, 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)`,
+                }}
               >
                 {displayQuantity}
               </button>
             )}
 
-            {/* Plus Button */}
+            {/* Plus Button - LARGER with glow */}
             <button
               onClick={(e) => handleQuantityChange(1, e)}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-2xl active:scale-90 border-2"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl active:scale-90 border-2 transition-all"
               style={{
                 borderColor: cardAccentColor,
                 color: cardAccentColor,
-                background: 'white'
+                background: 'white',
+                boxShadow: `0 0 12px ${cardAccentColor}50, 0 2px 8px rgba(0,0,0,0.3)`,
               }}
             >
               +
