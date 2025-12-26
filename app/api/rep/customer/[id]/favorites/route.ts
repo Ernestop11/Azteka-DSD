@@ -113,10 +113,10 @@ export async function GET(request: NextRequest, { params }: Params) {
         backgroundColor: true,
         backgroundGradient: true,
         badge: true,
-        brand: {
+        Brand: {
           select: { id: true, name: true }
         },
-        category: {
+        Category: {
           select: { id: true, name: true }
         },
       }
@@ -163,8 +163,8 @@ export async function GET(request: NextRequest, { params }: Params) {
         backgroundColor: product.backgroundColor,
         backgroundGradient: product.backgroundGradient,
         badge: product.badge,
-        brand: product.brand,
-        category: product.category,
+        brand: product.Brand,
+        category: product.Category,
         // Order statistics
         totalQuantityOrdered: stats.totalQuantity,
         orderCount: stats.orderCount,
