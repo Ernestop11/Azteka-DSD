@@ -24,6 +24,7 @@ export async function GET() {
                 unitsPerCase: true,
                 inStock: true,
                 featured: true,
+                sellByHalfCase: true,
                 Brand: { select: { id: true, name: true } },
                 Category: { select: { id: true, name: true } },
               }
@@ -59,6 +60,7 @@ export async function GET() {
           unitsPerCase: bp.product.unitsPerCase,
           inStock: bp.product.inStock,
           featured: bp.product.featured,
+          sellByHalfCase: bp.product.sellByHalfCase ?? false,
           brand: bp.product.Brand,
           category: bp.product.Category,
         }

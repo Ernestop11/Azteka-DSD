@@ -18,6 +18,7 @@ interface CatalogProduct {
   imageUrl?: string
   unitsPerCase: number
   inStock: boolean
+  sellByHalfCase?: boolean
   brand?: { id: string; name: string }
   category?: { id: string; name: string }
 }
@@ -506,37 +507,39 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
             </span>
           </div>
 
-          {/* 3D Box Icon Toggle - cycles case/half/pieces */}
-          <button
-            onClick={cycleOrderMode}
-            className="relative p-1 rounded-lg transition-all hover:scale-110 active:scale-95"
-            style={{
-              background: orderMode !== 'case' ? `${cardAccentColor}30` : 'rgba(255,255,255,0.1)',
-              boxShadow: orderMode !== 'case'
-                ? `0 2px 8px ${cardAccentColor}40, inset 0 1px 2px rgba(255,255,255,0.2)`
-                : '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.1)',
-            }}
-          >
-            <Box
-              className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
-                orderMode === 'case'
-                  ? (cardTextLight ? 'text-white/50' : 'text-slate-400')
-                  : 'text-white'
-              }`}
+          {/* 3D Box Icon Toggle - only shows for products with sellByHalfCase enabled */}
+          {product.sellByHalfCase && (
+            <button
+              onClick={cycleOrderMode}
+              className="relative p-1 rounded-lg transition-all hover:scale-110 active:scale-95"
               style={{
-                filter: orderMode !== 'case' ? `drop-shadow(0 0 4px ${cardAccentColor})` : 'none'
+                background: orderMode !== 'case' ? `${cardAccentColor}30` : 'rgba(255,255,255,0.1)',
+                boxShadow: orderMode !== 'case'
+                  ? `0 2px 8px ${cardAccentColor}40, inset 0 1px 2px rgba(255,255,255,0.2)`
+                  : '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.1)',
               }}
-            />
-            {/* Mode indicator badge */}
-            {orderMode !== 'case' && (
-              <span
-                className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded-full text-white"
-                style={{ background: cardAccentColor }}
-              >
-                {orderMode === 'half' ? '½' : 'pc'}
-              </span>
-            )}
-          </button>
+            >
+              <Box
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
+                  orderMode === 'case'
+                    ? (cardTextLight ? 'text-white/50' : 'text-slate-400')
+                    : 'text-white'
+                }`}
+                style={{
+                  filter: orderMode !== 'case' ? `drop-shadow(0 0 4px ${cardAccentColor})` : 'none'
+                }}
+              />
+              {/* Mode indicator badge */}
+              {orderMode !== 'case' && (
+                <span
+                  className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded-full text-white"
+                  style={{ background: cardAccentColor }}
+                >
+                  {orderMode === 'half' ? '½' : 'pc'}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Units per case - smaller text below */}
