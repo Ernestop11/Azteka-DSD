@@ -457,29 +457,27 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
         className={`relative h-36 sm:h-44 md:h-52 overflow-hidden flex items-center justify-center p-2 sm:p-3 md:p-4 ${showControls ? 'cursor-pointer' : ''}`}
         style={{
           background: product.imageUrl
-            ? `radial-gradient(ellipse at center, ${cardImageBg.replace('linear-gradient', '').includes('#') ? 'rgba(30,41,59,0.3)' : 'rgba(30,41,59,0.2)'} 0%, transparent 70%)`
+            ? 'transparent'
             : (cardBackdropUrl ? `url(${cardBackdropUrl}) center/cover` : cardImageBg)
         }}
       >
-        {/* Ambient glow behind product - always visible for premium look */}
-        <div
-          className="absolute inset-0 z-[8]"
-          style={{
-            background: showControls
-              ? `radial-gradient(circle at center, ${cardAccentColor}40 0%, transparent 60%)`
-              : `radial-gradient(ellipse at center bottom, rgba(255,255,255,0.08) 0%, transparent 50%)`
-          }}
-        />
+        {/* NO square overlay glow - all glow comes from drop-shadow on PNG */}
 
         {product.imageUrl ? (
           <ProductImage
             src={getPublicImageUrl(product.imageUrl)}
             alt={product.name}
-            className={`max-h-full max-w-full object-contain transition-all duration-500 relative z-10 ${
-              showControls ? 'scale-110' : 'hover:scale-105'
+            className={`max-h-full max-w-full object-contain transition-all duration-300 relative z-10 ${
+              showControls ? 'scale-105' : 'hover:scale-102'
             }`}
             style={{
-              filter: cardImageEffect || (showControls ? `drop-shadow(0 0 20px ${cardAccentColor}70)` : 'drop-shadow(0 8px 16px rgba(0,0,0,0.4))'),
+              // Use cardImageEffect if set, otherwise use accent-colored drop-shadow
+              // The drop-shadow follows the PNG alpha channel - NOT a square!
+              filter: cardImageEffect
+                ? cardImageEffect
+                : (showControls
+                    ? `drop-shadow(0 4px 12px ${cardGlowColor}80) drop-shadow(0 0 20px ${cardGlowColor}50)`
+                    : `drop-shadow(0 6px 12px rgba(0,0,0,0.4)) drop-shadow(0 2px 4px ${cardGlowColor}30)`),
             }}
           />
         ) : (
@@ -548,27 +546,35 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
         </span>
       </div>
 
-      {/* Quantity Controls - SYMMETRIC ROUND BUTTONS */}
+      {/* Quantity Controls - SYMMETRIC ROUND BUTTONS WITH GLOW */}
       {/* Tapping here does NOT deselect - only image area does */}
       {showControls && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="border-t-2"
+          className="border-t-2 relative"
           style={{
             borderColor: cardAccentColor,
-            boxShadow: `0 -4px 15px ${cardAccentColor}30`,
           }}
         >
+          {/* Ambient glow behind qty controls - like product image glow */}
           <div
-            className="flex items-center justify-center gap-4 py-2.5 px-4"
+            className="absolute inset-0 -top-2"
             style={{
-              background: `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.25))`,
+              background: `radial-gradient(ellipse at center, ${cardAccentColor}50 0%, ${cardAccentColor}20 40%, transparent 70%)`,
+              filter: 'blur(8px)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            className="relative flex items-center justify-center gap-4 py-3 px-4"
+            style={{
+              background: `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.35))`,
             }}
           >
-            {/* Minus Button - ROUND */}
+            {/* Minus Button - ROUND WITH GLOW */}
             <button
               onClick={(e) => handleQuantityChange(-1, e)}
-              className="flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
+              className="relative flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
               style={{
                 width: '44px',
                 height: '44px',
@@ -576,13 +582,13 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                 border: `2px solid ${cardAccentColor}`,
                 color: cardAccentColor,
                 background: 'white',
-                boxShadow: `0 0 10px ${cardAccentColor}40, 0 2px 6px rgba(0,0,0,0.2)`,
+                boxShadow: `0 0 20px ${cardAccentColor}60, 0 0 40px ${cardAccentColor}30, 0 4px 8px rgba(0,0,0,0.3)`,
               }}
             >
               −
             </button>
 
-            {/* Quantity Display - Tap to edit - ROUND */}
+            {/* Quantity Display - Tap to edit - ROUND WITH INTENSE GLOW */}
             {isEditing ? (
               <input
                 type="number"
@@ -604,30 +610,30 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                   border: `3px solid ${cardAccentColor}`,
                   background: 'white',
                   color: cardAccentColor,
-                  boxShadow: `0 0 20px ${cardAccentColor}, 0 0 40px ${cardAccentColor}50`,
+                  boxShadow: `0 0 30px ${cardAccentColor}, 0 0 60px ${cardAccentColor}70, 0 0 80px ${cardAccentColor}40`,
                   outline: 'none',
                 }}
               />
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
-                className="flex-shrink-0 flex items-center justify-center font-black text-xl text-white active:scale-95 transition-all"
+                className="relative flex-shrink-0 flex items-center justify-center font-black text-xl text-white active:scale-95 transition-all"
                 style={{
                   width: '52px',
                   height: '52px',
                   borderRadius: '50%',
                   background: `linear-gradient(135deg, ${cardAccentColor}, ${cardAccentColor}dd)`,
-                  boxShadow: `0 0 15px ${cardAccentColor}70, 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)`,
+                  boxShadow: `0 0 25px ${cardAccentColor}90, 0 0 50px ${cardAccentColor}50, 0 0 70px ${cardAccentColor}30, inset 0 1px 0 rgba(255,255,255,0.4)`,
                 }}
               >
                 {displayQuantity}
               </button>
             )}
 
-            {/* Plus Button - ROUND */}
+            {/* Plus Button - ROUND WITH GLOW */}
             <button
               onClick={(e) => handleQuantityChange(1, e)}
-              className="flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
+              className="relative flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
               style={{
                 width: '44px',
                 height: '44px',
@@ -635,7 +641,7 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                 border: `2px solid ${cardAccentColor}`,
                 color: cardAccentColor,
                 background: 'white',
-                boxShadow: `0 0 10px ${cardAccentColor}40, 0 2px 6px rgba(0,0,0,0.2)`,
+                boxShadow: `0 0 20px ${cardAccentColor}60, 0 0 40px ${cardAccentColor}30, 0 4px 8px rgba(0,0,0,0.3)`,
               }}
             >
               +
@@ -897,7 +903,7 @@ function ProductGridBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
             <span className="text-slate-400 text-sm">({products.length})</span>
           </div>
         )}
-        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4`}>
+        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3`}>
           {products.map((product) => (
             <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
@@ -929,7 +935,7 @@ function BannerBlock({ block }: { block: CatalogBlock }) {
   )
 }
 
-// Promo Section Block
+// Promo Section Block - Visual wrapper with consistent card sizing
 function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
@@ -948,45 +954,63 @@ function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: {
   } : {}
 
   return (
-    <section
-      className={`mb-8 p-6 rounded-2xl relative overflow-hidden ${!hasCustomBackground ? 'bg-gradient-to-r from-amber-900/40 to-orange-900/40 border border-amber-700/30' : ''}`}
-      style={sectionStyle}
-    >
-      {/* Overlay for readability if background exists */}
-      {hasCustomBackground && (
-        <div className="absolute inset-0 bg-black/40" />
-      )}
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-amber-400">{block.title || 'Special Offers'}</h2>
-            {block.subtitle && <p className="text-amber-200/70">{block.subtitle}</p>}
+    <section className="mb-8 relative">
+      {/* Visual wrapper - tighter on tablet (sm:p-2), normal on desktop (md:p-4) */}
+      <div
+        className={`sm:p-2 md:p-4 sm:rounded-2xl relative overflow-hidden ${!hasCustomBackground ? 'sm:bg-gradient-to-r sm:from-amber-900/40 sm:to-orange-900/40 sm:border sm:border-amber-700/30' : ''}`}
+        style={sectionStyle}
+      >
+        {/* Overlay for readability if background exists */}
+        {hasCustomBackground && (
+          <div className="absolute inset-0 bg-black/40" />
+        )}
+        <div className="relative z-10">
+          {/* Header - always visible */}
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div>
+              <h2 className="text-lg sm:text-2xl font-bold text-amber-400">{block.title || 'Special Offers'}</h2>
+              {block.subtitle && <p className="text-amber-200/70 text-xs sm:text-base">{block.subtitle}</p>}
+            </div>
+            {block.badgeText && (
+              <span className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm">
+                {block.badgeText}
+              </span>
+            )}
           </div>
-          {block.badgeText && (
-            <span className="px-3 py-1.5 rounded-full bg-amber-500 text-slate-900 font-bold text-sm">
-              {block.badgeText}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
-          ))}
+          {/* Grid - NO padding on mobile for full-width cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
   )
 }
 
-// Rack Bundle Block - DSD Feature
+// Rack Bundle Block - DSD Feature - Consistent card sizing
 function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
+  const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
     rackImageUrl?: string
     bundleDiscount?: number
     showOneClickOrder?: boolean
     backgroundColor?: string
+  }
+
+  // Enhanced card style with emerald accent for rack bundles
+  const accentColor = '#10b981' // emerald
+  const cardStyle = {
+    ...baseCardStyle,
+    cardAccentColor: baseCardStyle.cardAccentColor || accentColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || accentColor,
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #1e293b 0%, #334155 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || '#334155',
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor - no custom effect needed
   }
 
   const handleOrderAll = () => {
@@ -997,207 +1021,414 @@ function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { b
   const discountedPrice = totalPrice * (1 - (config.bundleDiscount || 0) / 100)
 
   return (
-    <section className="mb-8 rounded-3xl overflow-hidden" style={{ backgroundColor: config.backgroundColor || '#1a1a2e' }}>
-      <div className="p-6 md:p-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Rack Image */}
-          {config.rackImageUrl && (
-            <div className="lg:w-1/3 flex-shrink-0">
-              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-800">
-                <img src={config.rackImageUrl} alt="Rack Display" className="w-full h-full object-cover" />
-                {config.bundleDiscount && config.bundleDiscount > 0 && (
-                  <div className="absolute top-4 right-4 px-4 py-2 rounded-full bg-red-600 text-white font-black text-lg">
-                    -{config.bundleDiscount}%
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Products */}
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{block.title || 'Rack Display Bundle'}</h2>
-                {block.subtitle && <p className="text-slate-400">{block.subtitle}</p>}
-              </div>
-              {config.showOneClickOrder && products.length > 0 && (
-                <button
-                  onClick={handleOrderAll}
-                  className="px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 shadow-lg flex items-center gap-2"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>Order All (${discountedPrice.toFixed(2)})</span>
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
-              ))}
-            </div>
+    <section className="mb-8">
+      <div className="sm:p-2 md:p-4 sm:rounded-2xl" style={{ backgroundColor: config.backgroundColor || '#1a1a2e' }}>
+        {/* Header with Order All button */}
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div>
+            <h2 className="text-lg sm:text-2xl font-bold text-white">{block.title || 'Rack Display Bundle'}</h2>
+            {block.subtitle && <p className="text-slate-400 text-xs sm:text-base">{block.subtitle}</p>}
           </div>
+          {config.showOneClickOrder && products.length > 0 && (
+            <button
+              onClick={handleOrderAll}
+              className="px-3 sm:px-6 py-2 sm:py-3 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs sm:text-base hover:from-emerald-600 hover:to-teal-600 shadow-lg flex items-center gap-1 sm:gap-2"
+            >
+              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Order All</span>
+              <span>${discountedPrice.toFixed(0)}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Products Grid - tighter gaps on tablet */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+          ))}
         </div>
       </div>
     </section>
   )
 }
 
-// Case Deal Block - DSD Feature
+// Case Deal Block - DSD Feature - Consistent card sizing
 function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
+  const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
     minCases?: number
     discountPercent?: number
     dealBadge?: string
   }
 
+  // Enhanced card style with orange/red accent for case deals
+  const accentColor = '#f97316' // orange
+  const cardStyle = {
+    ...baseCardStyle,
+    cardAccentColor: baseCardStyle.cardAccentColor || accentColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || accentColor,
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #7c2d12 0%, #431407 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || '#c2410c',
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor
+  }
+
   return (
-    <section className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-orange-900/50 to-red-900/50 border border-orange-700/30">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="px-3 py-1.5 rounded-full bg-red-600 text-white font-bold text-sm">
-              {config.dealBadge || 'VOLUME DEAL'}
-            </span>
+    <section className="mb-8">
+      <div className="sm:p-2 md:p-4 sm:rounded-2xl sm:bg-gradient-to-r sm:from-orange-900/50 sm:to-red-900/50 sm:border sm:border-orange-700/30">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2 sm:px-3 py-1 rounded-full bg-red-600 text-white font-bold text-xs sm:text-sm">
+                {config.dealBadge || 'VOLUME DEAL'}
+              </span>
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold text-white">{block.title || 'Case Deal'}</h2>
+            <p className="text-orange-300 text-xs sm:text-base">
+              Buy {config.minCases || 3}+ cases, save {config.discountPercent || 10}%
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-white">{block.title || 'Case Deal'}</h2>
-          <p className="text-orange-300">
-            Buy {config.minCases || 3}+ cases and save {config.discountPercent || 10}%
-          </p>
+          <div className="text-right">
+            <p className="text-2xl sm:text-4xl font-black text-orange-400">-{config.discountPercent || 10}%</p>
+            <p className="text-orange-200 text-[10px] sm:text-sm">on {config.minCases || 3}+ cases</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-4xl font-black text-orange-400">-{config.discountPercent || 10}%</p>
-          <p className="text-orange-200 text-sm">on {config.minCases || 3}+ cases</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+          ))}
         </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
-        ))}
       </div>
     </section>
   )
 }
 
-// Vendor Spotlight Block - DSD Feature
+// Vendor Spotlight Block - DSD Feature - Consistent card sizing
 function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
+  const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
     vendorName?: string
     vendorLogoUrl?: string
     showTopSellers?: boolean
   }
 
-  return (
-    <section className="mb-8 rounded-3xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700">
-      {/* Vendor Header */}
-      <div className="p-6 border-b border-slate-700 flex items-center gap-6">
-        {config.vendorLogoUrl && (
-          <div className="w-20 h-20 rounded-2xl bg-white p-3 flex items-center justify-center">
-            <img src={config.vendorLogoUrl} alt={config.vendorName || 'Vendor'} className="max-h-full max-w-full object-contain" />
-          </div>
-        )}
-        <div>
-          <h2 className="text-2xl font-bold text-white">{config.vendorName || block.title || 'Featured Vendor'}</h2>
-          {block.subtitle && <p className="text-slate-400">{block.subtitle}</p>}
-        </div>
-        {config.showTopSellers && (
-          <span className="ml-auto px-4 py-2 rounded-full bg-amber-500/20 text-amber-400 font-bold text-sm border border-amber-500/30">
-            ⭐ Top Sellers
-          </span>
-        )}
-      </div>
+  // Enhanced card style with amber accent for vendor spotlight
+  const accentColor = '#f59e0b' // amber
+  const cardStyle = {
+    ...baseCardStyle,
+    cardAccentColor: baseCardStyle.cardAccentColor || accentColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || accentColor,
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #1e293b 0%, #334155 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || '#475569',
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor
+  }
 
-      {/* Products */}
-      <div className="p-3 sm:p-4 md:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
-          ))}
+  return (
+    <section className="mb-8">
+      <div className="sm:rounded-2xl overflow-hidden sm:bg-gradient-to-br sm:from-slate-800 sm:to-slate-900 sm:border sm:border-slate-700">
+        {/* Vendor Header - Compact on mobile */}
+        <div className="py-2 sm:p-2 md:p-4 sm:border-b sm:border-slate-700 flex items-center gap-3 sm:gap-4">
+          {config.vendorLogoUrl && (
+            <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl bg-white p-1.5 sm:p-2 flex items-center justify-center flex-shrink-0">
+              <img src={config.vendorLogoUrl} alt={config.vendorName || 'Vendor'} className="max-h-full max-w-full object-contain" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-white truncate">{config.vendorName || block.title || 'Featured Vendor'}</h2>
+            {block.subtitle && <p className="text-slate-400 text-xs sm:text-sm truncate">{block.subtitle}</p>}
+          </div>
+          {config.showTopSellers && (
+            <span className="px-2 sm:px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold text-xs border border-amber-500/30 flex-shrink-0">
+              ⭐ Top
+            </span>
+          )}
+        </div>
+
+        {/* Products - tighter padding on tablet */}
+        <div className="sm:p-2 md:p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
   )
 }
 
-// Bulk Builder Block - DSD Feature
+// Bulk Builder Block - DSD Feature - Consistent card sizing
 function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
+  const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
     minItems?: number
     mixMatchDiscount?: number
   }
 
-  return (
-    <section className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-700/30">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">🏗️</span>
-            <h2 className="text-2xl font-bold text-white">{block.title || 'Bulk Builder'}</h2>
-          </div>
-          <p className="text-blue-300">
-            Mix & Match any {config.minItems || 6}+ items for {config.mixMatchDiscount || 5}% off
-          </p>
-        </div>
-        <div className="px-5 py-3 rounded-xl bg-blue-600/30 border border-blue-500/30">
-          <p className="text-blue-200 text-sm">Mix & Match Discount</p>
-          <p className="text-3xl font-black text-blue-400">-{config.mixMatchDiscount || 5}%</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// Brand Showcase Block - DSD Feature
-function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
-  const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
-  const config = block.config as {
-    brandLogoUrl?: string
-    brandColor?: string
+  // Enhanced card style with blue/indigo accent for bulk builder
+  const accentColor = '#3b82f6' // blue
+  const cardStyle = {
+    ...baseCardStyle,
+    cardAccentColor: baseCardStyle.cardAccentColor || accentColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || accentColor,
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #1e3a8a 0%, #1e1b4b 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || '#3b82f6',
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor
   }
 
   return (
-    <section className="mb-8 rounded-3xl overflow-hidden">
-      {/* Brand Banner */}
-      <div
-        className="p-6 flex items-center justify-center"
-        style={{ backgroundColor: config.brandColor || '#1e293b' }}
-      >
-        {config.brandLogoUrl ? (
-          <img src={config.brandLogoUrl} alt="Brand" className="h-16 object-contain" />
-        ) : (
-          <h2 className="text-2xl font-bold text-white">{block.title}</h2>
-        )}
-      </div>
-
-      {/* Products Carousel */}
-      <div className="p-3 sm:p-4 md:p-6 bg-slate-900">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+    <section className="mb-8">
+      <div className="sm:p-2 md:p-4 sm:rounded-2xl sm:bg-gradient-to-r sm:from-blue-900/40 sm:to-indigo-900/40 sm:border sm:border-blue-700/30">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xl sm:text-2xl">🏗️</span>
+              <h2 className="text-lg sm:text-xl font-bold text-white">{block.title || 'Bulk Builder'}</h2>
+            </div>
+            <p className="text-blue-300 text-xs sm:text-sm">
+              Mix & Match {config.minItems || 6}+ for {config.mixMatchDiscount || 5}% off
+            </p>
+          </div>
+          <div className="px-2 sm:px-3 py-2 rounded-xl bg-blue-600/30 border border-blue-500/30">
+            <p className="text-blue-200 text-[10px] sm:text-xs">Mix & Match</p>
+            <p className="text-xl sm:text-2xl font-black text-blue-400">-{config.mixMatchDiscount || 5}%</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
           ))}
         </div>
       </div>
     </section>
+  )
+}
+
+// Brand Showcase Block - DSD Feature - Hero-style with See All modal
+function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+  const allProducts = block.products.map(p => p.product) || []
+  const baseCardStyle = getCardStyleFromBlock(block)
+  const config = block.config as {
+    brandLogoUrl?: string
+    brandColor?: string
+    brandName?: string
+    previewCount?: number
+  }
+
+  // Show first N products in showcase, rest in modal
+  const previewCount = config.previewCount || 4
+  const previewProducts = allProducts.slice(0, previewCount)
+  const hasMoreProducts = allProducts.length > previewCount
+
+  // State for modal
+  const [showAllModal, setShowAllModal] = useState(false)
+
+  // Brand color with fallback
+  const brandColor = config.brandColor || '#1e293b'
+  const brandColorLight = `${brandColor}40`
+  const brandColorDark = `${brandColor}cc`
+
+  // Enhanced card style - use brand color for glow effects if not set in block config
+  // This gives BrandShowcase the same visual punch as PromoSection
+  const cardStyle = {
+    ...baseCardStyle,
+    // Use brand color as accent if not set
+    cardAccentColor: baseCardStyle.cardAccentColor || brandColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || brandColor,
+    // Dark card backgrounds for brand showcase
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #1e293b 0%, #334155 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || `${brandColor}80`,
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor - follows PNG shape
+  }
+
+  return (
+    <>
+      <section className="mb-8 relative">
+        {/* Main Container with gradient background - ALWAYS visible on all breakpoints */}
+        <div
+          className="rounded-2xl overflow-hidden relative"
+          style={{
+            background: `linear-gradient(135deg, ${brandColorDark} 0%, ${brandColor} 50%, ${brandColorLight} 100%)`,
+          }}
+        >
+          {/* Ambient glow effects */}
+          <div
+            className="absolute inset-0 opacity-60"
+            style={{
+              background: `radial-gradient(ellipse at 30% 20%, ${brandColor}80 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, ${brandColor}60 0%, transparent 50%)`,
+            }}
+          />
+
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }} />
+
+          {/* Content container */}
+          <div className="relative z-10 p-4 sm:p-5 md:p-6">
+            {/* Brand Header - Logo prominently displayed */}
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <div className="flex items-center gap-3 sm:gap-4">
+                {config.brandLogoUrl ? (
+                  <div className="bg-white/95 rounded-xl p-2 sm:p-3 shadow-lg" style={{ boxShadow: `0 0 30px ${brandColor}50, 0 4px 20px rgba(0,0,0,0.3)` }}>
+                    <img
+                      src={config.brandLogoUrl}
+                      alt={config.brandName || block.title || 'Brand'}
+                      className="h-12 sm:h-14 md:h-16 object-contain max-w-[140px] sm:max-w-[180px] md:max-w-[200px]"
+                    />
+                  </div>
+                ) : (
+                  <h2
+                    className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg"
+                    style={{ textShadow: `0 0 20px ${brandColor}, 0 2px 10px rgba(0,0,0,0.5)` }}
+                  >
+                    {config.brandName || block.title}
+                  </h2>
+                )}
+
+                {/* Product count badge */}
+                <span className="px-2.5 py-1 rounded-full bg-white/20 text-white/90 text-xs font-bold backdrop-blur-sm border border-white/20">
+                  {allProducts.length} products
+                </span>
+              </div>
+
+              {/* Subtle "See All" button - Sales rep trick style */}
+              {hasMoreProducts && (
+                <button
+                  onClick={() => setShowAllModal(true)}
+                  className="group relative p-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 transition-all duration-300"
+                  title="See all products from this brand"
+                >
+                  <Package className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" />
+                  {/* Subtle indicator dot */}
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-white/60 animate-pulse" />
+                </button>
+              )}
+            </div>
+
+            {/* Products Grid - with card background effects */}
+            <div
+              className="rounded-xl p-2 sm:p-3 md:p-4"
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                backdropFilter: 'blur(8px)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 20px rgba(0,0,0,0.2)',
+              }}
+            >
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
+                {previewProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+                ))}
+              </div>
+
+              {/* See More indicator at bottom */}
+              {hasMoreProducts && (
+                <button
+                  onClick={() => setShowAllModal(true)}
+                  className="w-full mt-3 py-2.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/40 text-white/80 hover:text-white font-medium text-sm transition-all flex items-center justify-center gap-2"
+                >
+                  <span>See all {allProducts.length} products</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* All Products Modal - Similar to bulk order modal style */}
+      {createPortal(
+        <AnimatePresence>
+          {showAllModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
+              onClick={() => setShowAllModal(false)}
+            >
+              {/* Backdrop */}
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+              {/* Modal Content */}
+              <motion.div
+                initial={{ y: 100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 100, opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-t-3xl sm:rounded-3xl"
+                style={{
+                  background: `linear-gradient(135deg, ${brandColorDark} 0%, ${brandColor} 100%)`,
+                }}
+              >
+                {/* Header */}
+                <div className="sticky top-0 z-10 p-4 sm:p-5 border-b border-white/10" style={{ background: `linear-gradient(to bottom, ${brandColor}, ${brandColor}ee)` }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {config.brandLogoUrl ? (
+                        <div className="bg-white/95 rounded-lg p-2 shadow-lg">
+                          <img src={config.brandLogoUrl} alt="Brand" className="h-8 sm:h-10 object-contain" />
+                        </div>
+                      ) : (
+                        <h3 className="text-xl font-bold text-white">{config.brandName || block.title}</h3>
+                      )}
+                      <span className="px-2 py-1 rounded-full bg-white/20 text-white text-xs font-bold">
+                        {allProducts.length} products
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowAllModal(false)}
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Products Grid - Scrollable */}
+                <div className="p-3 sm:p-4 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                    {allProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   )
 }
 
 // New Arrivals Block - DSD Feature
 function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
   const products = block.products.map(p => p.product) || []
-  const cardStyle = getCardStyleFromBlock(block)
+  const baseCardStyle = getCardStyleFromBlock(block)
+
+  // Enhanced card style with emerald accent for new arrivals
+  const accentColor = '#10b981' // emerald
+  const cardStyle = {
+    ...baseCardStyle,
+    cardAccentColor: baseCardStyle.cardAccentColor || accentColor,
+    cardGlowColor: baseCardStyle.cardGlowColor || accentColor,
+    cardBg: baseCardStyle.cardBg || 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
+    cardImageBg: baseCardStyle.cardImageBg || 'linear-gradient(180deg, #064e3b 0%, #022c22 100%)',
+    cardBorderColor: baseCardStyle.cardBorderColor || '#10b981',
+    cardTextLight: baseCardStyle.cardTextLight !== undefined ? baseCardStyle.cardTextLight : true,
+    // Let ProductCard handle the glow via cardGlowColor
+  }
 
   return (
     <section className="mb-8">
@@ -1208,7 +1439,7 @@ function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
           JUST IN
         </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
         {products.map((product) => (
           <div key={product.id} className="relative">
             <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 z-10 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full bg-emerald-500 text-white text-[10px] sm:text-xs font-bold">

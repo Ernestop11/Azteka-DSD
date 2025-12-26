@@ -75,7 +75,8 @@
       "Bash(/Users/ernestoponce/dev/azteka-dsd/ )",
       "Bash(git checkout:*)",
       "Bash(git log:*)",
-      "Bash(node /tmp/test-image-url.mjs:*)"
+      "Bash(node /tmp/test-image-url.mjs:*)",
+      "Bash(tmutil listbackups:*)"
     ],
     "deny": [],
     "ask": []
