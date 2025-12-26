@@ -489,7 +489,12 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
       </div>
 
       {/* Product Info - Clean & Minimal - Fixed height for alignment */}
-      <div className="p-2 sm:p-3 flex-1 flex flex-col" style={{ background: cardBg.includes('gradient') ? 'transparent' : cardBg }}>
+      {/* Tapping here does NOT deselect - only image area does */}
+      <div
+        onClick={(e) => { if (showControls) e.stopPropagation() }}
+        className="p-2 sm:p-3 flex-1 flex flex-col"
+        style={{ background: cardBg.includes('gradient') ? 'transparent' : cardBg }}
+      >
         {/* Product Name - Fixed height container for consistent alignment */}
         <h3 className={`font-bold text-xs sm:text-sm mb-0.5 sm:mb-1 line-clamp-2 leading-tight h-8 sm:h-10 ${cardTextLight ? 'text-white' : 'text-slate-900'}`}>
           {product.name}
