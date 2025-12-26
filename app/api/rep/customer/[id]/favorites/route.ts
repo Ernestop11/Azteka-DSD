@@ -97,7 +97,6 @@ export async function GET(request: NextRequest, { params }: Params) {
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
-        active: true,
       },
       select: {
         id: true,
@@ -106,16 +105,14 @@ export async function GET(request: NextRequest, { params }: Params) {
         price: true,
         imageUrl: true,
         inStock: true,
-        allowPresell: true,
         unitsPerCase: true,
         featured: true,
         seasonal: true,
-        newArrival: true,
         trending: true,
+        special: true,
         backgroundColor: true,
         backgroundGradient: true,
-        badgeText: true,
-        badgeColor: true,
+        badge: true,
         brand: {
           select: { id: true, name: true }
         },
@@ -158,16 +155,14 @@ export async function GET(request: NextRequest, { params }: Params) {
         customerPrice: Math.round(customerPrice * 100) / 100,
         imageUrl: product.imageUrl,
         inStock: product.inStock ?? true,
-        allowPresell: product.allowPresell ?? false,
         unitsPerCase: product.unitsPerCase || 1,
         featured: product.featured,
         seasonal: product.seasonal,
-        newArrival: product.newArrival,
         trending: product.trending,
+        special: product.special,
         backgroundColor: product.backgroundColor,
         backgroundGradient: product.backgroundGradient,
-        badgeText: product.badgeText,
-        badgeColor: product.badgeColor,
+        badge: product.badge,
         brand: product.brand,
         category: product.category,
         // Order statistics
