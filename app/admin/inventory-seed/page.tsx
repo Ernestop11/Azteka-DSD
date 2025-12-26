@@ -264,23 +264,28 @@ export default function InventorySeedPage() {
       const data = await res.json()
 
       // CRITICAL: Update image version to force browser reload
+      const newVersion = Date.now()
       setImageVersions(prev => {
         const next = new Map(prev)
-        next.set(productId, Date.now())
+        next.set(productId, newVersion)
         return next
       })
 
-      // CRITICAL: Force immediate refetch with cache busting
-      queryClient.setQueryData(['admin-products'], undefined) // Clear cache first
-      await queryClient.invalidateQueries({ queryKey: ['admin-products'] })
-      
-      // Force refetch immediately
-      await refetch()
-      
-      // Also trigger refetch after delay to ensure it worked
-      setTimeout(() => {
-        refetch()
-      }, 300)
+      // CRITICAL: Immediately update the product in the cache with new imageUrl
+      // This makes the preview update instantly without waiting for refetch
+      if (data.imageUrl) {
+        queryClient.setQueryData(['admin-products'], (oldData: Product[] | undefined) => {
+          if (!oldData) return oldData
+          return oldData.map(p =>
+            p.id === productId
+              ? { ...p, imageUrl: data.imageUrl }
+              : p
+          )
+        })
+      }
+
+      // Also refetch in background to ensure full sync
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
 
       setUploadedProducts(prev => new Set(prev).add(productId))
       toast(`Image uploaded successfully for ${products.find(p => p.id === productId)?.name || 'product'}`, 'success')
