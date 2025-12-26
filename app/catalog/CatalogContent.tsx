@@ -420,36 +420,31 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
     }
   }
 
-  // Glow animation styles - clean border glow when selected - enhanced for mobile visibility
+  // OPTIMIZED: Simpler glow for better performance - no complex shadows
   const glowStyle = showControls ? {
-    boxShadow: `0 0 15px ${cardGlowColor}80, 0 0 30px ${cardGlowColor}50, inset 0 0 20px ${cardGlowColor}15`,
+    boxShadow: `0 0 12px ${cardGlowColor}60`,
     borderColor: cardAccentColor,
   } : {
-    // Subtle ambient glow on all cards for premium feel
-    boxShadow: `0 4px 20px rgba(0,0,0,0.3), 0 0 0 1px ${cardBorderColor}30`,
+    boxShadow: `0 2px 8px rgba(0,0,0,0.2)`,
   }
 
   return (
     <>
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+    {/* PERFORMANCE OPTIMIZED: Removed heavy Framer animations, using CSS transforms */}
+    <div
       onClick={handleCardClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
-      className={`relative overflow-hidden rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 flex flex-col`}
+      className={`relative overflow-hidden rounded-xl sm:rounded-2xl cursor-pointer flex flex-col active:scale-[0.98] transition-transform duration-100`}
       style={{
         background: cardBg,
-        borderWidth: '2px',
-        borderStyle: 'solid',
-        borderColor: showControls ? cardAccentColor : cardBorderColor,
+        border: `2px solid ${showControls ? cardAccentColor : cardBorderColor}`,
         ...glowStyle,
-        WebkitTouchCallout: 'none', // Prevent iOS callout
+        WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
         userSelect: 'none',
+        willChange: 'transform', // GPU acceleration hint
       }}
     >
       {/* PRODUCT IMAGE - v2.0 style: transparent background when image exists, shorter on mobile */}
@@ -548,81 +543,76 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
         </span>
       </div>
 
-      {/* Quantity Controls - Always Visible When Selected - Compact on mobile */}
-      <AnimatePresence>
-        {showControls && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t-2"
-            style={{ borderColor: cardAccentColor }}
-          >
-            <div className="flex items-center justify-center gap-3 sm:gap-6 py-2.5 sm:py-4 px-2 sm:px-4" style={{ background: cardBg.includes('gradient') ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.05)' }}>
-              {/* Minus Button - Round */}
-              <button
-                onClick={(e) => handleQuantityChange(-1, e)}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
-                style={{
-                  borderColor: cardAccentColor,
-                  color: cardAccentColor,
-                  background: 'white'
+      {/* Quantity Controls - OPTIMIZED: No AnimatePresence, instant show/hide */}
+      {showControls && (
+        <div
+          className="border-t-2"
+          style={{ borderColor: cardAccentColor }}
+        >
+          <div className="flex items-center justify-center gap-4 sm:gap-6 py-2 sm:py-3 px-2" style={{ background: 'rgba(0,0,0,0.15)' }}>
+            {/* Minus Button */}
+            <button
+              onClick={(e) => handleQuantityChange(-1, e)}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-2xl active:scale-90 border-2"
+              style={{
+                borderColor: cardAccentColor,
+                color: cardAccentColor,
+                background: 'white'
+              }}
+            >
+              −
+            </button>
+
+            {/* Quantity Display - Tap to edit */}
+            {isEditing ? (
+              <input
+                type="number"
+                min="0"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleQuantitySubmit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleQuantitySubmit()
+                  if (e.key === 'Escape') setIsEditing(false)
                 }}
-              >
-                −
-              </button>
-
-              {/* Quantity Display - Editable with GLOWING border */}
-              {isEditing ? (
-                <input
-                  type="number"
-                  min="0"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={handleQuantitySubmit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleQuantitySubmit()
-                    if (e.key === 'Escape') setIsEditing(false)
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  autoFocus
-                  className="w-12 h-12 sm:w-16 sm:h-14 rounded-full text-center font-black text-xl sm:text-2xl z-20 border-3 animate-pulse"
-                  style={{
-                    background: 'white',
-                    color: cardAccentColor,
-                    borderColor: cardAccentColor,
-                    boxShadow: `0 0 20px ${cardAccentColor}, 0 0 40px ${cardAccentColor}80, 0 0 60px ${cardAccentColor}40`,
-                    outline: 'none',
-                  }}
-                />
-              ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
-                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-lg sm:text-xl text-white shadow-lg z-20 hover:scale-110 transition-transform"
-                  style={{ background: cardAccentColor }}
-                >
-                  {displayQuantity}
-                </button>
-              )}
-
-              {/* Plus Button - Round */}
-              <button
-                onClick={(e) => handleQuantityChange(1, e)}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl transition-all hover:scale-110 active:scale-95 border-2 shadow-lg z-20"
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                className="w-14 h-12 rounded-full text-center font-black text-2xl border-3"
                 style={{
-                  borderColor: cardAccentColor,
+                  background: 'white',
                   color: cardAccentColor,
-                  background: 'white'
+                  borderColor: cardAccentColor,
+                  boxShadow: `0 0 15px ${cardAccentColor}`,
+                  outline: 'none',
                 }}
+              />
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-black text-xl text-white active:scale-95"
+                style={{ background: cardAccentColor }}
               >
-                +
+                {displayQuantity}
               </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            )}
 
-      {/* Out of Stock Banner - Diagonal red banner over image area, NOT blocking interaction */}
+            {/* Plus Button */}
+            <button
+              onClick={(e) => handleQuantityChange(1, e)}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-2xl active:scale-90 border-2"
+              style={{
+                borderColor: cardAccentColor,
+                color: cardAccentColor,
+                background: 'white'
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Out of Stock Banner */}
       {!product.inStock && (
         <div className="absolute top-0 left-0 right-0 h-36 sm:h-44 md:h-52 flex items-center justify-center pointer-events-none z-[15]">
           <div className="bg-red-600 text-white font-bold text-xs sm:text-sm px-8 sm:px-12 py-1.5 sm:py-2 -rotate-12 shadow-lg uppercase tracking-wide">
@@ -630,7 +620,7 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
 
     {/* Bulk Order Modal - Portal to body to prevent scroll issues */}
     {typeof document !== 'undefined' && createPortal(
