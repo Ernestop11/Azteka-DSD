@@ -139,6 +139,22 @@ echo -e "${GREEN}   ✅ Images stay on VPS - no overwrite risk${NC}"
 #   rsync -avz --ignore-existing public/uploads/products/ $VPS_USER@$VPS_HOST:$VPS_UPLOADS_PATH/
 # The --ignore-existing flag prevents overwriting existing files
 
+# ============================================
+# ONE SOURCE OF TRUTH SYNC RULES
+# ============================================
+# VPS is authoritative for:
+#   - .env, .env.local, .env.production (database credentials)
+#   - public/uploads/ (product images)
+#   - node_modules/ (installed on VPS)
+#
+# Local is authoritative for:
+#   - All source code (app/, components/, lib/, etc.)
+#   - prisma/schema.prisma (database schema)
+#   - Build output (.next-azteka/)
+#
+# NEVER SYNC: .env files, node_modules, .git
+# ============================================
+
 # Build on VPS
 echo -e "\n${YELLOW}8. Building on VPS...${NC}"
 ssh "$VPS_USER@$VPS_HOST" << EOF
