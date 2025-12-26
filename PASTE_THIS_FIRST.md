@@ -29,36 +29,40 @@ DO NOT invent URLs like "orders.distrimexllc.com" - THAT DOES NOT EXIST
 "Distrimex" is ONLY the external hard drive name, NOT a domain
 ```
 
-### 3. SAFE DEPLOYMENT (Use ONLY this method)
+### 3. VPS-ONLY BUILDS (CRITICAL)
+```
+ALL BUILDS HAPPEN ON VPS - NEVER BUILD LOCALLY
+The VPS has Ubuntu 24.04 - local Mac builds may differ
+This prevents "works on my machine" issues
+```
 
-**PREFERRED: Use the safe deploy script (runs typecheck + build locally first)**
+### 4. SAFE DEPLOYMENT (Use ONLY this method)
+
+**PREFERRED: Use the safe deploy script**
 ```bash
 ./scripts/safe-deploy.sh
 ```
 
 **Manual method (if script doesn't work):**
 ```bash
-# Step 1: ALWAYS run typecheck and build locally FIRST
-npm run typecheck && npm run build:next
-
-# Step 2: If both pass, commit and push
+# Step 1: Commit and push (NO LOCAL BUILD)
 git add . && git commit -m "your message" && git push origin bolt-visual-stable
 
-# Step 3: Deploy on VPS
-ssh root@72.62.162.163 "cd /srv/azteka-dsd && git pull origin bolt-visual-stable && npx prisma generate && npm run build:next && pm2 restart azteka-production"
+# Step 2: Build and deploy ON VPS
+ssh root@72.62.162.163 "cd /srv/azteka-dsd && git pull origin bolt-visual-stable && npm install --legacy-peer-deps && npx prisma generate && npm run build:next && pm2 restart azteka-production"
 
-# Step 4: Verify
-ssh root@72.62.162.163 "pm2 status && find /srv/azteka-dsd/public/uploads/products -type f -size +20k | wc -l"
+# Step 3: Verify
+ssh root@72.62.162.163 "pm2 status azteka-production"
 ```
 
-**NEVER deploy without running typecheck first. NEVER.**
+**NEVER build locally. ALL builds happen on VPS.**
 
-### 4. BEFORE ANY RISKY OPERATION - BACKUP FIRST
+### 5. BEFORE ANY RISKY OPERATION - BACKUP FIRST
 ```bash
 ssh root@72.62.162.163 "/usr/local/bin/protect-images"
 ```
 
-### 5. FORBIDDEN COMMANDS
+### 6. FORBIDDEN COMMANDS
 ```bash
 # NEVER USE THESE:
 rsync ... public/uploads ...  # Overwrites real images
@@ -66,21 +70,21 @@ scripts/sync-images-to-vps.mjs  # DELETED - was dangerous
 --delete flag with rsync to VPS  # Deletes VPS files
 ```
 
-### 6. IMAGE UPLOAD FLOW
+### 7. IMAGE UPLOAD FLOW
 - User uploads via /admin/inventory-seed or /admin/products
 - API processes image with Sharp
 - `lib/services/vpsUpload.ts` sends DIRECTLY to VPS via SSH
 - File saved to: `/srv/azteka-dsd/public/uploads/products/{id}.png`
 - Database updated with URL
 
-### 7. CURRENT STATUS (Dec 26, 2025)
+### 8. CURRENT STATUS (Dec 26, 2025)
 - NEW VPS: 72.62.162.163 (Hostinger KVM2)
 - Real images on VPS: 374
 - Products: 688
 - Customers: 11
 - SSL: Active (Let's Encrypt)
 
-### 8. HELPER COMMANDS ON VPS
+### 9. HELPER COMMANDS ON VPS
 ```bash
 azteka-status    # Check system status
 azteka-deploy    # Deploy from git
@@ -88,7 +92,7 @@ azteka-backup    # Manual backup
 protect-images   # Emergency image backup
 ```
 
-### 9. IF IMAGES GET CORRUPTED
+### 10. IF IMAGES GET CORRUPTED
 ```bash
 # Restore from VPS backup
 ssh root@72.62.162.163 "ls /srv/azteka-backups/images/"  # List backups
