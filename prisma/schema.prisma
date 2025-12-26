@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -30,30 +31,32 @@ model Badge {
 }
 
 model Brand {
-  id           String    @id
+  id           String       @id
   name         String
   logoUrl      String?
   description  String?
-  isFeatured   Boolean   @default(false)
-  displayOrder Int       @default(0)
-  createdAt    DateTime  @default(now())
+  isFeatured   Boolean      @default(false)
+  displayOrder Int          @default(0)
+  createdAt    DateTime     @default(now())
   updatedAt    DateTime
-  slug         String?   @unique
+  slug         String?      @unique
   imageUrl     String?
   Product      Product[]
+  layout       BrandLayout?
 }
 
 model Category {
-  id           String        @id
+  id           String          @id
   name         String
-  slug         String        @unique
+  slug         String          @unique
   description  String?
   imageUrl     String?
-  displayOrder Int           @default(0)
-  createdAt    DateTime      @default(now())
+  displayOrder Int             @default(0)
+  createdAt    DateTime        @default(now())
   updatedAt    DateTime
   Product      Product[]
   Subcategory  Subcategory[]
+  layout       CategoryLayout?
 }
 
 model ContractWorker {
@@ -98,6 +101,8 @@ model Customer {
   group              CustomerGroup?          @relation("CustomerGroupMembers", fields: [groupId], references: [id])
   // Price overrides
   priceOverrides     CustomerPriceOverride[]
+  // Orders
+  orders             Order[]
 }
 
 model Incentive {
@@ -175,15 +180,19 @@ model Order {
   customerName         String
   total                Decimal               @db.Decimal(10, 2)
   userId               String?
+  customerId           String?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime
   driverId             String?
   notes                String?
   User                 User?                 @relation(fields: [userId], references: [id])
+  Customer             Customer?             @relation(fields: [customerId], references: [id])
   OrderItem            OrderItem[]
   tasks                Task[] // Picking/packing tasks for this order
   boxes                Box[] // Boxes for this order
   deliveryConfirmation DeliveryConfirmation?
+
+  @@index([customerId])
 }
 
 model OrderItem {
@@ -274,6 +283,7 @@ model Product {
   Promotion          Promotion[]             @relation("PromotionProducts")
   sectionItems       CatalogSectionItem[]
   blockProducts      CatalogBlockProduct[]
+  cartBlockProducts  CartBlockProduct[]
   boxItems           BoxItem[] // Items packed in boxes
   priceOverrides     CustomerPriceOverride[]
 
@@ -682,6 +692,133 @@ model BusinessSettings {
   businessDays       String   @default("Mon-Sat")
   cartBlocksConfig   Json? // JSON config for cart checkout blocks
   updatedAt          DateTime @updatedAt
+}
+
+// ============================================
+// CART BLOCK SYSTEM (for cart drawer UI)
+// ============================================
+
+model CartBlock {
+  id        String        @id @default(uuid())
+  type      CartBlockType
+  title     String?
+  config    Json          @default("{}")
+  position  Int           @default(0)
+  enabled   Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  products  CartBlockProduct[]
+
+  @@index([position])
+  @@index([enabled])
+}
+
+model CartBlockProduct {
+  id           String    @id @default(uuid())
+  blockId      String
+  productId    String
+  displayOrder Int       @default(0)
+  block        CartBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+
+  @@unique([blockId, productId])
+  @@index([blockId])
+}
+
+enum CartBlockType {
+  CART_ITEMS       // Current cart contents (always shown)
+  COMPLETE_ORDER   // Upsell suggestions based on cart
+  TRENDING_NOW     // Popular products to add
+  PREVIOUSLY_ORDERED // Customer's past purchases
+  BUNDLE_PROGRESS  // Progress toward bundle deals
+  REWARDS_STATUS   // Points balance and rewards
+}
+
+// ============================================
+// REWARDS SYSTEM (Domino's style)
+// ============================================
+
+model RewardTier {
+  id         String   @id @default(uuid())
+  name       String   // "Bronze", "Silver", "Gold", "Platinum"
+  minSpend   Decimal  @db.Decimal(10, 2) // Min monthly spend to qualify
+  color      String   // Tier color for UI
+  multiplier Float    @default(1.0) // Points multiplier
+  position   Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([position])
+}
+
+model RewardPrize {
+  id          String   @id @default(uuid())
+  name        String   // "Free Case of Takis"
+  description String?
+  imageUrl    String?
+  pointsCost  Int      // Points to redeem
+  stock       Int      @default(0) // Available quantity
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TradeOffDeal {
+  id                String   @id @default(uuid())
+  name              String   // "Electrolit at Cost"
+  description       String?
+  rewardProductId   String?  // Product they get at special price
+  rewardBrandId     String?  // Or brand they get at special price
+  rewardPrice       Decimal  @db.Decimal(10, 2) // Special price
+  rewardMaxQty      Int      // Max units at this price
+  requirementType   String   // "MIN_ORDER", "MIN_AVERAGE", "EXCLUDE_BRAND"
+  minSpend          Decimal  @db.Decimal(10, 2) // Min $ to qualify
+  excludeBrandId    String?  // Brand to exclude from calculation
+  excludeCategoryId String?  // Category to exclude
+  active            Boolean  @default(true)
+  startDate         DateTime?
+  endDate           DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([active])
+}
+
+// ============================================
+// CATEGORY & BRAND LAYOUT BLOCKS
+// ============================================
+
+model CategoryLayout {
+  id          String   @id @default(uuid())
+  categoryId  String   @unique
+  config      Json     @default("{}") // Layout configuration
+  heroImage   String?
+  heroTitle   String?
+  heroSubtitle String?
+  showSubcategories Boolean @default(true)
+  showBundles Boolean @default(true)
+  gridColumns Int     @default(4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model BrandLayout {
+  id          String   @id @default(uuid())
+  brandId     String   @unique
+  config      Json     @default("{}") // Layout configuration
+  heroImage   String?
+  heroGradient String?
+  showLogo    Boolean  @default(true)
+  featured    Boolean  @default(false)
+  gridColumns Int      @default(4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
 }
 
 // ============================================

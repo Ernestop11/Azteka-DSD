@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: orderId,
         customerName,
+        customerId: payload.customerId,
         total,
         userId: payload.userId,
         updatedAt: new Date(),

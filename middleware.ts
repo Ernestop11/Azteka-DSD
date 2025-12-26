@@ -50,6 +50,11 @@ function isPublicRoute(pathname: string): boolean {
     return true
   }
 
+  // Allow /rep route (Sales Rep Dashboard) - AuthGuard handles auth
+  if (pathname === '/rep' || pathname.startsWith('/rep/')) {
+    return true
+  }
+
   // Allow PWA files (critical for iOS standalone mode)
   if (
     pathname === '/manifest.json' ||
