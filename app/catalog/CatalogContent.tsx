@@ -548,7 +548,7 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
         </span>
       </div>
 
-      {/* Quantity Controls - GLOWING PREMIUM STYLE */}
+      {/* Quantity Controls - SYMMETRIC ROUND BUTTONS */}
       {/* Tapping here does NOT deselect - only image area does */}
       {showControls && (
         <div
@@ -556,30 +556,33 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
           className="border-t-2"
           style={{
             borderColor: cardAccentColor,
-            boxShadow: `0 -4px 20px ${cardAccentColor}40`,
+            boxShadow: `0 -4px 15px ${cardAccentColor}30`,
           }}
         >
           <div
-            className="flex items-center justify-center gap-5 sm:gap-8 py-3 sm:py-4 px-3"
+            className="flex items-center justify-center gap-4 py-2.5 px-4"
             style={{
-              background: `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.35))`,
+              background: `linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.25))`,
             }}
           >
-            {/* Minus Button - LARGER with glow */}
+            {/* Minus Button - ROUND */}
             <button
               onClick={(e) => handleQuantityChange(-1, e)}
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl active:scale-90 border-2 transition-all"
+              className="flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
               style={{
-                borderColor: cardAccentColor,
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                border: `2px solid ${cardAccentColor}`,
                 color: cardAccentColor,
                 background: 'white',
-                boxShadow: `0 0 12px ${cardAccentColor}50, 0 2px 8px rgba(0,0,0,0.3)`,
+                boxShadow: `0 0 10px ${cardAccentColor}40, 0 2px 6px rgba(0,0,0,0.2)`,
               }}
             >
               −
             </button>
 
-            {/* Quantity Display - Tap to edit - LARGER with intense glow */}
+            {/* Quantity Display - Tap to edit - ROUND */}
             {isEditing ? (
               <input
                 type="number"
@@ -593,37 +596,46 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
                 }}
                 onClick={(e) => e.stopPropagation()}
                 autoFocus
-                className="w-16 h-14 sm:w-18 sm:h-16 rounded-2xl text-center font-black text-2xl sm:text-3xl border-3"
+                className="flex-shrink-0 text-center font-black text-xl"
                 style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  border: `3px solid ${cardAccentColor}`,
                   background: 'white',
                   color: cardAccentColor,
-                  borderColor: cardAccentColor,
-                  boxShadow: `0 0 25px ${cardAccentColor}, 0 0 50px ${cardAccentColor}60`,
+                  boxShadow: `0 0 20px ${cardAccentColor}, 0 0 40px ${cardAccentColor}50`,
                   outline: 'none',
                 }}
               />
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); handleQuantityEdit() }}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center font-black text-2xl sm:text-3xl text-white active:scale-95 transition-all"
+                className="flex-shrink-0 flex items-center justify-center font-black text-xl text-white active:scale-95 transition-all"
                 style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
                   background: `linear-gradient(135deg, ${cardAccentColor}, ${cardAccentColor}dd)`,
-                  boxShadow: `0 0 20px ${cardAccentColor}80, 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)`,
+                  boxShadow: `0 0 15px ${cardAccentColor}70, 0 3px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)`,
                 }}
               >
                 {displayQuantity}
               </button>
             )}
 
-            {/* Plus Button - LARGER with glow */}
+            {/* Plus Button - ROUND */}
             <button
               onClick={(e) => handleQuantityChange(1, e)}
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-2xl sm:text-3xl active:scale-90 border-2 transition-all"
+              className="flex-shrink-0 flex items-center justify-center font-bold text-xl active:scale-90 transition-all"
               style={{
-                borderColor: cardAccentColor,
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                border: `2px solid ${cardAccentColor}`,
                 color: cardAccentColor,
                 background: 'white',
-                boxShadow: `0 0 12px ${cardAccentColor}50, 0 2px 8px rgba(0,0,0,0.3)`,
+                boxShadow: `0 0 10px ${cardAccentColor}40, 0 2px 6px rgba(0,0,0,0.2)`,
               }}
             >
               +
