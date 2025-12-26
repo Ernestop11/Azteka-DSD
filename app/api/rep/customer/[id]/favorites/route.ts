@@ -126,19 +126,19 @@ export async function GET(request: NextRequest, { params }: Params) {
     const tierMultiplier = TIER_MULTIPLIERS[customer.priceTier || 'B'] || 1
 
     // Get any price overrides for this customer
-    const priceOverrides = await prisma.priceOverride.findMany({
+    const priceOverrides = await prisma.customerPriceOverride.findMany({
       where: {
         customerId: customerId,
         productId: { in: productIds },
-        active: true,
+        isActive: true,
       },
       select: {
         productId: true,
-        overridePrice: true,
+        price: true,
       }
     }).catch(() => []) // Table might not exist
 
-    const overrideMap = new Map(priceOverrides.map(o => [o.productId, Number(o.overridePrice)]))
+    const overrideMap = new Map(priceOverrides.map(o => [o.productId, Number(o.price)]))
 
     // Transform products with customer pricing and order stats
     const favorites = products.map(product => {
