@@ -1,11 +1,22 @@
 # 🏗️ Azteka DSD - System Architecture
 
+## Production Server (NEW - Dec 26, 2025)
+
+| Item | Value |
+|------|-------|
+| **IP** | 72.62.162.163 |
+| **Provider** | Hostinger KVM2 |
+| **OS** | Ubuntu 24.04 LTS |
+| **Domain** | aztekafoods.com |
+| **PM2 App** | azteka-production |
+| **Port** | 3000 (Nginx proxy to 80/443) |
+
 ## High-Level System Overview
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                         AZTEKA DSD PLATFORM                                │
-│                        aztekafoods.com (77.243.85.8)                      │
+│                        aztekafoods.com (72.62.162.163)                    │
 └───────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -531,4 +542,22 @@ Health Check & Rollback if needed
 - ✅ **Real-time**: Socket.IO for live updates
 - ✅ **AI-Powered**: OpenAI integrations for insights & automation
 
-Ready for deployment to production at **77.243.85.8 / aztekafoods.com**.
+Ready for deployment to production at **72.62.162.163 / aztekafoods.com**.
+
+---
+
+## Quick Commands (NEW VPS)
+
+```bash
+# Check status
+ssh root@72.62.162.163 "azteka-status"
+
+# Deploy from git
+ssh root@72.62.162.163 "azteka-deploy"
+
+# View logs
+ssh root@72.62.162.163 "pm2 logs azteka-production --lines 50"
+
+# Emergency image backup
+ssh root@72.62.162.163 "protect-images"
+```

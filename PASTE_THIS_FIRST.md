@@ -14,27 +14,48 @@ Images are uploaded ONLY via the web UI (/admin/inventory-seed)
 
 ### 2. VPS IS THE ONLY SERVER
 ```
-Host: 77.243.85.8
+Host: 72.62.162.163
 Path: /srv/azteka-dsd
-PM2: azteka-nextjs (port 3002)
-Database: postgresql://azteka_user:azteka_pass_2024@localhost:5432/azteka_dsd
+PM2: azteka-production (port 3000)
+Database: postgresql://azteka_user:***@localhost:5432/azteka_production
+PUBLIC URL: https://aztekafoods.com
+Credentials: /root/.azteka-db-credentials
+```
+
+### 2b. DO NOT HALLUCINATE URLs
+```
+THE ONLY VALID DOMAIN IS: aztekafoods.com
+DO NOT invent URLs like "orders.distrimexllc.com" - THAT DOES NOT EXIST
+"Distrimex" is ONLY the external hard drive name, NOT a domain
 ```
 
 ### 3. SAFE DEPLOYMENT (Use ONLY this method)
+
+**PREFERRED: Use the safe deploy script (runs typecheck + build locally first)**
 ```bash
-# Step 1: Commit and push your changes
+./scripts/safe-deploy.sh
+```
+
+**Manual method (if script doesn't work):**
+```bash
+# Step 1: ALWAYS run typecheck and build locally FIRST
+npm run typecheck && npm run build:next
+
+# Step 2: If both pass, commit and push
 git add . && git commit -m "your message" && git push origin bolt-visual-stable
 
-# Step 2: Deploy on VPS (git pull + build + restart)
-ssh root@77.243.85.8 "cd /srv/azteka-dsd && git pull origin bolt-visual-stable && npx prisma generate && npm run build:next && pm2 restart azteka-nextjs"
+# Step 3: Deploy on VPS
+ssh root@72.62.162.163 "cd /srv/azteka-dsd && git pull origin bolt-visual-stable && npx prisma generate && npm run build:next && pm2 restart azteka-production"
 
-# Step 3: Verify
-ssh root@77.243.85.8 "pm2 status && find /srv/azteka-dsd/public/uploads/products -type f -size +20k | wc -l"
+# Step 4: Verify
+ssh root@72.62.162.163 "pm2 status && find /srv/azteka-dsd/public/uploads/products -type f -size +20k | wc -l"
 ```
+
+**NEVER deploy without running typecheck first. NEVER.**
 
 ### 4. BEFORE ANY RISKY OPERATION - BACKUP FIRST
 ```bash
-ssh root@77.243.85.8 "/usr/local/bin/protect-images"
+ssh root@72.62.162.163 "/usr/local/bin/protect-images"
 ```
 
 ### 5. FORBIDDEN COMMANDS
@@ -53,17 +74,25 @@ scripts/sync-images-to-vps.mjs  # DELETED - was dangerous
 - Database updated with URL
 
 ### 7. CURRENT STATUS (Dec 26, 2025)
+- NEW VPS: 72.62.162.163 (Hostinger KVM2)
 - Real images on VPS: 374
-- Backup on external drive: /Volumes/Distrimex, LLC/azteka-builds/backups/real-images-20251226/
-- VPS backup: /srv/azteka-backups/images-20251226-212341.tar.gz
+- Products: 688
+- Customers: 11
+- SSL: Active (Let's Encrypt)
 
-### 8. IF IMAGES GET CORRUPTED
+### 8. HELPER COMMANDS ON VPS
+```bash
+azteka-status    # Check system status
+azteka-deploy    # Deploy from git
+azteka-backup    # Manual backup
+protect-images   # Emergency image backup
+```
+
+### 9. IF IMAGES GET CORRUPTED
 ```bash
 # Restore from VPS backup
-ssh root@77.243.85.8 "tar -xzf /srv/azteka-backups/images-20251226-212341.tar.gz -C /srv/azteka-dsd/public"
-
-# Or from external drive
-rsync -avz "/Volumes/Distrimex, LLC/azteka-builds/backups/real-images-20251226/" root@77.243.85.8:/srv/azteka-dsd/public/uploads/products/
+ssh root@72.62.162.163 "ls /srv/azteka-backups/images/"  # List backups
+ssh root@72.62.162.163 "tar -xzf /srv/azteka-backups/images/[BACKUP].tar.gz -C /srv/azteka-dsd/public"
 ```
 
 ---

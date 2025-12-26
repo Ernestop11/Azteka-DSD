@@ -9,9 +9,9 @@ import { NodeSSH } from 'node-ssh'
 import path from 'path'
 
 // VPS Configuration from environment
-// NOTE: Production runs from /srv/azteka-dsd NOT /srv/azteka-api-live
+// NOTE: Production runs from /srv/azteka-dsd on NEW VPS (72.62.162.163)
 const VPS_CONFIG = {
-  host: process.env.VPS_HOST || process.env.VPS_SSH_HOST || '77.243.85.8',
+  host: process.env.VPS_HOST || process.env.VPS_SSH_HOST || '72.62.162.163',
   username: process.env.VPS_USER || process.env.VPS_SSH_USER || 'root',
   privateKeyPath: process.env.VPS_SSH_KEY_PATH || `${process.env.HOME}/.ssh/id_rsa`,
   basePath: process.env.VPS_PATH || '/srv/azteka-dsd',

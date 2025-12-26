@@ -4,7 +4,7 @@
 
 set -e
 
-VPS_IP="77.243.85.8"
+VPS_IP="72.62.162.163"
 VPS_USER="root"
 REMOTE_PATH="/srv/azteka-dsd"
 
@@ -41,7 +41,7 @@ echo ""
 
 # Step 3: Restart Next.js server
 echo "🔄 Step 3: Restarting Next.js server..."
-ssh ${VPS_USER}@${VPS_IP} "cd ${REMOTE_PATH} && pm2 restart nextjs || pm2 restart azteka-api || systemctl restart nextjs"
+ssh ${VPS_USER}@${VPS_IP} "cd ${REMOTE_PATH} && pm2 restart azteka-production"
 echo "✅ Server restarted"
 echo ""
 

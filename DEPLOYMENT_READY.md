@@ -55,15 +55,15 @@ Or:
 ## 🔧 Configuration
 
 ### VPS Details
-- **Host:** 77.243.85.8
+- **Host:** 72.62.162.163
 - **User:** root
 - **Path:** /srv/azteka-dsd
-- **Port:** 3002
+- **Port:** 3000
 - **Domain:** aztekafoods.com
 
 ### PM2 Process
-- **Name:** azteka-nextjs
-- **Port:** 3002
+- **Name:** azteka-production
+- **Port:** 3000
 - **Memory Limit:** 1GB
 - **Auto-restart:** Yes
 
@@ -125,20 +125,20 @@ open https://aztekafoods.com/admin/products
 
 ```bash
 # View PM2 logs
-ssh root@77.243.85.8 "pm2 logs azteka-nextjs --lines 100"
+ssh root@72.62.162.163 "pm2 logs azteka-production --lines 100"
 
 # Monitor in real-time
-ssh root@77.243.85.8 "pm2 monit"
+ssh root@72.62.162.163 "pm2 monit"
 ```
 
 ### Check Status
 
 ```bash
 # PM2 status
-ssh root@77.243.85.8 "pm2 list"
+ssh root@72.62.162.163 "pm2 list"
 
 # Port status
-ssh root@77.243.85.8 "lsof -iTCP:3002 -sTCP:LISTEN"
+ssh root@72.62.162.163 "lsof -iTCP:3000 -sTCP:LISTEN"
 ```
 
 ---
@@ -164,7 +164,7 @@ After deployment, use these to test:
 
 1. **Check SSH access:**
    ```bash
-   ssh root@77.243.85.8 "echo 'Connected'"
+   ssh root@72.62.162.163 "echo 'Connected'"
    ```
 
 2. **Check build locally:**
@@ -181,29 +181,29 @@ After deployment, use these to test:
 
 1. **Check PM2 logs:**
    ```bash
-   ssh root@77.243.85.8 "pm2 logs azteka-nextjs --lines 50"
+   ssh root@72.62.162.163 "pm2 logs azteka-production --lines 50"
    ```
 
 2. **Check if .next exists:**
    ```bash
-   ssh root@77.243.85.8 "ls -la /srv/azteka-dsd/.next"
+   ssh root@72.62.162.163 "ls -la /srv/azteka-dsd/.next"
    ```
 
 3. **Rebuild on VPS:**
    ```bash
-   ssh root@77.243.85.8 "cd /srv/azteka-dsd && npm run build:next"
+   ssh root@72.62.162.163 "cd /srv/azteka-dsd && npm run build:next"
    ```
 
 ### Port Conflict
 
-If port 3002 is in use:
+If port 3000 is in use:
 
 ```bash
 # Check what's using it
-ssh root@77.243.85.8 "lsof -iTCP:3002 -sTCP:LISTEN"
+ssh root@72.62.162.163 "lsof -iTCP:3000 -sTCP:LISTEN"
 
 # Stop conflicting process
-ssh root@77.243.85.8 "pm2 stop <process-name>"
+ssh root@72.62.162.163 "pm2 stop <process-name>"
 ```
 
 ---
@@ -212,9 +212,8 @@ ssh root@77.243.85.8 "pm2 stop <process-name>"
 
 | Port | App | Process | Status |
 |------|-----|---------|--------|
-| 3000 | Alessa Ordering | alessa-ordering | ✅ Running |
-| **3002** | **Azteka DSD** | **azteka-nextjs** | ✅ **This deployment** |
-| 3003-3009 | Available | - | 🟢 Free |
+| **3000** | **Azteka DSD** | **azteka-production** | ✅ **This deployment** |
+| 3001-3009 | Available | - | 🟢 Free |
 
 ---
 

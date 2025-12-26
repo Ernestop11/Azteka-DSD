@@ -9,7 +9,7 @@
 
 set -e
 
-VPS_HOST="root@77.243.85.8"
+VPS_HOST="root@72.62.162.163"
 VPS_PATH="/srv/azteka-dsd"
 
 echo "🚀 Azteka DSD - VPS Deployment"
@@ -45,17 +45,17 @@ echo "✅ Build complete"
 # Step 3: Restart PM2
 echo ""
 echo "🔄 Step 3: Restarting PM2..."
-ssh ${VPS_HOST} "cd ${VPS_PATH} && pm2 restart pm2.config.cjs && pm2 save"
+ssh ${VPS_HOST} "cd ${VPS_PATH} && pm2 restart azteka-production && pm2 save"
 
 echo "✅ PM2 restarted"
 
 # Step 4: Verify
 echo ""
 echo "📋 Step 4: Verifying deployment..."
-ssh ${VPS_HOST} "pm2 list | grep azteka-nextjs"
+ssh ${VPS_HOST} "pm2 list | grep azteka-production"
 
 echo ""
 echo "================================"
 echo "✅ Deployment complete!"
 echo ""
-echo "Check logs with: ssh ${VPS_HOST} 'pm2 logs azteka-nextjs --lines 50'"
+echo "Check logs with: ssh ${VPS_HOST} 'pm2 logs azteka-production --lines 50'"

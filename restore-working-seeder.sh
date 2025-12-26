@@ -22,7 +22,7 @@ read -p "Enter choice (1-3): " choice
 case $choice in
   1)
     echo "Downloading from VPS..."
-    ssh root@77.243.85.8 "cat /srv/azteka-dsd/app/admin/inventory-seed/page.tsx" > app/admin/inventory-seed/page.tsx
+    ssh root@72.62.162.163 "cat /srv/azteka-dsd/app/admin/inventory-seed/page.tsx" > app/admin/inventory-seed/page.tsx
     echo "✅ Restored from VPS"
     ;;
   2)

@@ -20,7 +20,7 @@ if [ -f .env ]; then
 fi
 
 # VPS Configuration (from project docs)
-VPS_HOST="${VPS_HOST:-${VPS_SSH_HOST:-77.243.85.8}}"
+VPS_HOST="${VPS_HOST:-${VPS_SSH_HOST:-72.62.162.163}}"
 VPS_USER="${VPS_USER:-${VPS_SSH_USER:-root}}"
 # CRITICAL: Use /srv/azteka-dsd - NOT /srv/azteka-api-live
 VPS_PATH="${VPS_PATH:-/srv/azteka-dsd}"

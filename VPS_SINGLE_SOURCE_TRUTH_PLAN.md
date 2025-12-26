@@ -6,8 +6,9 @@
 CORRECT PATH: /srv/azteka-dsd
 WRONG PATH:   /srv/azteka-api-live  (DEPRECATED - DO NOT USE)
 
-PM2 PROCESS:  azteka-nextjs
-VPS HOST:     77.243.85.8
+PM2 PROCESS:  azteka-production
+VPS HOST:     72.62.162.163  (NEW VPS - Dec 2025)
+OLD VPS:      77.243.85.8    (kept for other projects)
 VPS USER:     root
 ```
 
@@ -222,9 +223,9 @@ Admin seeds images for new products
 
 ## Contact/Resources
 
-- VPS IP: `77.243.85.8`
+- VPS IP: `72.62.162.163` (NEW - Dec 2025)
 - VPS User: `root`
-- VPS Path: `/srv/azteka-dsd` (NOT azteka-api-live!)
+- VPS Path: `/srv/azteka-dsd`
 - Domain: `aztekafoods.com`
-- PM2 Process: `azteka-nextjs`
-- Deploy Script: `./scripts/deploy-vps.sh`
+- PM2 Process: `azteka-production`
+- Deploy Script: `./scripts/safe-deploy.sh`
