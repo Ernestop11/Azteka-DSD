@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has sales rep access (admin, employee, or sales_rep role)
-    const allowedRoles = ['admin', 'employee', 'sales_rep', 'manager']
-    if (!allowedRoles.includes(user.role)) {
+    const allowedRoles = ['admin', 'employee', 'sales_rep', 'manager', 'super_admin']
+    if (!allowedRoles.includes(user.role.toLowerCase())) {
       return NextResponse.json(
         { error: 'You do not have access to the Sales Rep app' },
         { status: 403 }
