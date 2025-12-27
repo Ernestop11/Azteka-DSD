@@ -28,6 +28,11 @@ interface CartContextValue {
   setQuantity: (productId: string, qty: number) => void
   clear: () => void
 
+  // Customer management for sales rep flow
+  customerId: string | null
+  setCustomerId: (customerId: string | null) => void
+  switchCustomer: (customerId: string) => void
+
   // Getters
   items: CartProduct[]
   totals: {
@@ -62,6 +67,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     getTotal,
     getQuantity: getZustandQuantity,
     getCartCount: getZustandCartCount,
+    customerId,
+    setCustomerId,
+    switchCustomer,
   } = useCartStore()
 
   // Convert Zustand items to CartProduct with tier pricing
@@ -200,6 +208,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateQty,
     setQuantity: setZustandQuantity,
     clear,
+    customerId,
+    setCustomerId,
+    switchCustomer,
     items,
     totals,
     storeGroups,

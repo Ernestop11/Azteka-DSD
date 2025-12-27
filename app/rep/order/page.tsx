@@ -45,7 +45,7 @@ function FavoritesContent() {
   const router = useRouter()
   const customerId = searchParams.get('customer')
 
-  const { addItem, increment, decrement, getQuantity, setQuantity, items, clearCart } = useCartStore()
+  const { addItem, increment, decrement, getQuantity, setQuantity, items, clearCart, switchCustomer, customerId: cartCustomerId } = useCartStore()
 
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [favorites, setFavorites] = useState<FavoriteProduct[]>([])
@@ -60,6 +60,8 @@ function FavoritesContent() {
 
   useEffect(() => {
     if (customerId) {
+      // Clear cart if switching to a different customer
+      switchCustomer(customerId)
       loadFavorites()
     }
   }, [customerId])

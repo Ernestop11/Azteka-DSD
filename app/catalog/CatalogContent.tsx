@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import { ShoppingCart, Plus, Minus, X, Package, ChevronLeft, ChevronRight, Box } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
@@ -26,7 +27,7 @@ interface CatalogProduct {
 
 interface CatalogBlock {
   id: string
-  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE'
+  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE' | 'WEEKEND_SPECIAL'
   title: string | null
   subtitle: string | null
   badgeText: string | null
@@ -73,12 +74,169 @@ function ProductImage({ src, alt, className, style }: { src?: string; alt: strin
 const DEFAULT_HERO_GRADIENT = 'linear-gradient(135deg, #1a472a 0%, #d97706 50%, #dc2626 100%)'
 
 // Hero Block Component - Adobada-style design
+// Hero Products Modal - Shows all products with matching background
+function HeroProductsModal({
+  isOpen,
+  onClose,
+  products,
+  gradient,
+  badgeText,
+  onAddToCart,
+  oneTapOrder
+}: {
+  isOpen: boolean
+  onClose: () => void
+  products: CatalogProduct[]
+  gradient: string
+  badgeText: string
+  onAddToCart: (p: CatalogProduct, q: number) => void
+  oneTapOrder: boolean
+}) {
+  if (!isOpen) return null
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Backdrop with matching gradient */}
+        <div
+          className="absolute inset-0"
+          style={{ background: gradient }}
+        />
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+        {/* Modal Content */}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-3xl"
+          style={{ background: gradient }}
+        >
+          {/* Gradient overlays */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-white/10" />
+          <div className="absolute inset-0 bg-black/20" />
+
+          {/* Header */}
+          <div className="relative flex items-center justify-between p-6 border-b border-white/20">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔥</span>
+              <h2 className="text-2xl font-black text-white">{badgeText || 'HOT DEALS'}</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </div>
+
+          {/* Products Grid */}
+          <div className="relative p-6 overflow-y-auto max-h-[calc(85vh-100px)]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {products.map((product) => {
+                const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+                const pricePerUnit = product.unitsPerCase > 0 ? price / product.unitsPerCase : price
+
+                return (
+                  <motion.div
+                    key={product.id}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      onAddToCart(product, 1)
+                      if (oneTapOrder) {
+                        // Haptic feedback
+                        if (navigator.vibrate) navigator.vibrate(50)
+                      }
+                    }}
+                    className="relative bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 cursor-pointer hover:bg-white/20 transition-all group"
+                  >
+                    {/* Product Image */}
+                    <div className="relative aspect-square mb-3 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-white/10 rounded-xl" />
+                      <ProductImage
+                        src={getPublicImageUrl(product.imageUrl)}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-2 relative z-10"
+                      />
+                      {/* One-tap indicator */}
+                      {oneTapOrder && (
+                        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Plus className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Product Info */}
+                    <h3 className="text-white font-bold text-sm line-clamp-2 mb-1">
+                      {product.name}
+                    </h3>
+                    <p className="text-white/60 text-xs mb-2">
+                      {product.unitsPerCase} units/case
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-amber-300 font-black text-lg">
+                        ${price.toFixed(2)}
+                      </p>
+                      <span className="text-white/50 text-xs">
+                        ${pricePerUnit.toFixed(2)}/ea
+                      </span>
+                    </div>
+
+                    {/* Quick add button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddToCart(product, 1)
+                        if (navigator.vibrate) navigator.vibrate(50)
+                      }}
+                      className="mt-3 w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      {oneTapOrder ? 'Tap to Add' : 'Add Case'}
+                    </button>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  )
+}
+
 function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void }) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [showModal, setShowModal] = useState(false)
   const products = block.products.map(p => p.product) || []
 
-  // Get gradient from block config or use default
-  const gradient = (block.config as { gradient?: string }).gradient || DEFAULT_HERO_GRADIENT
+  // Get config options
+  const config = block.config as {
+    gradient?: string
+    discountPercent?: number
+    salePriceOverride?: number
+    originalPriceLabel?: string
+    savingsText?: string
+    simpleAddToCart?: boolean
+    showProductsModal?: boolean
+    oneTapOrder?: boolean
+  }
+
+  const gradient = config.gradient || DEFAULT_HERO_GRADIENT
+  const discountPercent = config.discountPercent || 5
+  const simpleAddToCart = config.simpleAddToCart || false
+  const showProductsModal = config.showProductsModal || false
+  const oneTapOrder = config.oneTapOrder || false
+  const savingsText = config.savingsText || 'Save Now'
 
   useEffect(() => {
     if (products.length <= 1) return
@@ -88,146 +246,611 @@ function HeroBlock({ block, onAddToCart }: { block: CatalogBlock; onAddToCart: (
 
   if (products.length === 0) return null
   const product = products[currentIndex]
-  const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+  const basePrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+  const price = config.salePriceOverride || basePrice
+  const pricePerUnit = product.unitsPerCase > 0 ? price / product.unitsPerCase : price
+  const casePrice = price
+  const originalPricePerUnit = product.unitsPerCase > 0 ? basePrice / product.unitsPerCase : basePrice
+
+  const handleHeroClick = () => {
+    if (showProductsModal && products.length > 0) {
+      setShowModal(true)
+    }
+  }
+
+  return (
+    <>
+      <div
+        className={`relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 shadow-2xl ${showProductsModal ? 'cursor-pointer' : ''}`}
+        style={{ background: gradient }}
+        onClick={handleHeroClick}
+      >
+        {/* Decorative overlays for depth */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+        {/* Radial glow behind product - smaller on mobile */}
+        <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-[250px] h-[250px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] bg-white/15 rounded-full blur-[60px] sm:blur-[80px] md:blur-[100px]" />
+
+        <div className="relative flex flex-col md:flex-row items-center min-h-[320px] sm:min-h-[380px] md:min-h-[420px] px-4 sm:px-6 md:px-12 lg:px-16 py-6 sm:py-8 md:py-10">
+          {/* Navigation arrows */}
+          {products.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i - 1 + products.length) % products.length) }}
+              className="absolute left-2 sm:left-3 md:left-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
+            >
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+            </button>
+          )}
+
+          {/* Product Image - Smaller on mobile */}
+          <div className="relative w-40 h-40 sm:w-52 sm:h-52 md:w-72 md:h-72 lg:w-80 lg:h-80 flex-shrink-0 flex items-center justify-center">
+            {/* Glow effect behind image */}
+            <div className="absolute inset-0 bg-gradient-radial from-white/25 to-transparent rounded-full blur-xl sm:blur-2xl scale-110" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, scale: 0.9, rotate: 5 }}
+                transition={{ type: 'spring', damping: 20 }}
+                className="w-full h-full flex items-center justify-center relative z-10"
+              >
+                <ProductImage
+                  src={getPublicImageUrl(product.imageUrl)}
+                  alt={product.name}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
+                />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Product Info - Compact on mobile */}
+          <div className="flex-1 text-center md:text-left max-w-xl mt-3 sm:mt-6 md:mt-0 md:ml-10 lg:ml-14">
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm mb-2 sm:mb-4 shadow-lg"
+            >
+              <span className="text-sm sm:text-base">🔥</span>
+              <span className="uppercase tracking-wide">{block.badgeText || 'HOT DEAL'}</span>
+              {showProductsModal && products.length > 1 && (
+                <span className="ml-1 px-2 py-0.5 bg-slate-900/30 rounded-full text-white text-xs">
+                  +{products.length - 1} more
+                </span>
+              )}
+            </motion.div>
+
+            {/* Product Name */}
+            <motion.h2
+              key={`name-${currentIndex}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 leading-tight drop-shadow-lg"
+            >
+              {product.name}
+            </motion.h2>
+
+            {/* Description - Hidden on mobile */}
+            <motion.p
+              key={`desc-${currentIndex}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="hidden sm:block text-white/80 text-sm md:text-lg mb-4 md:mb-6 max-w-md"
+            >
+              {product.description || `${product.unitsPerCase} units per case • Mexican snack`}
+            </motion.p>
+
+            {/* Pricing - Show based on simpleAddToCart setting */}
+            {!simpleAddToCart && (
+              <div className="flex flex-wrap items-end gap-2 sm:gap-4 mb-3 sm:mb-6 justify-center md:justify-start">
+                <div>
+                  {discountPercent > 0 && (
+                    <p className="text-white/50 text-xs sm:text-sm line-through mb-0.5 sm:mb-1">
+                      {config.originalPriceLabel || `$${(originalPricePerUnit * (1 + discountPercent/100)).toFixed(2)} / each`}
+                    </p>
+                  )}
+                  <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black">
+                    ${pricePerUnit.toFixed(2)}
+                    <span className="text-sm sm:text-lg md:text-xl font-medium ml-1">/ each</span>
+                  </p>
+                  <p className="text-amber-300 text-xs sm:text-sm mt-0.5 sm:mt-1">${casePrice.toFixed(2)} per case of {product.unitsPerCase}</p>
+                </div>
+                {discountPercent > 0 && (
+                  <div className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg border border-red-400/30">
+                    <p className="text-white font-black text-base sm:text-xl">-{discountPercent}%</p>
+                    <p className="text-red-100 text-[10px] sm:text-xs uppercase tracking-wide">{savingsText}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Simple pricing for simpleAddToCart mode */}
+            {simpleAddToCart && (
+              <div className="mb-3 sm:mb-6">
+                <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black">
+                  ${casePrice.toFixed(2)}
+                  <span className="text-sm sm:text-lg md:text-xl font-medium ml-1">/ case</span>
+                </p>
+                <p className="text-white/60 text-xs sm:text-sm mt-1">{product.unitsPerCase} units per case</p>
+              </div>
+            )}
+
+            {/* CTA Button - Premium Hero Style */}
+            <motion.button
+              onClick={(e) => { e.stopPropagation(); onAddToCart(product, 1) }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="group relative px-8 sm:px-10 py-4 sm:py-5 rounded-2xl font-black bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-900 inline-flex items-center gap-3 text-lg sm:text-xl shadow-2xl transition-all overflow-hidden"
+              style={{
+                boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), 0 10px 40px rgba(0,0,0,0.3)',
+              }}
+            >
+              {/* Shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 relative z-10" />
+              <span className="relative z-10 uppercase tracking-wide">Add to Cart</span>
+            </motion.button>
+          </div>
+
+          {/* Navigation arrow right */}
+          {products.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i + 1) % products.length) }}
+              className="absolute right-2 sm:right-3 md:right-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+            </button>
+          )}
+        </div>
+
+        {/* Pagination dots */}
+        {products.length > 1 && (
+          <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2">
+            {products.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx) }}
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  idx === currentIndex
+                    ? 'bg-white w-8 shadow-lg'
+                    : 'bg-white/40 w-2.5 hover:bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Tap hint for modal */}
+        {showProductsModal && products.length > 1 && (
+          <div className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-medium">
+            Tap to see all {products.length} products
+          </div>
+        )}
+      </div>
+
+      {/* Products Modal */}
+      <HeroProductsModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        products={products}
+        gradient={gradient}
+        badgeText={block.badgeText || 'HOT DEALS'}
+        onAddToCart={onAddToCart}
+        oneTapOrder={oneTapOrder}
+      />
+    </>
+  )
+}
+
+// Weekend Special Products Modal - Shows all products with matching background and one-tap ordering
+function WeekendSpecialModal({
+  isOpen,
+  onClose,
+  products,
+  gradient,
+  badgeText,
+  onAddToCart,
+  config
+}: {
+  isOpen: boolean
+  onClose: () => void
+  products: CatalogProduct[]
+  gradient: string
+  badgeText: string
+  onAddToCart: (p: CatalogProduct, q: number) => void
+  config: Record<string, unknown>
+}) {
+  if (!isOpen) return null
+
+  const enableDiscount = config.enableDiscount as boolean
+  const discountPercent = (config.discountPercent as number) || 10
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Backdrop with matching gradient */}
+        <div className="absolute inset-0" style={{ background: gradient }} />
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+        {/* Modal Content */}
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-3xl"
+          style={{ background: gradient }}
+        >
+          {/* Gradient overlays */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-white/10" />
+          <div className="absolute inset-0 bg-black/20" />
+
+          {/* Header */}
+          <div className="relative flex items-center justify-between p-6 border-b border-white/20">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔥</span>
+              <h2 className="text-2xl font-black text-white">{badgeText || 'WEEKEND SPECIAL'}</h2>
+              {enableDiscount && (
+                <span className="px-3 py-1 bg-red-500 rounded-full text-white text-sm font-bold">
+                  -{discountPercent}% OFF
+                </span>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </div>
+
+          {/* Products Grid */}
+          <div className="relative p-6 overflow-y-auto max-h-[calc(85vh-100px)]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {products.map((product) => {
+                const basePrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+                const price = enableDiscount ? basePrice * (1 - discountPercent / 100) : basePrice
+                const pricePerUnit = product.unitsPerCase > 0 ? price / product.unitsPerCase : price
+
+                return (
+                  <motion.div
+                    key={product.id}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      onAddToCart(product, 1)
+                      if (navigator.vibrate) navigator.vibrate(50)
+                    }}
+                    className="relative bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 cursor-pointer hover:bg-white/20 transition-all group"
+                  >
+                    {/* Discount badge */}
+                    {enableDiscount && (
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-red-500 rounded-lg text-white text-xs font-bold z-10">
+                        -{discountPercent}%
+                      </div>
+                    )}
+
+                    {/* One-tap indicator */}
+                    <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <Plus className="w-5 h-5 text-white" />
+                    </div>
+
+                    {/* Product Image */}
+                    <div className="relative aspect-square mb-3 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-white/10 rounded-xl" />
+                      <ProductImage
+                        src={getPublicImageUrl(product.imageUrl)}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-2 relative z-10"
+                      />
+                    </div>
+
+                    {/* Product Info */}
+                    <h3 className="text-white font-bold text-sm line-clamp-2 mb-1">
+                      {product.name}
+                    </h3>
+                    <p className="text-white/60 text-xs mb-2">
+                      {product.unitsPerCase} units/case
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        {enableDiscount && (
+                          <span className="text-white/50 text-xs line-through mr-2">
+                            ${basePrice.toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-amber-300 font-black text-lg">
+                          ${price.toFixed(2)}
+                        </span>
+                      </div>
+                      <span className="text-white/50 text-xs">
+                        ${pricePerUnit.toFixed(2)}/ea
+                      </span>
+                    </div>
+
+                    {/* Quick add button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddToCart(product, 1)
+                        if (navigator.vibrate) navigator.vibrate(50)
+                      }}
+                      className="mt-3 w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                      Tap to Add
+                    </button>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  )
+}
+
+// Weekend Special Block - Carousel with modal, optional discounts & gamified trade-offs
+function WeekendSpecialBlock({
+  block,
+  onAddToCart,
+  cartTotal = 0
+}: {
+  block: CatalogBlock
+  onAddToCart: (p: CatalogProduct, q: number) => void
+  cartTotal?: number
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [showModal, setShowModal] = useState(false)
+  const products = block.products.map(p => p.product) || []
+
+  // Get config options
+  const config = block.config as {
+    gradient?: string
+    enableDiscount?: boolean
+    discountPercent?: number
+    discountBadge?: string
+    salePriceOverride?: number
+    enableTradeoff?: boolean
+    tradeoffGoal?: number
+    tradeoffDiscount?: number
+    tradeoffTitle?: string
+    tradeoffMessage?: string
+  }
+
+  const gradient = config.gradient || 'linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)'
+  const enableDiscount = config.enableDiscount || false
+  const discountPercent = config.discountPercent || 10
+  const discountBadge = config.discountBadge || 'SAVE NOW'
+  const enableTradeoff = config.enableTradeoff || false
+  const tradeoffGoal = config.tradeoffGoal || 2000
+  const tradeoffDiscount = config.tradeoffDiscount || 15
+  const tradeoffTitle = config.tradeoffTitle || '🎯 Unlock Special Pricing!'
+
+  // Calculate trade-off progress
+  const tradeoffProgress = Math.min((cartTotal / tradeoffGoal) * 100, 100)
+  const tradeoffUnlocked = cartTotal >= tradeoffGoal
+  const remaining = Math.max(tradeoffGoal - cartTotal, 0)
+
+  // Auto-rotate carousel
+  useEffect(() => {
+    if (products.length <= 1) return
+    const timer = setInterval(() => setCurrentIndex((i) => (i + 1) % products.length), 5000)
+    return () => clearInterval(timer)
+  }, [products.length])
+
+  if (products.length === 0) return null
+  const product = products[currentIndex]
+  const basePrice = typeof product.price === 'string' ? parseFloat(product.price) : product.price
+
+  // Calculate effective discount (trade-off overrides regular discount when unlocked)
+  const effectiveDiscount = tradeoffUnlocked && enableTradeoff ? tradeoffDiscount : (enableDiscount ? discountPercent : 0)
+  const price = config.salePriceOverride || (effectiveDiscount > 0 ? basePrice * (1 - effectiveDiscount / 100) : basePrice)
   const pricePerUnit = product.unitsPerCase > 0 ? price / product.unitsPerCase : price
   const casePrice = price
 
   return (
-    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 shadow-2xl" style={{ background: gradient }}>
-      {/* Decorative overlays for depth */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+    <>
+      <div
+        className="relative overflow-hidden rounded-2xl sm:rounded-3xl mb-4 sm:mb-8 shadow-2xl cursor-pointer"
+        style={{ background: gradient }}
+        onClick={() => setShowModal(true)}
+      >
+        {/* Decorative overlays */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-      {/* Radial glow behind product - smaller on mobile */}
-      <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-[250px] h-[250px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] bg-white/15 rounded-full blur-[60px] sm:blur-[80px] md:blur-[100px]" />
+        {/* Radial glow */}
+        <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-[250px] h-[250px] sm:w-[400px] sm:h-[400px] md:w-[500px] md:h-[500px] bg-white/15 rounded-full blur-[60px] sm:blur-[80px] md:blur-[100px]" />
 
-      <div className="relative flex flex-col md:flex-row items-center min-h-[320px] sm:min-h-[380px] md:min-h-[420px] px-4 sm:px-6 md:px-12 lg:px-16 py-6 sm:py-8 md:py-10">
-        {/* Navigation arrows */}
-        {products.length > 1 && (
-          <button
-            onClick={() => setCurrentIndex((i) => (i - 1 + products.length) % products.length)}
-            className="absolute left-2 sm:left-3 md:left-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
-          >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
-          </button>
+        {/* Trade-off Progress Bar (if enabled and not unlocked) */}
+        {enableTradeoff && !tradeoffUnlocked && (
+          <div className="relative mx-4 mt-4 p-3 bg-black/30 backdrop-blur-sm rounded-xl border border-amber-500/30">
+            <p className="text-white text-sm font-bold mb-2">{tradeoffTitle}</p>
+            <div className="h-3 bg-slate-700 rounded-full overflow-hidden mb-1">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${tradeoffProgress}%` }}
+                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+              />
+            </div>
+            <p className="text-amber-300 text-xs">
+              Spend ${remaining.toFixed(0)} more to unlock {tradeoffDiscount}% off!
+            </p>
+          </div>
         )}
 
-        {/* Product Image - Smaller on mobile */}
-        <div className="relative w-40 h-40 sm:w-52 sm:h-52 md:w-72 md:h-72 lg:w-80 lg:h-80 flex-shrink-0 flex items-center justify-center">
-          {/* Glow effect behind image */}
-          <div className="absolute inset-0 bg-gradient-radial from-white/25 to-transparent rounded-full blur-xl sm:blur-2xl scale-110" />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              exit={{ opacity: 0, scale: 0.9, rotate: 5 }}
-              transition={{ type: 'spring', damping: 20 }}
-              className="w-full h-full flex items-center justify-center relative z-10"
+        {/* Trade-off Unlocked Badge */}
+        {enableTradeoff && tradeoffUnlocked && (
+          <div className="relative mx-4 mt-4 p-3 bg-emerald-500/30 backdrop-blur-sm rounded-xl border border-emerald-400/50">
+            <p className="text-emerald-300 text-sm font-bold flex items-center gap-2">
+              <span>🎉</span> Special Pricing Unlocked! {tradeoffDiscount}% OFF
+            </p>
+          </div>
+        )}
+
+        <div className="relative flex flex-col md:flex-row items-center min-h-[320px] sm:min-h-[380px] md:min-h-[400px] px-4 sm:px-6 md:px-12 lg:px-16 py-6 sm:py-8 md:py-10">
+          {/* Navigation arrows */}
+          {products.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i - 1 + products.length) % products.length) }}
+              className="absolute left-2 sm:left-3 md:left-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
             >
-              <ProductImage
-                src={getPublicImageUrl(product.imageUrl)}
-                alt={product.name}
-                className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
-              />
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+            </button>
+          )}
 
-        {/* Product Info - Compact on mobile */}
-        <div className="flex-1 text-center md:text-left max-w-xl mt-3 sm:mt-6 md:mt-0 md:ml-10 lg:ml-14">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm mb-2 sm:mb-4 shadow-lg"
-          >
-            <span className="text-sm sm:text-base">🔥</span>
-            <span className="uppercase tracking-wide">{block.badgeText || 'HOT DEAL'}</span>
-          </motion.div>
-
-          {/* Product Name */}
-          <motion.h2
-            key={`name-${currentIndex}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 leading-tight drop-shadow-lg"
-          >
-            {product.name}
-          </motion.h2>
-
-          {/* Description - Hidden on mobile */}
-          <motion.p
-            key={`desc-${currentIndex}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="hidden sm:block text-white/80 text-sm md:text-lg mb-4 md:mb-6 max-w-md"
-          >
-            {product.description || `${product.unitsPerCase} units per case • Mexican snack`}
-          </motion.p>
-
-          {/* Pricing - Compact on mobile */}
-          <div className="flex flex-wrap items-end gap-2 sm:gap-4 mb-3 sm:mb-6 justify-center md:justify-start">
-            <div>
-              <p className="text-white/50 text-xs sm:text-sm line-through mb-0.5 sm:mb-1">${(pricePerUnit * 1.05).toFixed(2)} / each</p>
-              <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black">
-                ${pricePerUnit.toFixed(2)}
-                <span className="text-sm sm:text-lg md:text-xl font-medium ml-1">/ each</span>
-              </p>
-              <p className="text-amber-300 text-xs sm:text-sm mt-0.5 sm:mt-1">${casePrice.toFixed(2)} per case of {product.unitsPerCase}</p>
-            </div>
-            <div className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg border border-red-400/30">
-              <p className="text-white font-black text-base sm:text-xl">-5%</p>
-              <p className="text-red-100 text-[10px] sm:text-xs uppercase tracking-wide">Save Now</p>
-            </div>
+          {/* Product Image */}
+          <div className="relative w-40 h-40 sm:w-52 sm:h-52 md:w-72 md:h-72 lg:w-80 lg:h-80 flex-shrink-0 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-radial from-white/25 to-transparent rounded-full blur-xl sm:blur-2xl scale-110" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                exit={{ opacity: 0, scale: 0.9, rotate: 5 }}
+                transition={{ type: 'spring', damping: 20 }}
+                className="w-full h-full flex items-center justify-center relative z-10"
+              >
+                <ProductImage
+                  src={getPublicImageUrl(product.imageUrl)}
+                  alt={product.name}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
 
-          {/* CTA Button - Premium Hero Style */}
-          <motion.button
-            onClick={() => onAddToCart(product, 1)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative px-8 sm:px-10 py-4 sm:py-5 rounded-2xl font-black bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-900 inline-flex items-center gap-3 text-lg sm:text-xl shadow-2xl transition-all overflow-hidden"
-            style={{
-              boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), 0 10px 40px rgba(0,0,0,0.3)',
-            }}
-          >
-            {/* Shine effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 relative z-10" />
-            <span className="relative z-10 uppercase tracking-wide">Add to Cart</span>
-          </motion.button>
+          {/* Product Info */}
+          <div className="flex-1 text-center md:text-left max-w-xl mt-3 sm:mt-6 md:mt-0 md:ml-10 lg:ml-14">
+            {/* Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-500 text-slate-900 font-bold text-xs sm:text-sm mb-2 sm:mb-4 shadow-lg"
+            >
+              <span className="text-sm sm:text-base">🔥</span>
+              <span className="uppercase tracking-wide">{block.badgeText || 'WEEKEND SPECIAL'}</span>
+              {products.length > 1 && (
+                <span className="ml-1 px-2 py-0.5 bg-slate-900/30 rounded-full text-white text-xs">
+                  +{products.length - 1} more
+                </span>
+              )}
+            </motion.div>
+
+            {/* Product Name */}
+            <motion.h2
+              key={`name-${currentIndex}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-black text-white mb-1 sm:mb-3 leading-tight drop-shadow-lg"
+            >
+              {product.name}
+            </motion.h2>
+
+            {/* Description */}
+            <motion.p
+              key={`desc-${currentIndex}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="hidden sm:block text-white/80 text-sm md:text-lg mb-4 md:mb-6 max-w-md"
+            >
+              {product.description || `${product.unitsPerCase} units per case`}
+            </motion.p>
+
+            {/* Pricing */}
+            <div className="flex flex-wrap items-end gap-2 sm:gap-4 mb-3 sm:mb-6 justify-center md:justify-start">
+              <div>
+                <p className="text-white text-2xl sm:text-3xl md:text-4xl font-black">
+                  ${casePrice.toFixed(2)}
+                  <span className="text-sm sm:text-lg md:text-xl font-medium ml-1">/ case</span>
+                </p>
+                <p className="text-amber-300 text-xs sm:text-sm mt-0.5 sm:mt-1">
+                  ${pricePerUnit.toFixed(2)} per unit • {product.unitsPerCase} units
+                </p>
+              </div>
+              {effectiveDiscount > 0 && (
+                <div className="px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg border border-red-400/30">
+                  <p className="text-white font-black text-base sm:text-xl">-{effectiveDiscount}%</p>
+                  <p className="text-red-100 text-[10px] sm:text-xs uppercase tracking-wide">{discountBadge}</p>
+                </div>
+              )}
+            </div>
+
+            {/* CTA Button */}
+            <motion.button
+              onClick={(e) => { e.stopPropagation(); onAddToCart(product, 1) }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="group relative px-8 sm:px-10 py-4 sm:py-5 rounded-2xl font-black bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-900 inline-flex items-center gap-3 text-lg sm:text-xl shadow-2xl transition-all overflow-hidden"
+              style={{
+                boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), 0 10px 40px rgba(0,0,0,0.3)',
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 relative z-10" />
+              <span className="relative z-10 uppercase tracking-wide">Add to Cart</span>
+            </motion.button>
+          </div>
+
+          {/* Navigation arrow right */}
+          {products.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex((i) => (i + 1) % products.length) }}
+              className="absolute right-2 sm:right-3 md:right-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+            </button>
+          )}
         </div>
 
-        {/* Navigation arrow right */}
+        {/* Pagination dots */}
         {products.length > 1 && (
-          <button
-            onClick={() => setCurrentIndex((i) => (i + 1) % products.length)}
-            className="absolute right-2 sm:right-3 md:right-6 z-10 p-2 sm:p-2.5 md:p-3 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm border border-white/20 transition-all hover:scale-110"
-          >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
-          </button>
+          <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2">
+            {products.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(idx) }}
+                className={`h-2.5 rounded-full transition-all duration-300 ${
+                  idx === currentIndex
+                    ? 'bg-white w-8 shadow-lg'
+                    : 'bg-white/40 w-2.5 hover:bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
         )}
+
+        {/* View All hint */}
+        <div className="absolute bottom-3 right-3 sm:bottom-5 sm:right-5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-xs font-medium flex items-center gap-2">
+          <Box className="w-4 h-4" />
+          Tap to see all {products.length}
+        </div>
       </div>
 
-      {/* Pagination dots */}
-      {products.length > 1 && (
-        <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 flex gap-1.5 sm:gap-2">
-          {products.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                idx === currentIndex
-                  ? 'bg-white w-8 shadow-lg'
-                  : 'bg-white/40 w-2.5 hover:bg-white/60'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      {/* Products Modal */}
+      <WeekendSpecialModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        products={products}
+        gradient={gradient}
+        badgeText={block.badgeText || 'WEEKEND SPECIAL'}
+        onAddToCart={onAddToCart}
+        config={block.config}
+      />
+    </>
   )
 }
 
@@ -1455,7 +2078,7 @@ function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
 }
 
 // Block Renderer - Hide blocks with no products (except BANNER and HERO which may not need products)
-function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity, cartTotal = 0 }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void; cartTotal?: number }) {
   // Skip rendering product blocks that have no products
   const productsRequired = !['BANNER'].includes(block.type)
   if (productsRequired && (!block.products || block.products.length === 0)) {
@@ -1464,6 +2087,7 @@ function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity }: { blo
 
   switch (block.type) {
     case 'HERO': return <HeroBlock block={block} onAddToCart={onAddToCart} />
+    case 'WEEKEND_SPECIAL': return <WeekendSpecialBlock block={block} onAddToCart={onAddToCart} cartTotal={cartTotal} />
     case 'PRODUCT_GRID': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
     case 'PRODUCT_CARDS': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
     case 'BANNER': return <BannerBlock block={block} />
@@ -1486,8 +2110,18 @@ function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity }: { blo
 
 // Main Catalog Component
 export default function CatalogContent() {
+  const searchParams = useSearchParams()
+  const customerId = searchParams.get('customer')
+
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const { add, items, updateQty, remove, totals, getCartCount, getQuantity, setQuantity } = useCart()
+  const { add, items, updateQty, remove, totals, getCartCount, getQuantity, setQuantity, switchCustomer } = useCart()
+
+  // If customer param is passed (from sales rep flow), sync cart to that customer
+  useEffect(() => {
+    if (customerId) {
+      switchCustomer(customerId)
+    }
+  }, [customerId, switchCustomer])
 
   // Fetch catalog settings (background gradient, pattern) - auto-refresh every 3 seconds for live preview
   const { data: settingsData } = useQuery<{ data: CatalogSettings }>({
@@ -1661,7 +2295,7 @@ export default function CatalogContent() {
           </div>
         ) : (
           blocks.sort((a, b) => a.position - b.position).map((block) => (
-            <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} getQuantity={getQuantity} onSetQuantity={setQuantity} />
+            <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} getQuantity={getQuantity} onSetQuantity={setQuantity} cartTotal={totals.subtotal} />
           ))
         )}
       </main>

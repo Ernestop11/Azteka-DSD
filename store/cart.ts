@@ -11,12 +11,15 @@ export interface CartItem {
 
 interface CartStore {
   items: CartItem[]
+  customerId: string | null  // Track which customer this cart belongs to
   addItem: (item: CartItem) => void
   removeItem: (productId: string) => void
   increment: (productId: string) => void
   decrement: (productId: string) => void
   setQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
+  setCustomerId: (customerId: string | null) => void
+  switchCustomer: (customerId: string) => void  // Clear cart if switching customers
   getTotal: () => number
   getQuantity: (productId: string) => number
   getCartCount: () => number
@@ -26,6 +29,7 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      customerId: null,
 
       addItem: (item) => {
         // Ensure price is a clean number (handles Prisma Decimal, strings, etc.)
@@ -107,7 +111,21 @@ export const useCartStore = create<CartStore>()(
       },
 
       clearCart: () => {
-        set({ items: [] })
+        set({ items: [], customerId: null })
+      },
+
+      setCustomerId: (customerId) => {
+        set({ customerId })
+      },
+
+      switchCustomer: (customerId) => {
+        const currentCustomerId = get().customerId
+        // If switching to a different customer, clear the cart
+        if (currentCustomerId && currentCustomerId !== customerId) {
+          set({ items: [], customerId })
+        } else {
+          set({ customerId })
+        }
       },
 
       getTotal: () => {
