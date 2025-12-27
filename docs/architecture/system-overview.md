@@ -274,7 +274,7 @@ NEW → PICKING → PICKED → OUT_FOR_DELIVERY → DELIVERED
 ```
 Production Environment:
 ├── Frontend (Vite build) → Static hosting
-├── API Server (PM2)      → VPS (77.243.85.8:3000)
+├── API Server (PM2)      → VPS (72.62.162.163:3000)
 └── PostgreSQL Database   → VPS or managed service
 
 Development Environment:

@@ -35,7 +35,7 @@ interface Category {
 
 interface CatalogBlock {
   id: string
-  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE' | 'CHARACTER_STAGE'
+  type: 'HERO' | 'PRODUCT_GRID' | 'PRODUCT_CARDS' | 'BANNER' | 'CATEGORY_ROW' | 'PROMO_SECTION' | 'RACK_BUNDLE' | 'VENDOR_SPOTLIGHT' | 'CASE_DEAL' | 'NEW_ARRIVALS' | 'QUICK_REORDER' | 'BULK_BUILDER' | 'SEASONAL_THEME' | 'BRAND_SHOWCASE' | 'CHARACTER_STAGE' | 'WEEKEND_SPECIAL'
   title: string | null
   subtitle: string | null
   badgeText: string | null
@@ -336,6 +336,8 @@ const BLOCK_TYPES = [
   { type: 'BRAND_SHOWCASE', name: 'Brand Showcase', icon: '🏷️', description: 'Brand logo banner + product carousel', category: 'dsd' },
   // Creative/Visual blocks
   { type: 'CHARACTER_STAGE', name: 'Character Stage', icon: '🎭', description: 'Character peeks behind products (Santa, mascots)', category: 'creative' },
+  // Gamified promotional blocks
+  { type: 'WEEKEND_SPECIAL', name: 'Weekend Special', icon: '🔥', description: 'Carousel with modal, optional discounts & gamified trade-offs', category: 'promo' },
 ]
 
 // Block type categories for organization
@@ -343,6 +345,7 @@ const BLOCK_CATEGORIES = [
   { id: 'core', name: 'Core Blocks', description: 'Essential catalog building blocks' },
   { id: 'dsd', name: 'DSD Wholesale', description: 'Specialized blocks for wholesale/DSD' },
   { id: 'creative', name: 'Creative & Visual', description: 'Eye-catching visual effects & scenes' },
+  { id: 'promo', name: 'Promotional', description: 'Gamified promotions & special offers' },
 ]
 
 export default function BlockBuilderPage() {
@@ -1359,37 +1362,319 @@ function BlockEditor({
 
       {/* Hero-specific gradient settings */}
       {block.type === 'HERO' && (
-        <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
-          <h3 className="font-semibold mb-4 text-lg">Hero Gradient</h3>
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            {HERO_GRADIENT_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => updateConfig('gradient', preset.value)}
-                className={`p-1 rounded-xl transition-all ${
-                  blockConfig.gradient === preset.value ? 'ring-2 ring-blue-400 scale-105' : 'hover:scale-102'
-                }`}
-              >
-                <div
-                  className="h-16 rounded-lg flex items-center justify-center"
-                  style={{ background: preset.value }}
+        <>
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg">Hero Gradient</h3>
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              {HERO_GRADIENT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => updateConfig('gradient', preset.value)}
+                  className={`p-1 rounded-xl transition-all ${
+                    blockConfig.gradient === preset.value ? 'ring-2 ring-blue-400 scale-105' : 'hover:scale-102'
+                  }`}
                 >
-                  <span className="text-white text-xs font-semibold drop-shadow-lg bg-black/30 px-2 py-0.5 rounded-full">{preset.name}</span>
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center"
+                    style={{ background: preset.value }}
+                  >
+                    <span className="text-white text-xs font-semibold drop-shadow-lg bg-black/30 px-2 py-0.5 rounded-full">{preset.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1.5">Custom Gradient</label>
+              <input
+                type="text"
+                value={(blockConfig.gradient as string) || ''}
+                onChange={(e) => updateConfig('gradient', e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono"
+                placeholder="linear-gradient(135deg, #1a472a 0%, #d97706 100%)"
+              />
+            </div>
+          </div>
+
+          {/* Hero Pricing & Discount Settings */}
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+              <span>💰</span> Pricing & Discount
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1.5">Discount %</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={(blockConfig.discountPercent as number) || 0}
+                  onChange={(e) => updateConfig('discountPercent', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                  placeholder="5"
+                />
+                <p className="text-xs text-slate-500 mt-1">Show as savings badge</p>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1.5">Sale Price Override</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={(blockConfig.salePriceOverride as number) || ''}
+                  onChange={(e) => updateConfig('salePriceOverride', e.target.value ? parseFloat(e.target.value) : null)}
+                  className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                  placeholder="Optional fixed price"
+                />
+                <p className="text-xs text-slate-500 mt-1">Leave empty to use product price</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1.5">Original Price Label</label>
+                <input
+                  type="text"
+                  value={(blockConfig.originalPriceLabel as string) || ''}
+                  onChange={(e) => updateConfig('originalPriceLabel', e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                  placeholder="Was $X.XX"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1.5">Savings Text</label>
+                <input
+                  type="text"
+                  value={(blockConfig.savingsText as string) || ''}
+                  onChange={(e) => updateConfig('savingsText', e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                  placeholder="Save Now!"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Hero Display Options */}
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+              <span>🎨</span> Display Options
+            </h3>
+
+            {/* Simple Add to Cart Toggle */}
+            <label className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-900 transition-colors mb-4">
+              <div className={`w-12 h-7 rounded-full transition-all relative ${blockConfig.simpleAddToCart ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${blockConfig.simpleAddToCart ? 'left-6' : 'left-1'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Simple Add to Cart</p>
+                <p className="text-xs text-slate-400">Hide special offers/discounts - just show Add to Cart button</p>
+              </div>
+            </label>
+
+            {/* Show All Products Modal Toggle */}
+            <label className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-900 transition-colors mb-4">
+              <div className={`w-12 h-7 rounded-full transition-all relative ${blockConfig.showProductsModal ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${blockConfig.showProductsModal ? 'left-6' : 'left-1'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Tap to Show All Products</p>
+                <p className="text-xs text-slate-400">Click hero opens modal with all products in this block</p>
+              </div>
+            </label>
+
+            {/* One-Tap Order Toggle */}
+            <label className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-900 transition-colors">
+              <div className={`w-12 h-7 rounded-full transition-all relative ${blockConfig.oneTapOrder ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${blockConfig.oneTapOrder ? 'left-6' : 'left-1'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">One-Tap Order</p>
+                <p className="text-xs text-slate-400">Single tap on product card adds 1 case instantly</p>
+              </div>
+            </label>
+          </div>
+        </>
+      )}
+
+      {/* Weekend Special Settings */}
+      {block.type === 'WEEKEND_SPECIAL' && (
+        <>
+          {/* Gradient Selection */}
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+              <span>🎨</span> Background Style
+            </h3>
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              {HERO_GRADIENT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => updateConfig('gradient', preset.value)}
+                  className={`p-1 rounded-xl transition-all ${
+                    blockConfig.gradient === preset.value ? 'ring-2 ring-blue-400 scale-105' : 'hover:scale-102'
+                  }`}
+                >
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center"
+                    style={{ background: preset.value }}
+                  >
+                    <span className="text-white text-xs font-semibold drop-shadow-lg bg-black/30 px-2 py-0.5 rounded-full">{preset.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Discount Toggle & Settings */}
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+              <span>💰</span> Discount Settings
+            </h3>
+
+            {/* Enable Discount Toggle */}
+            <label className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-900 transition-colors mb-4"
+              onClick={() => updateConfig('enableDiscount', !blockConfig.enableDiscount)}
+            >
+              <div className={`w-12 h-7 rounded-full transition-all relative ${blockConfig.enableDiscount ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${blockConfig.enableDiscount ? 'left-6' : 'left-1'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Enable Discount</p>
+                <p className="text-xs text-slate-400">Show promotional pricing with savings badge</p>
+              </div>
+            </label>
+
+            {/* Discount Options (shown only when enabled) */}
+            {blockConfig.enableDiscount && (
+              <div className="space-y-4 p-4 bg-slate-900/30 rounded-xl border border-slate-700/50">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1.5">Discount %</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={(blockConfig.discountPercent as number) || 10}
+                      onChange={(e) => updateConfig('discountPercent', parseInt(e.target.value) || 10)}
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                      placeholder="10"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1.5">Badge Text</label>
+                    <input
+                      type="text"
+                      value={(blockConfig.discountBadge as string) || 'SAVE NOW'}
+                      onChange={(e) => updateConfig('discountBadge', e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                      placeholder="SAVE NOW"
+                    />
+                  </div>
                 </div>
-              </button>
-            ))}
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1.5">Sale Price Override (Optional)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={(blockConfig.salePriceOverride as number) || ''}
+                    onChange={(e) => updateConfig('salePriceOverride', e.target.value ? parseFloat(e.target.value) : null)}
+                    className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg"
+                    placeholder="Leave empty to calculate from discount %"
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1.5">Custom Gradient</label>
-            <input
-              type="text"
-              value={(blockConfig.gradient as string) || ''}
-              onChange={(e) => updateConfig('gradient', e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm font-mono"
-              placeholder="linear-gradient(135deg, #1a472a 0%, #d97706 100%)"
-            />
+
+          {/* Gamified Trade-off Toggle & Settings */}
+          <div className="bg-slate-800 rounded-xl p-5 ring-1 ring-slate-700">
+            <h3 className="font-semibold mb-4 text-lg flex items-center gap-2">
+              <span>🎮</span> Gamified Trade-off
+            </h3>
+
+            {/* Enable Trade-off Toggle */}
+            <label className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-900 transition-colors mb-4"
+              onClick={() => updateConfig('enableTradeoff', !blockConfig.enableTradeoff)}
+            >
+              <div className={`w-12 h-7 rounded-full transition-all relative ${blockConfig.enableTradeoff ? 'bg-amber-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all ${blockConfig.enableTradeoff ? 'left-6' : 'left-1'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Enable Trade-off Challenge</p>
+                <p className="text-xs text-slate-400">Unlock discounts by spending on non-discounted products</p>
+              </div>
+            </label>
+
+            {/* Trade-off Options (shown only when enabled) */}
+            {blockConfig.enableTradeoff && (
+              <div className="space-y-4 p-4 bg-slate-900/30 rounded-xl border border-amber-700/30">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1.5">Spend Goal ($)</label>
+                    <input
+                      type="number"
+                      min="100"
+                      step="100"
+                      value={(blockConfig.tradeoffGoal as number) || 2000}
+                      onChange={(e) => updateConfig('tradeoffGoal', parseInt(e.target.value) || 2000)}
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-amber-700/50 rounded-lg"
+                      placeholder="2000"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Customer must spend this on other products</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1.5">Unlock Discount %</label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={(blockConfig.tradeoffDiscount as number) || 15}
+                      onChange={(e) => updateConfig('tradeoffDiscount', parseInt(e.target.value) || 15)}
+                      className="w-full px-3 py-2.5 bg-slate-900 border border-amber-700/50 rounded-lg"
+                      placeholder="15"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Discount unlocked when goal is met</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1.5">Challenge Title</label>
+                  <input
+                    type="text"
+                    value={(blockConfig.tradeoffTitle as string) || '🎯 Unlock Special Pricing!'}
+                    onChange={(e) => updateConfig('tradeoffTitle', e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-900 border border-amber-700/50 rounded-lg"
+                    placeholder="🎯 Unlock Special Pricing!"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1.5">Progress Message</label>
+                  <input
+                    type="text"
+                    value={(blockConfig.tradeoffMessage as string) || 'Spend ${remaining} more to unlock {discount}% off!'}
+                    onChange={(e) => updateConfig('tradeoffMessage', e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-900 border border-amber-700/50 rounded-lg text-sm"
+                    placeholder="Spend ${remaining} more to unlock {discount}% off!"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Use {'{remaining}'} and {'{discount}'} as placeholders</p>
+                </div>
+
+                {/* Preview of trade-off bar */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-amber-900/30 to-orange-900/30 rounded-xl border border-amber-500/30">
+                  <p className="text-amber-300 text-sm font-medium mb-2">Preview:</p>
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <p className="text-white text-sm font-bold mb-2">{(blockConfig.tradeoffTitle as string) || '🎯 Unlock Special Pricing!'}</p>
+                    <div className="h-3 bg-slate-700 rounded-full overflow-hidden mb-2">
+                      <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" style={{ width: '45%' }} />
+                    </div>
+                    <p className="text-amber-300 text-xs">
+                      Spend ${((blockConfig.tradeoffGoal as number) || 2000) * 0.55} more to unlock {(blockConfig.tradeoffDiscount as number) || 15}% off!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        </>
       )}
 
       {/* Rack Bundle Settings */}

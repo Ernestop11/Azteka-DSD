@@ -902,7 +902,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     })),
   };
 
-  const response = await fetch('http://77.243.85.8:3000/api/orders', {
+  const response = await fetch('http://72.62.162.163:3000/api/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(orderPayload),

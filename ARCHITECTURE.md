@@ -398,7 +398,7 @@ If invalid: Return 401/403
 ## Scalability Considerations
 
 ### Current Architecture
-- **Single VPS**: All services on one server (77.243.85.8)
+- **Single VPS**: All services on one server (72.62.162.163)
 - **PM2 Process Manager**: Auto-restart on failure
 - **PostgreSQL**: Local database with daily backups
 

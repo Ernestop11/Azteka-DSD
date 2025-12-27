@@ -46,9 +46,11 @@ export default function RepDashboard() {
     phone: '',
     address: '',
     city: '',
-    state: '',
+    state: 'TX',
     zipCode: '',
     priceTier: 'B',
+    saleDate: new Date().toISOString().split('T')[0], // Today as default
+    visitFrequency: '14', // Every 2 weeks default
   })
 
   useEffect(() => {
@@ -94,6 +96,45 @@ export default function RepDashboard() {
     router.push(`/rep/order?customer=${customerId}`)
   }
 
+  const shareOrderLink = async (customerId: string) => {
+    if (!session) return
+
+    try {
+      const res = await fetch('/api/customer/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          createdById: session.id,
+          type: 'MAGIC_LINK',
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const magicLink = data.magicLink
+
+        // Try to use native share if available (mobile)
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Order with Azteka',
+            text: `Hi! Here's your link to place an order with us:`,
+            url: magicLink,
+          })
+        } else {
+          // Fallback: copy to clipboard
+          await navigator.clipboard.writeText(magicLink)
+          alert(`Link copied to clipboard!\n\n${magicLink}\n\nShare this with your customer.`)
+        }
+      } else {
+        alert('Failed to generate link')
+      }
+    } catch (error) {
+      console.error('Share link error:', error)
+      alert('Failed to share link')
+    }
+  }
+
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!session) return
@@ -120,9 +161,11 @@ export default function RepDashboard() {
           phone: '',
           address: '',
           city: '',
-          state: '',
+          state: 'TX',
           zipCode: '',
           priceTier: 'B',
+          saleDate: new Date().toISOString().split('T')[0],
+          visitFrequency: '14',
         })
       } else {
         const error = await res.json()
@@ -332,6 +375,13 @@ export default function RepDashboard() {
                       🗺️
                     </a>
                     <button
+                      onClick={() => shareOrderLink(customer.id)}
+                      className="p-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+                      title="Share order link"
+                    >
+                      🔗
+                    </button>
+                    <button
                       onClick={() => startOrder(customer.id)}
                       className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium transition-colors text-sm"
                     >
@@ -366,37 +416,38 @@ export default function RepDashboard() {
                   value={newCustomer.businessName}
                   onChange={(e) => setNewCustomer({ ...newCustomer, businessName: e.target.value })}
                   required
+                  placeholder="Store name"
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
               <div>
-                <label className="block text-slate-400 text-sm mb-1">Contact Name *</label>
+                <label className="block text-slate-400 text-sm mb-1">Contact Name</label>
                 <input
                   type="text"
                   value={newCustomer.contactName}
                   onChange={(e) => setNewCustomer({ ...newCustomer, contactName: e.target.value })}
-                  required
+                  placeholder="Optional"
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-400 text-sm mb-1">Email *</label>
+                  <label className="block text-slate-400 text-sm mb-1">Email</label>
                   <input
                     type="email"
                     value={newCustomer.email}
                     onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                    required
+                    placeholder="Optional"
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-sm mb-1">Phone *</label>
+                  <label className="block text-slate-400 text-sm mb-1">Phone</label>
                   <input
                     type="tel"
                     value={newCustomer.phone}
                     onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                    required
+                    placeholder="Optional"
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -408,6 +459,7 @@ export default function RepDashboard() {
                   value={newCustomer.address}
                   onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                   required
+                  placeholder="Street address"
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -423,27 +475,57 @@ export default function RepDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-sm mb-1">State *</label>
+                  <label className="block text-slate-400 text-sm mb-1">State</label>
                   <input
                     type="text"
                     value={newCustomer.state}
                     onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
-                    required
                     maxLength={2}
+                    placeholder="TX"
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-sm mb-1">ZIP *</label>
+                  <label className="block text-slate-400 text-sm mb-1">ZIP</label>
                   <input
                     type="text"
                     value={newCustomer.zipCode}
                     onChange={(e) => setNewCustomer({ ...newCustomer, zipCode: e.target.value })}
-                    required
+                    placeholder="Optional"
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
+
+              {/* Scheduling Section */}
+              <div className="border-t border-slate-700 pt-4 mt-4">
+                <h3 className="text-slate-300 font-medium mb-3">Schedule</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 text-sm mb-1">First Sale Date</label>
+                    <input
+                      type="date"
+                      value={newCustomer.saleDate}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, saleDate: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-sm mb-1">Visit Frequency</label>
+                    <select
+                      value={newCustomer.visitFrequency}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, visitFrequency: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="7">Weekly</option>
+                      <option value="14">Every 2 weeks</option>
+                      <option value="21">Every 3 weeks</option>
+                      <option value="28">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-400 text-sm mb-1">Price Tier</label>
                 <select

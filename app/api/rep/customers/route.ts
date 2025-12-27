@@ -11,50 +11,75 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       businessName,
-      contactName,
-      email,
-      phone,
+      contactName = '',
+      email = '',
+      phone = '',
       address,
       city,
-      state,
-      zipCode,
+      state = 'TX',
+      zipCode = '',
       priceTier = 'B',
+      saleDate,
+      visitFrequency = '14', // Days between visits (14 = every 2 weeks)
     } = body
 
-    // Validate required fields
-    if (!businessName || !contactName || !email || !phone || !address || !city || !state || !zipCode) {
+    // Validate required fields (only business name, address, and city)
+    if (!businessName || !address || !city) {
       return NextResponse.json(
-        { error: 'All fields are required' },
+        { error: 'Business name, address, and city are required' },
         { status: 400 }
       )
     }
 
-    // Check if email already exists
-    const existing = await prisma.customer.findUnique({
-      where: { email: email.toLowerCase() },
-    })
+    // Generate a unique email if not provided (required by schema)
+    const customerEmail = email
+      ? email.toLowerCase()
+      : `${businessName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}@customer.azteka.local`
 
-    if (existing) {
-      return NextResponse.json(
-        { error: 'A customer with this email already exists' },
-        { status: 409 }
-      )
+    // Check if email already exists (only for real emails)
+    if (email) {
+      const existing = await prisma.customer.findUnique({
+        where: { email: customerEmail },
+      })
+
+      if (existing) {
+        return NextResponse.json(
+          { error: 'A customer with this email already exists' },
+          { status: 409 }
+        )
+      }
     }
+
+    // Calculate next scheduled visit from sale date
+    const saleDateParsed = saleDate ? new Date(saleDate) : new Date()
+    const frequencyDays = parseInt(visitFrequency) || 14
+    const nextVisit = new Date(saleDateParsed)
+    nextVisit.setDate(nextVisit.getDate() + frequencyDays)
+
+    // Convert frequency days to string format for DB
+    const frequencyLabel =
+      frequencyDays === 7 ? 'weekly' :
+      frequencyDays === 14 ? 'biweekly' :
+      frequencyDays === 21 ? '3_weeks' :
+      frequencyDays === 28 ? 'monthly' : 'biweekly'
 
     // Create the customer
     const customer = await prisma.customer.create({
       data: {
         id: crypto.randomUUID(),
         businessName,
-        contactName,
-        email: email.toLowerCase(),
-        phone,
+        contactName: contactName || businessName,
+        email: customerEmail,
+        phone: phone || '',
         address,
         city,
-        state: state.toUpperCase(),
-        zipCode,
-        priceTier: priceTier.toUpperCase(),
+        state: (state || 'TX').toUpperCase(),
+        zipCode: zipCode || '',
+        priceTier: (priceTier || 'B').toUpperCase(),
         active: true,
+        visitFrequency: frequencyLabel,
+        lastVisitDate: saleDateParsed,
+        nextScheduledVisit: nextVisit,
         updatedAt: new Date(),
       },
     })
@@ -72,9 +97,9 @@ export async function POST(request: NextRequest) {
         state: customer.state,
         zipCode: customer.zipCode,
         priceTier: customer.priceTier,
-        lastVisitDate: null,
-        nextScheduledVisit: null,
-        visitFrequency: null,
+        lastVisitDate: customer.lastVisitDate?.toISOString() || null,
+        nextScheduledVisit: customer.nextScheduledVisit?.toISOString() || null,
+        visitFrequency: customer.visitFrequency,
         orderCount: 0,
         lastOrderDate: null,
         totalSpent: 0,

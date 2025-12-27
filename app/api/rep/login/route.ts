@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         token,
         expiresAt,
-        updatedAt: new Date(),
       }
     })
 

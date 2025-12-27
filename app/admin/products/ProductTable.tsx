@@ -19,6 +19,8 @@ interface Product {
   category?: { id: string; name: string } | null
   brand?: { id: string; name: string } | null
   inStock?: boolean | null
+  sellByHalfCase?: boolean | null
+  sellByPiece?: boolean | null
 }
 
 interface ProductTableProps {
@@ -95,6 +97,49 @@ export default function ProductTable({ onEdit, onDelete, filterCategory = 'all',
     }
   }
 
+  const handleToggleField = async (product: Product, field: 'sellByHalfCase' | 'sellByPiece') => {
+    try {
+      const currentValue = product[field] ?? false
+      const newValue = !currentValue
+
+      const formData = new FormData()
+      formData.append('id', product.id.toString())
+      formData.append(field, String(newValue))
+
+      // Add required fields to avoid validation errors
+      formData.append('name', product.name)
+      formData.append('sku', product.sku)
+      formData.append('price', String(product.price))
+      formData.append('unitsPerCase', String(product.unitsPerCase))
+
+      // Add optional fields if they exist
+      if (product.category?.id) formData.append('categoryId', product.category.id)
+      if (product.brand?.id) formData.append('brandId', product.brand.id)
+
+      const res = await fetch('/api/admin/products', {
+        method: 'PUT',
+        body: formData,
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+        queryClient.invalidateQueries({ queryKey: ['catalog-products'] })
+        queryClient.invalidateQueries({ queryKey: ['products'] })
+
+        const fieldLabel = field === 'sellByHalfCase' ? '½ Case' : 'PC'
+        toast(`${fieldLabel} option ${newValue ? 'enabled' : 'disabled'}`, 'success')
+      } else {
+        const errorText = await res.text()
+        console.error('Toggle failed:', errorText)
+        toast(errorText || 'Failed to update', 'error')
+      }
+    } catch (error) {
+      console.error('Toggle error:', error)
+      toast('Failed to update', 'error')
+    }
+  }
+
   const filteredProducts = products
     .filter((p) => {
       // Search filter
@@ -156,6 +201,8 @@ export default function ProductTable({ onEdit, onDelete, filterCategory = 'all',
               <TableHead>Category</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-center">½ Case</TableHead>
+              <TableHead className="text-center">PC</TableHead>
               <TableHead>Price (Case)</TableHead>
               <TableHead>Units/Case</TableHead>
               <TableHead className="w-32">Actions</TableHead>
@@ -164,7 +211,7 @@ export default function ProductTable({ onEdit, onDelete, filterCategory = 'all',
           <TableBody>
             {filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={11} className="text-center py-8 text-gray-500">
                   No products found
                 </TableCell>
               </TableRow>
@@ -212,6 +259,40 @@ export default function ProductTable({ onEdit, onDelete, filterCategory = 'all',
                         {product.inStock ? 'Mark Out' : 'In Stock'}
                       </button>
                     </div>
+                  </TableCell>
+                  {/* ½ Case Toggle */}
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => handleToggleField(product, 'sellByHalfCase')}
+                      className={`w-12 h-7 rounded-full transition-all relative ${
+                        product.sellByHalfCase
+                          ? 'bg-blue-500'
+                          : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                          product.sellByHalfCase ? 'right-1' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                  </TableCell>
+                  {/* PC (Piece) Toggle */}
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => handleToggleField(product, 'sellByPiece')}
+                      className={`w-12 h-7 rounded-full transition-all relative ${
+                        product.sellByPiece
+                          ? 'bg-purple-500'
+                          : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                          product.sellByPiece ? 'right-1' : 'left-1'
+                        }`}
+                      />
+                    </button>
                   </TableCell>
                   <TableCell>
                     ${(typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0).toFixed(2)}

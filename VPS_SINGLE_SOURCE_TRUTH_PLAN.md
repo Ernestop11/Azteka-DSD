@@ -8,7 +8,7 @@ WRONG PATH:   /srv/azteka-api-live  (DEPRECATED - DO NOT USE)
 
 PM2 PROCESS:  azteka-production
 VPS HOST:     72.62.162.163  (NEW VPS - Dec 2025)
-OLD VPS:      77.243.85.8    (kept for other projects)
+OLD VPS:      72.62.162.163    (kept for other projects)
 VPS USER:     root
 ```
 
@@ -39,7 +39,7 @@ VPS USER:     root
 
 ### Builds: Local Build → rsync to VPS ✅
 - Build locally: `npm run build:next`
-- Deploy: `rsync .next-azteka/ root@77.243.85.8:/srv/azteka-dsd/.next-azteka/`
+- Deploy: `rsync .next-azteka/ root@72.62.162.163:/srv/azteka-dsd/.next-azteka/`
 - Restart: `pm2 restart azteka-nextjs`
 
 ---
@@ -50,7 +50,7 @@ VPS USER:     root
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                        VPS (77.243.85.8)                     │
+│                        VPS (72.62.162.163)                     │
 │  ┌────────────────────────────────────────────────────────┐  │
 │  │            PostgreSQL Database                         │  │
 │  │  - Products, Categories, Brands                        │  │
@@ -107,7 +107,7 @@ VPS USER:     root
 import { NodeSSH } from 'node-ssh';
 
 const ssh = new NodeSSH();
-await ssh.connect({ host: '77.243.85.8', username: 'root', privateKey: ... });
+await ssh.connect({ host: '72.62.162.163', username: 'root', privateKey: ... });
 await ssh.putFile(localBuffer, `/srv/azteka-dsd/public/uploads/products/${productId}.png`);
 ```
 
@@ -131,7 +131,7 @@ For local development to work against VPS:
 
 ```bash
 # .env.local (NOT committed)
-DATABASE_URL="postgresql://user:pass@77.243.85.8:5432/azteka_dsd"
+DATABASE_URL="postgresql://user:pass@72.62.162.163:5432/azteka_dsd"
 NEXT_PUBLIC_UPLOAD_BASE_URL="https://aztekafoods.com"
 ```
 

@@ -24,7 +24,7 @@ Based on API response analysis, the following fields exist:
 | `sku` | TEXT | `SKU-TAKIS-FUEGO3` |
 | `price` | TEXT/NUMERIC | `32.99` |
 | `description` | TEXT | `Spicy rolled tortilla chips` |
-| `imageUrl` ⚠️ | TEXT | `http://77.243.85.8:3000/uploads/...` |
+| `imageUrl` ⚠️ | TEXT | `http://72.62.162.163:3000/uploads/...` |
 | `categoryId` ⚠️ | UUID | `null` |
 | `brandId` ⚠️ | UUID | `null` |
 | `subcategoryId` ⚠️ | UUID | `null` |
@@ -184,10 +184,10 @@ psql $DATABASE_URL -f migrations/normalize_products_schema.sql
 ### Option 2: Via SQL client
 ```bash
 # Copy the SQL file to the server
-scp migrations/normalize_products_schema.sql user@77.243.85.8:/tmp/
+scp migrations/normalize_products_schema.sql user@72.62.162.163:/tmp/
 
 # SSH into server
-ssh user@77.243.85.8
+ssh user@72.62.162.163
 
 # Run migration
 psql $DATABASE_URL -f /tmp/normalize_products_schema.sql
@@ -307,4 +307,4 @@ COMMIT;
 For questions or issues with this migration:
 - Review server.mjs lines 95, 348, 409 for query patterns
 - Check frontend types in `src/lib/supabase.ts`
-- Test with: `curl http://77.243.85.8:3000/api/products`
+- Test with: `curl http://72.62.162.163:3000/api/products`

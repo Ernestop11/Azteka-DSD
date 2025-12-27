@@ -400,7 +400,7 @@ CLOVER_MERCHANT_ID="..."
 ### VPS Details
 | Item | Value |
 |------|-------|
-| Host | `77.243.85.8` |
+| Host | `72.62.162.163` |
 | Path | `/srv/alessa-ordering` |
 | PM2 Process | `alessa-ordering` |
 | Port | `3000` (behind nginx) |
@@ -408,7 +408,7 @@ CLOVER_MERCHANT_ID="..."
 ### Deploy Commands
 ```bash
 # SSH to VPS
-ssh root@77.243.85.8
+ssh root@72.62.162.163
 cd /srv/alessa-ordering
 
 # Pull latest

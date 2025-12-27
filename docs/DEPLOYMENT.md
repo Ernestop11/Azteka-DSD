@@ -18,7 +18,7 @@ git commit -m "Your changes"
 git push origin main
 
 # 2. SSH to VPS and pull
-ssh root@77.243.85.8
+ssh root@72.62.162.163
 cd /srv/azteka-api-live
 git pull origin main
 
@@ -32,17 +32,17 @@ pm2 save
 Only use when git isn't available:
 ```bash
 # Sync specific files
-rsync -avz app/api/some-route.ts root@77.243.85.8:/srv/azteka-api-live/app/api/
+rsync -avz app/api/some-route.ts root@72.62.162.163:/srv/azteka-api-live/app/api/
 
 # Rebuild and restart on VPS
-ssh root@77.243.85.8 "cd /srv/azteka-api-live && npm run build:next && pm2 restart azteka-nextjs"
+ssh root@72.62.162.163 "cd /srv/azteka-api-live && npm run build:next && pm2 restart azteka-nextjs"
 ```
 
 ## VPS Details
 
 | Item | Value |
 |------|-------|
-| Host | `77.243.85.8` |
+| Host | `72.62.162.163` |
 | User | `root` |
 | App Path | `/srv/azteka-api-live` |
 | PM2 Process | `azteka-nextjs` (port 3002) |
@@ -53,32 +53,32 @@ ssh root@77.243.85.8 "cd /srv/azteka-api-live && npm run build:next && pm2 resta
 
 ### Check Status
 ```bash
-ssh root@77.243.85.8 "pm2 list"
+ssh root@72.62.162.163 "pm2 list"
 ```
 
 ### View Logs
 ```bash
-ssh root@77.243.85.8 "pm2 logs azteka-nextjs --lines 50"
+ssh root@72.62.162.163 "pm2 logs azteka-nextjs --lines 50"
 ```
 
 ### Restart App
 ```bash
-ssh root@77.243.85.8 "pm2 restart azteka-nextjs && pm2 save"
+ssh root@72.62.162.163 "pm2 restart azteka-nextjs && pm2 save"
 ```
 
 ### Full Rebuild
 ```bash
-ssh root@77.243.85.8 "cd /srv/azteka-api-live && npm run build:next && pm2 restart azteka-nextjs && pm2 save"
+ssh root@72.62.162.163 "cd /srv/azteka-api-live && npm run build:next && pm2 restart azteka-nextjs && pm2 save"
 ```
 
 ### Database Migration
 ```bash
-ssh root@77.243.85.8 "cd /srv/azteka-api-live && npx prisma migrate deploy"
+ssh root@72.62.162.163 "cd /srv/azteka-api-live && npx prisma migrate deploy"
 ```
 
 ### Prisma Studio (Database UI)
 ```bash
-ssh root@77.243.85.8 "cd /srv/azteka-api-live && npx prisma studio"
+ssh root@72.62.162.163 "cd /srv/azteka-api-live && npx prisma studio"
 ```
 
 ## Troubleshooting
@@ -86,7 +86,7 @@ ssh root@77.243.85.8 "cd /srv/azteka-api-live && npx prisma studio"
 ### "require is not defined in ES module scope"
 The `.next-azteka/package.json` has wrong module type. Fix:
 ```bash
-ssh root@77.243.85.8 'echo "{\"type\": \"commonjs\"}" > /srv/azteka-api-live/.next-azteka/package.json && pm2 restart azteka-nextjs'
+ssh root@72.62.162.163 'echo "{\"type\": \"commonjs\"}" > /srv/azteka-api-live/.next-azteka/package.json && pm2 restart azteka-nextjs'
 ```
 
 ### App not responding (500 errors)
@@ -97,8 +97,8 @@ ssh root@77.243.85.8 'echo "{\"type\": \"commonjs\"}" > /srv/azteka-api-live/.ne
 
 ### Port already in use
 ```bash
-ssh root@77.243.85.8 "lsof -i :3002"  # See what's using port
-ssh root@77.243.85.8 "pm2 delete azteka-nextjs && pm2 start ecosystem.config.cjs"
+ssh root@72.62.162.163 "lsof -i :3002"  # See what's using port
+ssh root@72.62.162.163 "pm2 delete azteka-nextjs && pm2 start ecosystem.config.cjs"
 ```
 
 ## What NOT to Do
@@ -129,5 +129,5 @@ ssh root@77.243.85.8 "pm2 delete azteka-nextjs && pm2 start ecosystem.config.cjs
 
 ### Database Backup
 ```bash
-ssh root@77.243.85.8 "pg_dump -U azteka_user azteka_dsd > /tmp/azteka_backup_$(date +%Y%m%d).sql"
+ssh root@72.62.162.163 "pg_dump -U azteka_user azteka_dsd > /tmp/azteka_backup_$(date +%Y%m%d).sql"
 ```
