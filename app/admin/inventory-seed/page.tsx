@@ -640,8 +640,12 @@ export default function InventorySeedPage() {
                         sku: product.sku,
                         price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0,
                         unitsPerCase: product.unitsPerCase || 1,
-                        // Add cache busting timestamp to image URL to force refresh
-                        imageUrl: product.imageUrl ? `${product.imageUrl}${product.imageUrl.includes('?') ? '&' : '?'}v=${imageVersions.get(product.id) || Date.now()}` : null,
+                        // Add cache busting timestamp - strip any existing ?v= first to avoid double params
+                        imageUrl: product.imageUrl ? (() => {
+                          const baseUrl = product.imageUrl!.split('?')[0]
+                          const version = imageVersions.get(product.id) || Date.now()
+                          return `${baseUrl}?v=${version}`
+                        })() : null,
                         inStock: product.inStock ?? true,
                         allowPresell: false,
                         category: product.category ? { id: product.category.id, name: product.category.name } : null,
