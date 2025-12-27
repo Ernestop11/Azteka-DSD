@@ -99,10 +99,82 @@ model Customer {
   // Customer group for multi-account reporting
   groupId            String?
   group              CustomerGroup?          @relation("CustomerGroupMembers", fields: [groupId], references: [id])
+
+  // ===== CUSTOMER PORTAL FIELDS =====
+  // Authentication
+  pin                String?                 // 4-6 digit PIN for login (hashed)
+  // Role for multi-store hierarchy
+  role               CustomerRole            @default(STANDARD)
+  // Multi-store: link sub-stores to parent owner
+  parentCustomerId   String?
+  parentCustomer     Customer?               @relation("CustomerHierarchy", fields: [parentCustomerId], references: [id])
+  subStores          Customer[]              @relation("CustomerHierarchy")
+  // Sessions and messages
+  sessions           CustomerSession[]
+  sentMessages       CustomerMessage[]       @relation("CustomerSentMessages")
+  receivedMessages   CustomerMessage[]       @relation("CustomerReceivedMessages")
+
   // Price overrides
   priceOverrides     CustomerPriceOverride[]
   // Orders
   orders             Order[]
+}
+
+enum CustomerRole {
+  STANDARD    // Regular customer - single store
+  OWNER       // Multi-store owner (like Carlo)
+  MANAGER     // Sub-manager of a multi-store owner
+}
+
+// Customer session for magic links and PIN login
+model CustomerSession {
+  id          String              @id @default(uuid())
+  customerId  String
+  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  token       String              @unique // Magic link token or session token
+  type        CustomerSessionType @default(MAGIC_LINK)
+  // Who created this session (rep ID for magic links, null for PIN login)
+  createdById String?
+  // Expiration (12hr inactivity or on order completion)
+  expiresAt   DateTime
+  // Tracking
+  usedAt      DateTime?           // When order was placed (invalidates magic link)
+  lastActiveAt DateTime           @default(now()) // For inactivity tracking
+  createdAt   DateTime            @default(now())
+
+  @@index([token])
+  @@index([customerId])
+  @@index([expiresAt])
+}
+
+enum CustomerSessionType {
+  MAGIC_LINK  // Sent by sales rep
+  PIN_LOGIN   // Customer logged in with phone + PIN
+  DELEGATED   // Multi-store owner delegated to sub-manager
+}
+
+// Customer messages for support chat
+model CustomerMessage {
+  id              String    @id @default(uuid())
+  // Sender (either customer or null if from rep/admin)
+  senderId        String?
+  sender          Customer? @relation("CustomerSentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  // Recipient customer (for messages from rep to customer)
+  recipientId     String?
+  recipient       Customer? @relation("CustomerReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  // If from sales rep or admin, store their ID
+  repId           String?
+  // Message content
+  message         String    @db.Text
+  // Read status
+  readAt          DateTime?
+  // Timestamps
+  createdAt       DateTime  @default(now())
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([repId])
+  @@index([createdAt])
 }
 
 model Incentive {
@@ -665,6 +737,8 @@ enum CatalogBlockType {
   BRAND_SHOWCASE
   // Creative/Visual Block Types
   CHARACTER_STAGE
+  // Weekend Special - Gamified promotional block
+  WEEKEND_SPECIAL
 }
 
 // ============================================
