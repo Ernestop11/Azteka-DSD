@@ -82,7 +82,10 @@
       "Bash(app/api/builder/ )",
       "Bash(root@77.243.85.8:/srv/azteka-dsd/app/api/builder/)",
       "Bash(/Users/ernestoponce/dev/azteka-dsd/.next-azteka/ )",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(sshpass -p 'Tissot1953@@' ssh-copy-id -o StrictHostKeyChecking=no root@72.62.162.163)",
+      "Bash(dig:*)",
+      "Bash(diskutil list:*)"
     ],
     "deny": [],
     "ask": []

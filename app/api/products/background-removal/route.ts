@@ -27,7 +27,7 @@ const execAsync = promisify(exec)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { productId, imageUrl, useAI = true } = body
+    const { productId, imageUrl, useAI = true, field = 'imageUrl' } = body
 
     if (!productId) {
       return NextResponse.json(
@@ -36,10 +36,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate field parameter
+    const validFields = ['imageUrl', 'splashImageUrl']
+    if (!validFields.includes(field)) {
+      return NextResponse.json(
+        { error: 'Invalid field. Must be imageUrl or splashImageUrl' },
+        { status: 400 }
+      )
+    }
+
     // Verify product exists and get current image
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      select: { id: true, imageUrl: true, name: true }
+      select: { id: true, imageUrl: true, splashImageUrl: true, name: true }
     })
 
     if (!product) {
@@ -49,17 +58,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use provided imageUrl or fall back to product's current imageUrl
-    const sourceUrl = imageUrl || product.imageUrl
+    // Use provided imageUrl or fall back to product's current image based on field
+    const sourceUrl = imageUrl || (field === 'splashImageUrl' ? product.splashImageUrl : product.imageUrl)
 
     if (!sourceUrl) {
       return NextResponse.json(
-        { error: 'No image URL available for this product' },
+        { error: `No image URL available for this product's ${field}` },
         { status: 400 }
       )
     }
 
-    console.log('[BG Removal] Starting for product:', productId)
+    console.log('[BG Removal] Starting for product:', productId, 'field:', field)
     console.log('[BG Removal] Source URL:', sourceUrl)
 
     // Load image - try local file first, then fetch via HTTP
@@ -172,7 +181,8 @@ export async function POST(request: NextRequest) {
     console.log('[BG Removal] Processing complete, size:', processedBuffer.length, 'bytes')
 
     // Upload to VPS (or local fallback)
-    const filename = `${productId}.png`
+    // Use different filename suffix for secondary images to avoid overwriting main image
+    const filename = field === 'splashImageUrl' ? `${productId}-secondary.png` : `${productId}.png`
     let newImageUrl: string
 
     if (isVpsUploadEnabled()) {
@@ -194,15 +204,22 @@ export async function POST(request: NextRequest) {
     // Update database with cache busting timestamp
     const cacheBustUrl = `${newImageUrl}?v=${Date.now()}`
 
+    // Update the correct field based on request
+    const updateData: { imageUrl?: string; splashImageUrl?: string; updatedAt: Date } = {
+      updatedAt: new Date()
+    }
+    if (field === 'splashImageUrl') {
+      updateData.splashImageUrl = cacheBustUrl
+    } else {
+      updateData.imageUrl = cacheBustUrl
+    }
+
     await prisma.product.update({
       where: { id: productId },
-      data: {
-        imageUrl: cacheBustUrl,
-        updatedAt: new Date()
-      }
+      data: updateData
     })
 
-    console.log('[BG Removal] Database updated with:', cacheBustUrl)
+    console.log('[BG Removal] Database updated', field, 'with:', cacheBustUrl)
 
     // Clear all caches
     revalidateTag('products')

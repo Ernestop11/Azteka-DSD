@@ -67,6 +67,9 @@ export default function InventorySeedPage() {
   const [uploadingSecondary, setUploadingSecondary] = useState(false)
   const [dragOverSecondary, setDragOverSecondary] = useState(false)
   const secondaryInputRef = useRef<HTMLInputElement>(null)
+  const mainImageInputRef = useRef<HTMLInputElement>(null)
+  const [removingBgMain, setRemovingBgMain] = useState(false)
+  const [removingBgSecondary, setRemovingBgSecondary] = useState(false)
   const [categories, setCategories] = useState<{id: string, name: string}[]>([])
   const [brands, setBrands] = useState<{id: string, name: string}[]>([])
 
@@ -396,6 +399,73 @@ export default function InventorySeedPage() {
       uploadSecondaryImage(galleryProduct.id, file)
     }
   }, [galleryProduct, uploadSecondaryImage])
+
+  // Remove background from main image in modal
+  const removeBackgroundMain = useCallback(async () => {
+    if (!galleryProduct?.imageUrl) return
+    setRemovingBgMain(true)
+    try {
+      const res = await fetch('/api/products/background-removal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ productId: galleryProduct.id, imageUrl: galleryProduct.imageUrl }),
+      })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Background removal failed' }))
+        throw new Error(error.error || error.details || 'Background removal failed')
+      }
+      // Refresh gallery product data
+      setImageVersions(prev => {
+        const next = new Map(prev)
+        next.set(galleryProduct.id, Date.now())
+        return next
+      })
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await refetch()
+      // Update galleryProduct with new data
+      const updated = products.find(p => p.id === galleryProduct.id)
+      if (updated) setGalleryProduct(updated)
+      toast('Background removed from main image!', 'success')
+    } catch (error) {
+      console.error('BG removal error:', error)
+      toast(error instanceof Error ? error.message : 'Failed to remove background', 'error')
+    } finally {
+      setRemovingBgMain(false)
+    }
+  }, [galleryProduct, queryClient, refetch, products, toast])
+
+  // Remove background from secondary image
+  const removeBackgroundSecondary = useCallback(async () => {
+    if (!galleryProduct?.splashImageUrl) return
+    setRemovingBgSecondary(true)
+    try {
+      const res = await fetch('/api/products/background-removal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          productId: galleryProduct.id,
+          imageUrl: galleryProduct.splashImageUrl,
+          field: 'splashImageUrl' // Tell API to update secondary image field
+        }),
+      })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Background removal failed' }))
+        throw new Error(error.error || error.details || 'Background removal failed')
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] })
+      await refetch()
+      const updated = products.find(p => p.id === galleryProduct.id)
+      if (updated) setGalleryProduct(updated)
+      toast('Background removed from secondary image!', 'success')
+    } catch (error) {
+      console.error('BG removal error:', error)
+      toast(error instanceof Error ? error.message : 'Failed to remove background', 'error')
+    } finally {
+      setRemovingBgSecondary(false)
+    }
+  }, [galleryProduct, queryClient, refetch, products, toast])
 
   // Remove background from product image
   const removeBackground = useCallback(async (productId: string, imageUrl: string) => {
@@ -860,6 +930,14 @@ export default function InventorySeedPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Main Product Image</h3>
                 <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative">
+                  {removingBgMain && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                      <div className="text-center text-white">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                        <p className="text-sm">Removing background...</p>
+                      </div>
+                    </div>
+                  )}
                   {galleryProduct.imageUrl ? (
                     <img
                       src={getPublicImageUrl(`${galleryProduct.imageUrl}?v=${Date.now()}`)}
@@ -872,6 +950,18 @@ export default function InventorySeedPage() {
                     </div>
                   )}
                 </div>
+                {galleryProduct.imageUrl && (
+                  <div className="mt-2">
+                    <button
+                      onClick={removeBackgroundMain}
+                      disabled={removingBgMain}
+                      className="w-full py-2 px-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Remove Background
+                    </button>
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 mt-2">
                   Drag & drop on product card to replace main image
                 </p>
@@ -896,6 +986,14 @@ export default function InventorySeedPage() {
                   }}
                   onDrop={handleSecondaryDrop}
                 >
+                  {removingBgSecondary && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                      <div className="text-center text-white">
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                        <p className="text-sm">Removing background...</p>
+                      </div>
+                    </div>
+                  )}
                   {uploadingSecondary ? (
                     <div className="w-full h-full flex items-center justify-center">
                       <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
@@ -921,6 +1019,16 @@ export default function InventorySeedPage() {
                     <Upload className="w-4 h-4" />
                     {galleryProduct.splashImageUrl ? 'Replace' : 'Upload'}
                   </button>
+                  {galleryProduct.splashImageUrl && (
+                    <button
+                      onClick={removeBackgroundSecondary}
+                      disabled={removingBgSecondary}
+                      className="py-2 px-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-1"
+                      title="Remove Background"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  )}
                   <input
                     ref={secondaryInputRef}
                     type="file"
