@@ -1,5 +1,27 @@
 # Azteka DSD - Claude Code Instructions
 
+## 🚨🚨🚨 ABSOLUTE DEPLOYMENT RULES - READ FIRST 🚨🚨🚨
+
+### THE ONLY WAY TO DEPLOY:
+```bash
+./scripts/deploy.sh
+```
+
+### FORBIDDEN COMMANDS - NEVER USE THESE FOR DEPLOYMENT:
+- ❌ `rsync -avz ... root@XX.XX.XX.XX:/srv/azteka-dsd/`
+- ❌ `ssh root@XX.XX.XX.XX "pm2 restart..."`
+- ❌ Any manual rsync or ssh with IP addresses typed out
+- ❌ Any deployment command from memory or old context
+
+### WHY:
+- The VPS IP is **72.62.162.163** - hardcoded in `scripts/deploy.sh`
+- Old VPS (77.243.85.8) is DEAD - do not use
+- Manual commands risk deploying to wrong server
+- The deploy script does EVERYTHING: build, sync, prisma, restart, health check
+
+### IF CLAUDE TRIES TO USE MANUAL SSH/RSYNC FOR DEPLOYMENT:
+**STOP IT IMMEDIATELY** - It's using cached/old instructions. Force it to use `./scripts/deploy.sh`
+
 ## Project Overview
 Azteka DSD is a wholesale distribution management system with a Next.js frontend running on a VPS.
 
@@ -23,44 +45,24 @@ Azteka DSD is a wholesale distribution management system with a Next.js frontend
 - Local `public/uploads/products/` contains only placeholders (~10KB each)
 - Real product images on VPS are 20KB-300KB each
 
-### Deployment Workflow (ALWAYS follow these steps after making changes)
+### Deployment - USE THE SCRIPT
 
-1. **Build locally**:
-   ```bash
-   npm run build:next
-   ```
-
-2. **Sync ALL source files to VPS** (EXCLUDES uploads to protect images):
-   ```bash
-   rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' --exclude='public/uploads' /Users/ernestoponce/dev/azteka-dsd/ root@72.62.162.163:/srv/azteka-dsd/
-   ```
-
-3. **Sync the build folder**:
-   ```bash
-   rsync -avz --delete /Users/ernestoponce/dev/azteka-dsd/.next-azteka/ root@72.62.162.163:/srv/azteka-dsd/.next-azteka/
-   ```
-
-4. **If Prisma schema changed, update VPS database**:
-   ```bash
-   ssh root@72.62.162.163 "cd /srv/azteka-dsd && npx prisma generate"
-   # If schema has new fields:
-   ssh root@72.62.162.163 "cd /srv/azteka-dsd && npx prisma db push --accept-data-loss"
-   # Or use direct SQL if permission issues:
-   ssh root@72.62.162.163 "sudo -u postgres psql -d azteka_dsd -c 'ALTER TABLE ...'"
-   ```
-
-5. **Restart the server**:
-   ```bash
-   ssh root@72.62.162.163 "pm2 restart azteka-production"
-   ```
-
-### Quick Deploy Script
-For routine deployments:
+**ALWAYS deploy using the script:**
 ```bash
-npm run build:next && \
-rsync -avz --exclude='node_modules' --exclude='.git' --exclude='.env' --exclude='.env.local' --exclude='.next' --exclude='.next-azteka' --exclude='public/uploads' /Users/ernestoponce/dev/azteka-dsd/ root@72.62.162.163:/srv/azteka-dsd/ && \
-rsync -avz --delete /Users/ernestoponce/dev/azteka-dsd/.next-azteka/ root@72.62.162.163:/srv/azteka-dsd/.next-azteka/ && \
-ssh root@72.62.162.163 "cd /srv/azteka-dsd && npx prisma generate && pm2 restart azteka-production"
+./scripts/deploy.sh
+```
+
+This script:
+1. Builds locally
+2. Syncs source files (excludes uploads)
+3. Syncs build folder
+4. Generates Prisma client
+5. Restarts PM2
+6. Runs health check
+
+**If Prisma schema has NEW fields, run after deploy:**
+```bash
+ssh root@72.62.162.163 "cd /srv/azteka-dsd && npx prisma db push --accept-data-loss"
 ```
 
 ### Backup Before Deploy (Recommended)
