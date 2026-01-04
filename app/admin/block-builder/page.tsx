@@ -3,17 +3,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { CartBlocksBuilder, RewardsBuilder, CategoryBuilder, BrandBuilder } from '@/components/admin/builders'
+import { CartBlocksBuilder, RewardsBuilder, CategoryBuilder, BrandBuilder, KioskBuilder, FavoritesUIBuilder } from '@/components/admin/builders'
 
 // Main Tabs for Block Builder
-type MainTab = 'catalog' | 'cart' | 'rewards' | 'categories' | 'brands'
+type MainTab = 'catalog' | 'cart' | 'rewards' | 'categories' | 'brands' | 'clock' | 'favorites'
 
 const MAIN_TABS: { id: MainTab; name: string; icon: string; description: string }[] = [
   { id: 'catalog', name: 'Catalog', icon: '📦', description: 'Build catalog page layout' },
+  { id: 'favorites', name: 'Favorites UI', icon: '⭐', description: 'Rep favorites page styling' },
   { id: 'cart', name: 'Cart', icon: '🛒', description: 'Customize cart upsells & blocks' },
   { id: 'rewards', name: 'Rewards', icon: '🏆', description: 'Trade-offs, tiers & prizes' },
   { id: 'categories', name: 'Categories', icon: '📂', description: 'Category page layouts' },
   { id: 'brands', name: 'Brands', icon: '🏷️', description: 'Brand showcase pages' },
+  { id: 'clock', name: 'Clock', icon: '⏰', description: 'Kiosk time clock settings' },
 ]
 
 // Types
@@ -713,6 +715,13 @@ export default function BlockBuilderPage() {
       </div>
       )}
 
+      {/* Favorites UI Tab */}
+      {mainTab === 'favorites' && (
+        <div className="p-6">
+          <FavoritesUIBuilder />
+        </div>
+      )}
+
       {/* Cart Tab */}
       {mainTab === 'cart' && (
         <div className="p-6">
@@ -738,6 +747,13 @@ export default function BlockBuilderPage() {
       {mainTab === 'brands' && (
         <div className="p-6">
           <BrandBuilder />
+        </div>
+      )}
+
+      {/* Clock/Kiosk Tab */}
+      {mainTab === 'clock' && (
+        <div className="p-6">
+          <KioskBuilder />
         </div>
       )}
 

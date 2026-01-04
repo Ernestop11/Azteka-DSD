@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const skip = (page - 1) * limit
+    const customerId = searchParams.get('customer') // For customer-specific pricing
 
     // Build where clause - show products that are either:
     // 1. In stock (inStock = true), OR
@@ -120,6 +121,48 @@ export async function GET(request: NextRequest) {
       where.AND = conditions
     }
 
+    // Fetch customer info and price overrides if customerId provided
+    let customerPriceTier: string | null = null
+    let priceOverrides: Map<string, { type: string; fixedPrice: number | null; discountPercent: number | null; discountAmount: number | null }> = new Map()
+
+    if (customerId) {
+      const [customer, overrides] = await Promise.all([
+        prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { priceTier: true }
+        }),
+        prisma.customerPriceOverride.findMany({
+          where: {
+            customerId,
+            active: true,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: new Date() } }
+            ]
+          },
+          select: {
+            productId: true,
+            overrideType: true,
+            fixedPrice: true,
+            discountPercent: true,
+            discountAmount: true
+          }
+        })
+      ])
+
+      customerPriceTier = customer?.priceTier || null
+
+      // Build price override map for quick lookup
+      for (const override of overrides) {
+        priceOverrides.set(override.productId, {
+          type: override.overrideType,
+          fixedPrice: override.fixedPrice ? Number(override.fixedPrice) : null,
+          discountPercent: override.discountPercent ? Number(override.discountPercent) : null,
+          discountAmount: override.discountAmount ? Number(override.discountAmount) : null
+        })
+      }
+    }
+
     // Fetch products with relations
     // Using include for relations - note: Prisma uses capitalized relation names (Brand, Category)
     const [products, total] = await Promise.all([
@@ -161,6 +204,45 @@ export async function GET(request: NextRequest) {
       return Number.isFinite(parsed) ? parsed : null
     }
 
+    // Helper to calculate customer-specific price
+    const getCustomerPrice = (product: any): number => {
+      const basePrice = toNumber(product.price) ?? 0
+
+      // Check for direct price override first
+      const override = priceOverrides.get(product.id)
+      if (override) {
+        switch (override.type) {
+          case 'FIXED_PRICE':
+            if (override.fixedPrice !== null) return override.fixedPrice
+            break
+          case 'PERCENT_DISCOUNT':
+            if (override.discountPercent !== null) {
+              return basePrice * (1 - override.discountPercent / 100)
+            }
+            break
+          case 'FIXED_DISCOUNT':
+            if (override.discountAmount !== null) {
+              return Math.max(0, basePrice + override.discountAmount) // discountAmount is negative
+            }
+            break
+        }
+      }
+
+      // Check tier pricing if customer has a tier
+      if (customerPriceTier) {
+        const tierA = toNumber(product.priceTierA)
+        const tierB = toNumber(product.priceTierB)
+        const tierC = toNumber(product.priceTierC)
+
+        // Map tier names to price fields (support both formats)
+        if ((customerPriceTier === 'A' || customerPriceTier === 'TIER_1') && tierA !== null) return tierA
+        if ((customerPriceTier === 'B' || customerPriceTier === 'TIER_2') && tierB !== null) return tierB
+        if ((customerPriceTier === 'C' || customerPriceTier === 'TIER_3') && tierC !== null) return tierC
+      }
+
+      return basePrice
+    }
+
     // Transform to match ProductCard interface
     const transformedProducts = products.map((p) => {
       // Normalize image URL - always return a valid string
@@ -168,12 +250,15 @@ export async function GET(request: NextRequest) {
         imageUrl: p.imageUrl,
       })
 
+      // Calculate customer-specific price
+      const customerPrice = getCustomerPrice(p)
+
       return {
         id: p.id,
         name: p.name,
         sku: p.sku,
         description: p.description,
-        price: toNumber(p.price) ?? 0,
+        price: customerPrice,
         unitsPerCase: p.unitsPerCase,
         imageUrl: resolvedImage, // Always a valid string, never null
         backgroundColor: p.backgroundColor || null,

@@ -15,6 +15,9 @@ interface AddToCartModalProps {
   onClose: () => void
   onAddComplete?: () => void
   customerId?: string
+  // For delegated orders - attach store info to cart items
+  storeId?: string
+  storeName?: string
 }
 
 export default function AddToCartModal({
@@ -23,6 +26,8 @@ export default function AddToCartModal({
   onClose,
   onAddComplete,
   customerId,
+  storeId,
+  storeName,
 }: AddToCartModalProps) {
   const [quantity, setQuantity] = useState(1)
   const [upsellBundles, setUpsellBundles] = useState<UpsellBundle[]>([])
@@ -98,6 +103,9 @@ export default function AddToCartModal({
       imageUrl: product.imageUrl,
       sku: product.sku,
       unitsPerCase,
+      // Attach store info for delegated orders (Carlos multi-store)
+      storeId,
+      storeName,
     })
     setAddedToCart(true)
     onAddComplete?.()
@@ -114,6 +122,8 @@ export default function AddToCartModal({
         imageUrl: bundleProduct.imageUrl,
         sku: bundleProduct.sku,
         unitsPerCase: bundleProduct.unitsPerCase || 24,
+        storeId,
+        storeName,
       })
     })
     onAddComplete?.()
@@ -129,6 +139,8 @@ export default function AddToCartModal({
       imageUrl: p.imageUrl,
       sku: p.sku,
       unitsPerCase: p.unitsPerCase || 24,
+      storeId,
+      storeName,
     })
     // Remove from suggestions
     setQuickAddProducts(prev => prev.filter(prod => prod.id !== p.id))
@@ -143,6 +155,8 @@ export default function AddToCartModal({
       imageUrl: fav.imageUrl,
       sku: fav.sku,
       unitsPerCase: fav.unitsPerCase || 24,
+      storeId,
+      storeName,
     })
     setFavorites(prev => prev.filter(f => f.id !== fav.id))
   }
@@ -163,14 +177,15 @@ export default function AddToCartModal({
             className="fixed inset-0 bg-black/60 z-50"
           />
 
-          {/* Modal */}
+          {/* Modal - prevent Android context menu on long-press */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            onContextMenu={(e) => e.preventDefault()}
           >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pwa-touch">
               {/* Success Header or Add Header */}
               {addedToCart ? (
                 <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 flex items-center justify-between">

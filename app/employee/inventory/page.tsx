@@ -554,25 +554,40 @@ export default function InventoryPage() {
           />
         </div>
 
-        {/* Stats */}
+        {/* Inventory Count Action */}
+        <a
+          href="/employee/inventory/count"
+          className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all"
+        >
+          <Package className="w-6 h-6" />
+          Annual Inventory Count
+        </a>
+
+        {/* Stats - Filter Buttons */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setFilterLowStock(!filterLowStock)}
-            className={`py-4 px-4 rounded-xl flex flex-col items-center ${
-              filterLowStock ? 'bg-red-500 text-white' : 'bg-white border border-gray-200'
+            className={`py-4 px-4 rounded-xl flex flex-col items-center shadow-sm transition-all ${
+              filterLowStock
+                ? 'bg-red-500 text-white shadow-red-200'
+                : 'bg-red-50 border-2 border-red-200 text-red-700 hover:bg-red-100'
             }`}
           >
+            <AlertCircle className={`w-5 h-5 mb-1 ${filterLowStock ? 'text-white' : 'text-red-500'}`} />
             <span className="text-2xl font-bold">{lowStockCount}</span>
-            <span className="text-xs">Low Stock</span>
+            <span className="text-xs font-medium">Low Stock</span>
           </button>
           <button
             onClick={() => setFilterNoSku(!filterNoSku)}
-            className={`py-4 px-4 rounded-xl flex flex-col items-center ${
-              filterNoSku ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200'
+            className={`py-4 px-4 rounded-xl flex flex-col items-center shadow-sm transition-all ${
+              filterNoSku
+                ? 'bg-orange-500 text-white shadow-orange-200'
+                : 'bg-orange-50 border-2 border-orange-200 text-orange-700 hover:bg-orange-100'
             }`}
           >
+            <Hash className={`w-5 h-5 mb-1 ${filterNoSku ? 'text-white' : 'text-orange-500'}`} />
             <span className="text-2xl font-bold">{noSkuCount}</span>
-            <span className="text-xs">Need SKU</span>
+            <span className="text-xs font-medium">Need SKU</span>
           </button>
         </div>
 

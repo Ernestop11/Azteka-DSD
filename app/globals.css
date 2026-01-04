@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shake Animation for Error States */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake-animation {
+  animation: shake 0.5s ease-in-out;
+}
+
 /* Scrollbar Hide Utility */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -118,6 +129,21 @@ html, body {
   will-change: opacity;
 }
 
+/* Order Button Glow Animation */
+@keyframes order-glow {
+  0%, 100% {
+    box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 10px 40px -5px rgba(16, 185, 129, 0.7), 0 0 60px -10px rgba(16, 185, 129, 0.5);
+  }
+}
+
+.animate-order-glow {
+  animation: order-glow 2s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
 /* Safe Area Padding for iOS devices with home indicator */
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
@@ -125,6 +151,75 @@ html, body {
 
 .pt-safe {
   padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/*
+ * PWA Touch Behavior - Prevents Android long-press context menu
+ * Apply .pwa-touch to interactive elements that have their own long-press behavior
+ */
+.pwa-touch {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none;   /* Safari */
+  -khtml-user-select: none;    /* Konqueror HTML */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* Internet Explorer/Edge */
+  user-select: none;           /* Chrome, Safari, Opera */
+  touch-action: manipulation;   /* Disable double-tap zoom, allow pan/pinch */
+}
+
+/* Prevent context menu on images in PWA mode */
+.pwa-no-context img,
+.pwa-touch img {
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+/* Allow text selection where needed */
+.pwa-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Global PWA touch fixes for Android tablets */
+@media (pointer: coarse) {
+  /* On touch devices, prevent long-press on interactive elements */
+  button,
+  a,
+  [role="button"],
+  .interactive {
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+
+  /* Prevent image save dialog on long-press */
+  img {
+    -webkit-touch-callout: none;
+    pointer-events: none;
+  }
+
+  /* Re-enable pointer events for clickable images */
+  a img,
+  button img,
+  .clickable-image {
+    pointer-events: auto;
+  }
+
+  /* CRITICAL: Ensure input fields work on touch devices (iOS/Android) */
+  input,
+  textarea,
+  select,
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    touch-action: auto !important;
+    pointer-events: auto !important;
+    -webkit-touch-callout: default !important;
+  }
 }
 
 /*

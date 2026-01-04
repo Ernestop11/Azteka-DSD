@@ -16,19 +16,24 @@ export async function POST(request: NextRequest) {
     // Normalize phone - remove all non-digits
     const normalizedPhone = phone.replace(/\D/g, '')
 
-    // Find customer by phone
-    const customer = await prisma.customer.findFirst({
-      where: {
-        phone: {
-          contains: normalizedPhone,
-        },
-        active: true,
-      },
+    // Find customer by phone - need to search across all customers since
+    // the stored format may differ (e.g., "(562) 555-0103" vs "5625550103")
+    const customers = await prisma.customer.findMany({
+      where: { active: true },
       select: {
         id: true,
         businessName: true,
         pin: true,
+        phone: true,
       }
+    })
+
+    // Find matching customer by normalized phone (exact match only)
+    const customer = customers.find(c => {
+      const storedNormalized = c.phone?.replace(/\D/g, '') || ''
+      // Must have a phone number and match exactly (10 digits)
+      if (!storedNormalized || storedNormalized.length < 10) return false
+      return storedNormalized === normalizedPhone
     })
 
     if (!customer) {

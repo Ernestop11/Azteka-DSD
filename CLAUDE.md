@@ -33,10 +33,34 @@ Azteka DSD is a wholesale distribution management system with a Next.js frontend
 - **App Path**: `/srv/azteka-dsd`
 - **PM2 Process**: `azteka-production` (runs on port 3000)
 - **Domain**: `aztekafoods.com`
+
+### Database Configuration - CRITICAL
+⚠️ **THE PRODUCTION DATABASE IS `azteka_production` NOT `azteka_dsd`**
+
 - **Database**: PostgreSQL on VPS (port 5432)
-  - Database name: `azteka_dsd`
-  - User: `azteka_user`
-  - Connection: `postgresql://azteka_user:azteka_pass_2024@localhost:5432/azteka_dsd`
+  - **Database name**: `azteka_production` ← THIS IS THE REAL DATABASE
+  - **User**: `azteka_user`
+  - **Password**: `azteka_pass_2024`
+  - **Connection**: `postgresql://azteka_user:azteka_pass_2024@localhost:5432/azteka_production`
+
+- **Other databases on VPS** (DO NOT USE):
+  - `azteka_dsd` - EMPTY, has schema only, no data
+  - `azteka_staging` - Empty
+
+- **VPS .env.production must contain**:
+  ```
+  DATABASE_URL="postgresql://azteka_user:azteka_pass_2024@localhost:5432/azteka_production"
+  ```
+
+- **Local .env.production should NOT be synced** - it's in rsync exclude list
+
+### Database Backups
+- **Auto backups**: Daily at 3am to `/srv/backups/azteka_production_YYYYMMDD_030001.dump`
+- **Pre-deploy backups**: Created automatically by `./scripts/deploy.sh`
+- **Full backup command**:
+  ```bash
+  ssh root@72.62.162.163 "PGPASSWORD='azteka_pass_2024' pg_dump -h localhost -U azteka_user -d azteka_production -F c -f /srv/backups/azteka_production_FULL_$(date +%Y%m%d).dump"
+  ```
 
 ### CRITICAL: Image Upload Rules
 - **VPS is the SINGLE SOURCE OF TRUTH for product images**
@@ -74,7 +98,7 @@ ssh root@72.62.162.163 "tar -czf /srv/azteka-backup-images-$(date +%Y%m%d-%H%M).
 ## VPS Architecture
 - **nginx**: Reverse proxy on ports 80/443, proxies to port 3000
 - **PM2**: Process manager running `azteka-production`
-- **PostgreSQL**: Database `azteka_dsd` on localhost:5432
+- **PostgreSQL**: Database `azteka_production` on localhost:5432 (NOT azteka_dsd!)
 - **Static files**: `/srv/azteka-dsd/public/uploads/` served directly by nginx
 
 ## Checking VPS Status

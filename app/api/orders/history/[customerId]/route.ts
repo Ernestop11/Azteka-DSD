@@ -25,9 +25,9 @@ export async function GET(_request: NextRequest, context: RouteParams) {
         orderBy: { createdAt: 'desc' },
         take: 25,
         include: {
-          items: {
+          OrderItem: {
             include: {
-              product: { select: { id: true, sku: true, name: true, categoryId: true } },
+              Product: { select: { id: true, sku: true, name: true, categoryId: true } },
             },
           },
         },
@@ -57,8 +57,8 @@ export async function GET(_request: NextRequest, context: RouteParams) {
 
     const bundleMatches = orders.map((order) => {
       const orderSkus = new Set(
-        order.items
-          .map((item) => item.product?.sku?.toLowerCase())
+        order.OrderItem
+          .map((item) => item.Product?.sku?.toLowerCase())
           .filter(Boolean) as string[]
       )
 
@@ -83,8 +83,18 @@ export async function GET(_request: NextRequest, context: RouteParams) {
       orders: orders.map((order) => ({
         id: order.id,
         total: order.total,
+        status: order.status,
+        notes: order.notes,
         createdAt: order.createdAt,
-        itemCount: order.items.length,
+        itemCount: order.OrderItem.length,
+        items: order.OrderItem.map(item => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.Product?.name || 'Unknown Product',
+          productSku: item.Product?.sku,
+          quantity: item.quantity,
+          price: item.price,
+        })),
       })),
       bundleMatches,
       categoryMix,

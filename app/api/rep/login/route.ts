@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user by email
+    // Find user by email with SalesRep info for phone
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
       select: {
@@ -26,6 +26,11 @@ export async function POST(request: NextRequest) {
         name: true,
         password: true,
         role: true,
+        SalesRep: {
+          select: {
+            phone: true,
+          }
+        }
       }
     })
 
@@ -69,6 +74,19 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Get PIN from Employee table (employees have direct pin field)
+    const employee = await prisma.employee.findFirst({
+      where: { email: email.toLowerCase() },
+      select: { pin: true }
+    })
+
+    // Use Employee PIN if available, otherwise fall back to SalesRep phone last 4
+    let repPin = employee?.pin || ''
+    if (!repPin && user.SalesRep?.phone) {
+      repPin = user.SalesRep.phone.replace(/\D/g, '').slice(-4)
+    }
+    repPin = repPin || '0000'
+
     // Return user info and token
     return NextResponse.json({
       success: true,
@@ -77,6 +95,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        pin: repPin, // Last 4 digits of phone
       },
       token,
     })

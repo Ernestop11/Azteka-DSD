@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getCurrentUser } from '@/app/api/lib/auth'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -8,6 +7,25 @@ export const dynamic = 'force-dynamic'
 // POST /api/rep/customers - Add a new customer
 export async function POST(request: NextRequest) {
   try {
+    // Get sales rep ID from Bearer token
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    let salesRepId: string | null = null
+
+    if (token) {
+      const session = await prisma.session.findUnique({
+        where: { token },
+        select: { userId: true }
+      })
+      if (session?.userId) {
+        const salesRep = await prisma.salesRep.findUnique({
+          where: { userId: session.userId },
+          select: { id: true }
+        })
+        salesRepId = salesRep?.id || null
+      }
+    }
+
     const body = await request.json()
     const {
       businessName,
@@ -81,6 +99,7 @@ export async function POST(request: NextRequest) {
         lastVisitDate: saleDateParsed,
         nextScheduledVisit: nextVisit,
         updatedAt: new Date(),
+        ...(salesRepId && { salesRepId }), // Assign to the logged-in sales rep
       },
     })
 
@@ -116,14 +135,53 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current user (sales rep)
-    const user = await getCurrentUser(request)
+    // Get current user from Bearer token (repSession stored in localStorage)
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
 
-    // For now, get all active customers (later: filter by sales rep)
-    // TODO: Filter by salesRepId when auth is fully integrated
+    let userId: string | null = null
+    let salesRepId: string | null = null
+
+    if (token) {
+      // Look up the session to get user ID
+      const session = await prisma.session.findUnique({
+        where: { token },
+        select: { userId: true }
+      })
+      userId = session?.userId || null
+
+      // Get the sales rep ID for this user
+      if (userId) {
+        const salesRep = await prisma.salesRep.findUnique({
+          where: { userId },
+          select: { id: true }
+        })
+        salesRepId = salesRep?.id || null
+      }
+    }
+
+    // Filter customers by sales rep ID (if we have one)
+    // If no salesRepId found but user is admin/employee, show ALL customers
+    // This allows admins and employees to view all customers without needing a SalesRep record
+    const user = userId ? await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    }) : null
+
+    const isAdminOrEmployee = user?.role && ['admin', 'super_admin', 'employee', 'manager'].includes(user.role.toLowerCase())
+
     const customers = await prisma.customer.findMany({
       where: {
         active: true,
+        // If user is admin/employee without salesRepId, show all customers
+        // If user has salesRepId, show only their customers
+        // If no session at all, show nothing
+        ...(salesRepId
+          ? { salesRepId }
+          : isAdminOrEmployee
+            ? {} // Show all customers for admins/employees
+            : { salesRepId: 'none' } // Show nothing if no valid session
+        ),
       },
       orderBy: [
         { lastVisitDate: 'asc' }, // Oldest visits first (needs attention)
@@ -158,11 +216,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get sales rep info if user has one
+    // Get sales rep info
     let salesRep = null
-    if (user?.id) {
+    if (userId) {
       const rep = await prisma.salesRep.findUnique({
-        where: { userId: user.id },
+        where: { userId },
         select: {
           id: true,
           name: true,

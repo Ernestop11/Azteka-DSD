@@ -55,15 +55,27 @@ export default function MultiStoreOrder({ isOpen, onClose }: MultiStoreOrderProp
   const [searchQuery, setSearchQuery] = useState('')
   const mainCart = useCartStore()
 
-  // Fetch customers (filter for Carlos group - for now, fetch all active customers)
+  // Fetch stores for the logged-in owner from localStorage session
   const { data: customers = [], isLoading: isLoadingCustomers } = useQuery<Customer[]>({
-    queryKey: ['customers', 'carlos'],
+    queryKey: ['owner-stores'],
     queryFn: async () => {
-      const res = await fetch('/api/admin/customers?active=true&limit=9')
-      if (!res.ok) throw new Error('Failed to fetch customers')
+      // Get owner ID from customer session in localStorage
+      const sessionData = localStorage.getItem('customerSession')
+      if (!sessionData) {
+        // Fallback: try to get from URL param or return empty
+        return []
+      }
+
+      const session = JSON.parse(sessionData)
+      if (!session.customerId || session.role !== 'OWNER') {
+        return []
+      }
+
+      // Fetch only stores belonging to this owner
+      const res = await fetch(`/api/customer/stores?ownerId=${session.customerId}`)
+      if (!res.ok) throw new Error('Failed to fetch stores')
       const data = await res.json()
-      // API returns array directly, not wrapped in data
-      return Array.isArray(data) ? data : []
+      return data.stores || []
     },
   })
 

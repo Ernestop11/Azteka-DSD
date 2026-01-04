@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 interface Product {
@@ -34,9 +34,16 @@ const CART_BLOCK_TYPES = [
 
 export default function CartBlocksBuilder({ products }: { products: Product[] }) {
   const queryClient = useQueryClient()
+  const previewRef = useRef<HTMLIFrameElement>(null)
   const [selectedBlock, setSelectedBlock] = useState<CartBlock | null>(null)
   const [showAddBlock, setShowAddBlock] = useState(false)
   const [newBlockType, setNewBlockType] = useState<string>('TRENDING_NOW')
+  const [previewKey, setPreviewKey] = useState(0)
+
+  // Refresh live preview - force iframe reload
+  const refreshPreview = useCallback(() => {
+    setPreviewKey(prev => prev + 1)
+  }, [])
 
   // Fetch cart blocks
   const { data: blocks = [], isLoading } = useQuery<CartBlock[]>({
@@ -382,28 +389,29 @@ export default function CartBlocksBuilder({ products }: { products: Product[] })
         )}
       </div>
 
-      {/* Cart Preview */}
-      <div className="w-80 bg-slate-950 border-l border-slate-800 p-4">
-        <h3 className="font-semibold text-sm text-slate-300 mb-3">Cart Preview</h3>
-        <div className="bg-white rounded-xl overflow-hidden text-slate-900 text-sm">
-          <div className="bg-emerald-600 text-white p-3">
-            <p className="font-bold">Your Cart</p>
-            <p className="text-xs opacity-80">3 cases - $127.50</p>
-          </div>
-          <div className="p-2 space-y-2">
-            {sortedBlocks.filter(b => b.enabled).map(block => {
-              const info = blockInfo(block.type)
-              return (
-                <div key={block.id} className="p-2 bg-slate-100 rounded text-xs">
-                  <div className="flex items-center gap-1">
-                    <span>{info?.icon}</span>
-                    <span className="font-medium">{block.title || info?.name}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+      {/* Live Cart Preview */}
+      <div className="w-96 bg-slate-950 border-l border-slate-800 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-sm text-slate-300">Live Preview</h3>
+          <button
+            onClick={refreshPreview}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-xs font-medium"
+          >
+            🔄 Refresh
+          </button>
         </div>
+        <div className="relative rounded-xl overflow-hidden bg-slate-900 h-[calc(100vh-200px)] ring-1 ring-slate-800">
+          <iframe
+            key={previewKey}
+            ref={previewRef}
+            src="/cart/preview"
+            className="w-full h-full border-0"
+            title="Cart Preview"
+          />
+        </div>
+        <p className="text-xs text-slate-500 mt-2 text-center">
+          Changes update automatically every 2 seconds
+        </p>
       </div>
 
       {/* Add Block Modal */}

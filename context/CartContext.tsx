@@ -6,6 +6,7 @@ import { getTierPrice, type PriceTier, type TierPricing } from '@/lib/price/tier
 
 export interface CartProduct extends CartItem {
   storeId?: string
+  storeName?: string
   sku?: string
   tierPricing?: TierPricing
   activeTier?: PriceTier | null
@@ -13,6 +14,7 @@ export interface CartProduct extends CartItem {
 
 export interface StoreGroup {
   storeId: string
+  storeName?: string
   items: CartProduct[]
   subtotal: number
   discount: number
@@ -25,7 +27,7 @@ interface CartContextValue {
   add: (product: CartProduct, storeId?: string) => void
   remove: (productId: string) => void
   updateQty: (productId: string, qty: number) => void
-  setQuantity: (productId: string, qty: number) => void
+  setQuantity: (productId: string, qty: number, productData?: Partial<CartProduct>) => void
   clear: () => void
 
   // Customer management for sales rep flow
@@ -77,6 +79,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return zustandItems.map(item => ({
       ...item,
       storeId: (item as any).storeId,
+      storeName: (item as any).storeName,
       sku: (item as any).sku,
       tierPricing: (item as any).tierPricing,
       activeTier: (item as any).activeTier,
@@ -148,8 +151,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const groupTax = groupSubtotal * TAX_RATE
       const groupTotal = groupSubtotal - groupDiscounts + groupTax
 
+      // Get storeName from first item in group
+      const storeName = groupItems[0]?.storeName
+
       return {
         storeId,
+        storeName,
         items: groupItems,
         subtotal: Number(groupSubtotal.toFixed(2)),
         discount: Number(groupDiscounts.toFixed(2)),
@@ -167,6 +174,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       quantity: product.quantity || 1,
       imageUrl: product.imageUrl,
       storeId: storeId || product.storeId,
+      storeName: product.storeName,
       sku: product.sku,
       tierPricing: product.tierPricing,
       activeTier: product.activeTier,

@@ -8,10 +8,16 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { customerId, createdById, type = 'MAGIC_LINK' } = body
+    const { customerId, createdById, type = 'MAGIC_LINK', linkPurpose } = body
 
     if (!customerId) {
       return NextResponse.json({ error: 'Customer ID required' }, { status: 400 })
+    }
+
+    // Validate linkPurpose if provided
+    const validPurposes = ['HANDOFF', 'INSTALL', 'CATALOG_SHARE']
+    if (linkPurpose && !validPurposes.includes(linkPurpose)) {
+      return NextResponse.json({ error: 'Invalid linkPurpose' }, { status: 400 })
     }
 
     // Verify customer exists
@@ -30,12 +36,13 @@ export async function POST(request: NextRequest) {
     // Set expiration (12 hours from now)
     const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000)
 
-    // Create session
+    // Create session with optional linkPurpose
     const session = await prisma.customerSession.create({
       data: {
         customerId,
         token,
         type: type as 'MAGIC_LINK' | 'PIN_LOGIN' | 'DELEGATED',
+        linkPurpose: linkPurpose as 'HANDOFF' | 'INSTALL' | 'CATALOG_SHARE' | undefined,
         createdById,
         expiresAt,
         lastActiveAt: new Date(),
@@ -129,6 +136,7 @@ export async function GET(request: NextRequest) {
       session: {
         id: session.id,
         type: session.type,
+        linkPurpose: session.linkPurpose,
         expiresAt: session.expiresAt,
         createdById: session.createdById,
       },

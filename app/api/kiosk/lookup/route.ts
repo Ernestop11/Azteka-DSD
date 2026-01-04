@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         firstName: employee.firstName,
         lastName: employee.lastName,
         photoUrl: employee.photoUrl,
+        role: employee.role,
         isClockedIn: !!activeEntry,
         lastClockIn: activeEntry?.clockIn?.toISOString()
       }

@@ -4,8 +4,90 @@ import prisma from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 // GET - Fetch all catalog blocks with their products
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const customerId = searchParams.get('customer')
+
+    // Fetch customer pricing info if customerId provided
+    let customerPriceTier: string | null = null
+    let priceOverrides: Map<string, { type: string; fixedPrice: number | null; discountPercent: number | null; discountAmount: number | null }> = new Map()
+
+    if (customerId) {
+      const [customer, overrides] = await Promise.all([
+        prisma.customer.findUnique({
+          where: { id: customerId },
+          select: { priceTier: true }
+        }),
+        prisma.customerPriceOverride.findMany({
+          where: {
+            customerId,
+            active: true,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: new Date() } }
+            ]
+          },
+          select: {
+            productId: true,
+            overrideType: true,
+            fixedPrice: true,
+            discountPercent: true,
+            discountAmount: true
+          }
+        })
+      ])
+
+      customerPriceTier = customer?.priceTier || null
+
+      for (const override of overrides) {
+        priceOverrides.set(override.productId, {
+          type: override.overrideType,
+          fixedPrice: override.fixedPrice ? Number(override.fixedPrice) : null,
+          discountPercent: override.discountPercent ? Number(override.discountPercent) : null,
+          discountAmount: override.discountAmount ? Number(override.discountAmount) : null
+        })
+      }
+    }
+
+    // Helper to calculate customer-specific price
+    const getCustomerPrice = (product: { id: string; price: any; priceTierA?: any; priceTierB?: any; priceTierC?: any }): number => {
+      const basePrice = Number(product.price) || 0
+
+      // Check for direct price override first
+      const override = priceOverrides.get(product.id)
+      if (override) {
+        switch (override.type) {
+          case 'FIXED_PRICE':
+            if (override.fixedPrice !== null) return override.fixedPrice
+            break
+          case 'PERCENT_DISCOUNT':
+            if (override.discountPercent !== null) {
+              return basePrice * (1 - override.discountPercent / 100)
+            }
+            break
+          case 'FIXED_DISCOUNT':
+            if (override.discountAmount !== null) {
+              return Math.max(0, basePrice + override.discountAmount)
+            }
+            break
+        }
+      }
+
+      // Check tier pricing
+      if (customerPriceTier) {
+        const tierA = product.priceTierA ? Number(product.priceTierA) : null
+        const tierB = product.priceTierB ? Number(product.priceTierB) : null
+        const tierC = product.priceTierC ? Number(product.priceTierC) : null
+
+        if ((customerPriceTier === 'A' || customerPriceTier === 'TIER_1') && tierA !== null) return tierA
+        if ((customerPriceTier === 'B' || customerPriceTier === 'TIER_2') && tierB !== null) return tierB
+        if ((customerPriceTier === 'C' || customerPriceTier === 'TIER_3') && tierC !== null) return tierC
+      }
+
+      return basePrice
+    }
+
     const blocks = await prisma.catalogBlock.findMany({
       where: { active: true },
       orderBy: { position: 'asc' },
@@ -20,6 +102,9 @@ export async function GET() {
                 sku: true,
                 description: true,
                 price: true,
+                priceTierA: true,
+                priceTierB: true,
+                priceTierC: true,
                 imageUrl: true,
                 unitsPerCase: true,
                 inStock: true,
@@ -55,7 +140,7 @@ export async function GET() {
           name: bp.product.name,
           sku: bp.product.sku,
           description: bp.product.description,
-          price: Number(bp.product.price),
+          price: customerId ? getCustomerPrice(bp.product) : Number(bp.product.price),
           imageUrl: bp.product.imageUrl,
           unitsPerCase: bp.product.unitsPerCase,
           inStock: bp.product.inStock,

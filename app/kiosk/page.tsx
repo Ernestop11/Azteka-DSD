@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Clock, CheckCircle, XCircle, User, ArrowLeft, Loader2 } from 'lucide-react'
+import { Camera, Clock, CheckCircle, XCircle, User, ArrowLeft, Loader2, Settings } from 'lucide-react'
 
-type ClockStatus = 'idle' | 'entering-pin' | 'confirming' | 'photo' | 'success' | 'error'
+type ClockStatus = 'idle' | 'entering-pin' | 'confirming' | 'photo' | 'success' | 'error' | 'admin-exit'
 
 interface EmployeeInfo {
   id: string
@@ -23,6 +23,9 @@ export default function KioskPage() {
   const [photoData, setPhotoData] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [businessName, setBusinessName] = useState('Employee Time Clock')
+  const [adminPin, setAdminPin] = useState('')
+  const [adminError, setAdminError] = useState('')
+  const [autoConfirmCountdown, setAutoConfirmCountdown] = useState(5)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -42,6 +45,104 @@ export default function KioskPage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Auto-confirm countdown when on confirming screen
+  useEffect(() => {
+    if (status === 'confirming' && !isLoading) {
+      setAutoConfirmCountdown(5)
+      const timer = setInterval(() => {
+        setAutoConfirmCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            // Trigger confirm
+            handleConfirmRef.current?.()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [status, isLoading])
+
+  // Ref to handleConfirm for auto-confirm timer
+  const handleConfirmRef = useRef<() => void>(null)
+
+  // Keyboard support for PIN entry - use refs to avoid stale closure issues
+  const pinRef = useRef(pin)
+  const adminPinRef = useRef(adminPin)
+  const statusRef = useRef(status)
+
+  // Keep refs in sync
+  useEffect(() => { pinRef.current = pin }, [pin])
+  useEffect(() => { adminPinRef.current = adminPin }, [adminPin])
+  useEffect(() => { statusRef.current = status }, [status])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const currentStatus = statusRef.current
+      const currentPin = pinRef.current
+      const currentAdminPin = adminPinRef.current
+
+      // Prevent default for number keys to avoid any form input issues
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault()
+      }
+
+      // Only handle keys when in PIN entry or admin-exit mode
+      if (currentStatus === 'entering-pin') {
+        if (e.key >= '0' && e.key <= '9') {
+          // Directly update state instead of calling handler to avoid closure issues
+          if (currentPin.length < 4) {
+            const newPin = currentPin + e.key
+            setPin(newPin)
+            if (newPin.length === 4) {
+              lookupEmployee(newPin)
+            }
+          }
+        } else if (e.key === 'Backspace') {
+          e.preventDefault()
+          setPin(currentPin.slice(0, -1))
+        } else if (e.key === 'Escape') {
+          resetKiosk()
+        }
+      } else if (currentStatus === 'admin-exit') {
+        if (e.key >= '0' && e.key <= '9') {
+          if (currentAdminPin.length < 6) {
+            setAdminPin(currentAdminPin + e.key)
+          }
+        } else if (e.key === 'Backspace') {
+          e.preventDefault()
+          setAdminPin(currentAdminPin.slice(0, -1))
+        } else if (e.key === 'Escape') {
+          resetKiosk()
+        } else if (e.key === 'Enter' && currentAdminPin.length === 6) {
+          // Check admin PIN directly here
+          if (currentAdminPin === '123456') {
+            if (document.exitFullscreen) {
+              document.exitFullscreen().catch(() => {})
+            }
+            window.location.href = '/admin'
+          } else {
+            setAdminError('Invalid admin PIN')
+            setAdminPin('')
+          }
+        }
+      } else if (currentStatus === 'idle') {
+        // Any number key or Enter/Space starts PIN entry from idle
+        if (e.key >= '0' && e.key <= '9') {
+          setStatus('entering-pin')
+          // Set the first digit immediately
+          setPin(e.key)
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          setStatus('entering-pin')
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, []) // Empty dependency array - we use refs instead
 
   // Start camera when entering photo mode
   useEffect(() => {
@@ -125,10 +226,43 @@ export default function KioskPage() {
     }
   }
 
-  const handleConfirm = () => {
-    setStatus('photo')
+  const handleConfirm = async () => {
+    if (!employee) return
+
+    setIsLoading(true)
+    try {
+      const endpoint = employee.isClockedIn ? '/api/kiosk/clock-out' : '/api/kiosk/clock-in'
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: employee.id
+        })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setStatus('success')
+        setTimeout(resetKiosk, 5000)
+      } else {
+        setError(data.error || 'Failed to clock in/out')
+        setStatus('error')
+        setTimeout(resetKiosk, 5000)
+      }
+    } catch {
+      setError('Connection error')
+      setStatus('error')
+      setTimeout(resetKiosk, 5000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
+  // Keep handleConfirmRef in sync for auto-confirm timer
+  useEffect(() => {
+    handleConfirmRef.current = handleConfirm
+  })
+
+  // Legacy photo submit - kept for future camera support
   const handleSubmitWithPhoto = async () => {
     if (!employee || !photoData) return
 
@@ -146,16 +280,16 @@ export default function KioskPage() {
       const data = await res.json()
       if (res.ok) {
         setStatus('success')
-        setTimeout(resetKiosk, 3000)
+        setTimeout(resetKiosk, 5000)
       } else {
         setError(data.error || 'Failed to clock in/out')
         setStatus('error')
-        setTimeout(resetKiosk, 3000)
+        setTimeout(resetKiosk, 5000)
       }
     } catch {
       setError('Connection error')
       setStatus('error')
-      setTimeout(resetKiosk, 3000)
+      setTimeout(resetKiosk, 5000)
     } finally {
       setIsLoading(false)
     }
@@ -167,7 +301,46 @@ export default function KioskPage() {
     setEmployee(null)
     setError('')
     setPhotoData(null)
+    setAdminPin('')
+    setAdminError('')
     stopCamera()
+  }
+
+  // Admin exit handlers
+  const handleAdminPinInput = (digit: string) => {
+    if (adminPin.length < 6) {
+      setAdminPin(prev => prev + digit)
+    }
+  }
+
+  const handleAdminBackspace = () => {
+    setAdminPin(prev => prev.slice(0, -1))
+  }
+
+  const handleAdminExit = () => {
+    // Admin PIN is 123456 (should be in env in production)
+    if (adminPin === '123456') {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {})
+      }
+      // Redirect to admin
+      window.location.href = '/admin'
+    } else {
+      setAdminError('Invalid admin PIN')
+      setAdminPin('')
+    }
+  }
+
+  // Enter fullscreen for kiosk mode
+  const enterFullscreen = async () => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch (e) {
+      console.log('Fullscreen not available')
+    }
   }
 
   const formatTime = (date: Date) => {
@@ -192,34 +365,63 @@ export default function KioskPage() {
   if (status === 'idle') {
     return (
       <div
-        className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex flex-col items-center justify-center p-8 cursor-pointer select-none"
+        className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex flex-col items-center justify-center p-8 cursor-pointer select-none"
         onClick={() => setStatus('entering-pin')}
       >
+        {/* Hidden admin exit button (top right corner) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setStatus('admin-exit')
+          }}
+          className="absolute top-4 right-4 w-12 h-12 opacity-5 hover:opacity-30 transition-opacity"
+          aria-label="Admin Exit"
+        >
+          <Settings className="w-8 h-8 text-white" />
+        </button>
+
+        {/* Fullscreen toggle (top left) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            enterFullscreen()
+          }}
+          className="absolute top-4 left-4 px-3 py-1 text-xs text-white/30 hover:text-white/60 hover:bg-white/10 rounded transition-all"
+        >
+          Fullscreen
+        </button>
+
         <div className="text-center">
-          <Clock className="w-24 h-24 text-blue-300 mx-auto mb-6" />
-          <h1 className="text-6xl font-bold text-white mb-4">
+          {/* Azteka Logo */}
+          <div className="mb-6">
+            <h2 className="text-4xl font-bold text-emerald-400 tracking-wider">AZTEKA</h2>
+            <p className="text-emerald-600 text-sm tracking-widest">TIME CLOCK</p>
+          </div>
+
+          <Clock className="w-20 h-20 text-emerald-300 mx-auto mb-6" />
+          <h1 className="text-7xl md:text-8xl font-mono font-bold text-white mb-4 tracking-tight">
             {formatTime(currentTime)}
           </h1>
-          <p className="text-2xl text-blue-200 mb-8">
+          <p className="text-2xl text-emerald-200 mb-10">
             {formatDate(currentTime)}
           </p>
-          <div className="bg-white/10 backdrop-blur rounded-2xl px-12 py-6 inline-block">
+          <div className="bg-white/10 backdrop-blur rounded-2xl px-12 py-6 inline-block animate-pulse">
             <p className="text-3xl text-white font-medium">
               Tap to Clock In / Out
             </p>
           </div>
         </div>
-        <div className="absolute bottom-8 text-blue-300/60 text-sm">
+        <div className="absolute bottom-8 text-emerald-500/60 text-sm">
           {businessName}
         </div>
       </div>
     )
   }
 
-  // PIN entry screen
-  if (status === 'entering-pin') {
+  // Admin exit screen
+  if (status === 'admin-exit') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex flex-col items-center justify-center p-8 select-none">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-8 select-none">
         <button
           onClick={resetKiosk}
           className="absolute top-6 left-6 text-white/60 hover:text-white flex items-center gap-2"
@@ -229,11 +431,102 @@ export default function KioskPage() {
         </button>
 
         <div className="text-center mb-8">
-          <User className="w-16 h-16 text-blue-300 mx-auto mb-4" />
+          <Settings className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Admin Exit
+          </h2>
+          <p className="text-slate-400">Enter 6-digit admin PIN to exit kiosk mode</p>
+        </div>
+
+        {/* PIN display */}
+        <div className="flex gap-3 mb-8">
+          {[0, 1, 2, 3, 4, 5].map(i => (
+            <div
+              key={i}
+              className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
+                adminPin[i]
+                  ? 'bg-emerald-500 text-white border-emerald-500'
+                  : 'bg-white/10 text-transparent border-white/30'
+              }`}
+            >
+              •
+            </div>
+          ))}
+        </div>
+
+        {/* Error message */}
+        {adminError && (
+          <div className="bg-red-500/20 border border-red-400 text-red-200 px-6 py-3 rounded-xl mb-6">
+            {adminError}
+          </div>
+        )}
+
+        {/* Number pad */}
+        <div className="grid grid-cols-3 gap-4 max-w-xs">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <button
+              key={num}
+              onClick={() => handleAdminPinInput(String(num))}
+              className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-3xl font-bold transition-all"
+            >
+              {num}
+            </button>
+          ))}
+          <button
+            onClick={() => setAdminPin('')}
+            className="w-20 h-20 rounded-2xl bg-red-900/30 hover:bg-red-800/40 text-red-400 text-lg font-medium transition-all"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => handleAdminPinInput('0')}
+            className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-3xl font-bold transition-all"
+          >
+            0
+          </button>
+          <button
+            onClick={handleAdminBackspace}
+            disabled={adminPin.length === 0}
+            className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xl font-bold transition-all disabled:opacity-50"
+          >
+            ←
+          </button>
+        </div>
+
+        {/* Confirm button */}
+        <button
+          onClick={handleAdminExit}
+          disabled={adminPin.length !== 6}
+          className="mt-8 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xl font-bold rounded-xl transition-all"
+        >
+          Exit Kiosk Mode
+        </button>
+
+        <div className="absolute bottom-8 text-slate-500 text-lg">
+          {formatTime(currentTime)}
+        </div>
+      </div>
+    )
+  }
+
+  // PIN entry screen
+  if (status === 'entering-pin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex flex-col items-center justify-center p-8 select-none">
+        <button
+          onClick={resetKiosk}
+          className="absolute top-6 left-6 text-white/60 hover:text-white flex items-center gap-2"
+        >
+          <ArrowLeft className="w-6 h-6" />
+          Cancel
+        </button>
+
+        <div className="text-center mb-8">
+          <User className="w-16 h-16 text-emerald-300 mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-white mb-2">
             Enter Your PIN
           </h2>
-          <p className="text-blue-200">Last 4 digits of your phone number</p>
+          <p className="text-emerald-200">Last 4 digits of your phone number</p>
         </div>
 
         {/* PIN display */}
@@ -243,7 +536,7 @@ export default function KioskPage() {
               key={i}
               className={`w-16 h-20 rounded-xl border-2 flex items-center justify-center text-4xl font-bold transition-all ${
                 pin[i]
-                  ? 'bg-white text-blue-900 border-white'
+                  ? 'bg-emerald-400 text-emerald-900 border-emerald-400'
                   : 'bg-white/10 text-transparent border-white/30'
               }`}
             >
@@ -261,7 +554,7 @@ export default function KioskPage() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex items-center gap-3 text-blue-200 mb-6">
+          <div className="flex items-center gap-3 text-emerald-200 mb-6">
             <Loader2 className="w-6 h-6 animate-spin" />
             Looking up employee...
           </div>
@@ -274,16 +567,21 @@ export default function KioskPage() {
               key={num}
               onClick={() => handlePinInput(String(num))}
               disabled={isLoading}
-              className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-3xl font-bold transition-all disabled:opacity-50"
+              className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-emerald-600/30 text-white text-3xl font-bold transition-all disabled:opacity-50 border border-white/10 hover:border-emerald-500/50"
             >
               {num}
             </button>
           ))}
-          <div /> {/* Empty cell */}
+          <button
+            onClick={() => setPin('')}
+            className="w-20 h-20 rounded-2xl bg-red-900/30 hover:bg-red-800/40 text-red-400 text-lg font-medium transition-all"
+          >
+            Clear
+          </button>
           <button
             onClick={() => handlePinInput('0')}
             disabled={isLoading}
-            className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-3xl font-bold transition-all disabled:opacity-50"
+            className="w-20 h-20 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-emerald-600/30 text-white text-3xl font-bold transition-all disabled:opacity-50 border border-white/10 hover:border-emerald-500/50"
           >
             0
           </button>
@@ -296,28 +594,29 @@ export default function KioskPage() {
           </button>
         </div>
 
-        <div className="absolute bottom-8 text-blue-300/60 text-lg">
+        <div className="absolute bottom-8 text-emerald-400/60 text-lg">
           {formatTime(currentTime)}
         </div>
       </div>
     )
   }
 
-  // Confirmation screen
+  // Confirmation screen - auto-confirms in 5 seconds
   if (status === 'confirming' && employee) {
+    const actionText = employee.isClockedIn ? 'Clocking Out' : 'Clocking In'
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex flex-col items-center justify-center p-8 select-none">
-        <button
-          onClick={resetKiosk}
-          className="absolute top-6 left-6 text-white/60 hover:text-white flex items-center gap-2"
-        >
-          <ArrowLeft className="w-6 h-6" />
-          Cancel
-        </button>
-
-        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-8 select-none ${
+        employee.isClockedIn
+          ? 'bg-gradient-to-br from-orange-900 via-orange-800 to-amber-900'
+          : 'bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900'
+      }`}>
+        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full text-center border border-white/20">
           {/* Employee photo or avatar */}
-          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 mx-auto mb-6 flex items-center justify-center overflow-hidden">
+          <div className={`w-32 h-32 rounded-full mx-auto mb-6 flex items-center justify-center overflow-hidden ${
+            employee.isClockedIn
+              ? 'bg-gradient-to-br from-orange-500 to-red-600'
+              : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+          }`}>
             {employee.photoUrl ? (
               <img src={employee.photoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -327,21 +626,27 @@ export default function KioskPage() {
             )}
           </div>
 
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          <h2 className="text-3xl font-bold text-white mb-2">
             {employee.firstName} {employee.lastName}
           </h2>
 
-          <div className={`inline-block px-4 py-2 rounded-full text-lg font-medium mb-6 ${
-            employee.isClockedIn
-              ? 'bg-green-100 text-green-700'
-              : 'bg-gray-100 text-gray-600'
-          }`}>
-            {employee.isClockedIn ? 'Currently Clocked In' : 'Not Clocked In'}
+          {/* Auto-confirm message with countdown */}
+          <div className="mb-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-3 text-white">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="text-xl">Processing...</span>
+              </div>
+            ) : (
+              <p className="text-xl text-white/80">
+                {actionText} in <span className="font-bold text-2xl text-white">{autoConfirmCountdown}</span> seconds...
+              </p>
+            )}
           </div>
 
           {employee.lastClockIn && employee.isClockedIn && (
-            <p className="text-gray-500 mb-6">
-              Since {new Date(employee.lastClockIn).toLocaleTimeString('en-US', {
+            <p className="text-orange-200 mb-4 text-sm">
+              Clocked in since {new Date(employee.lastClockIn).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: true
@@ -349,19 +654,30 @@ export default function KioskPage() {
             </p>
           )}
 
+          {/* Confirm Now button */}
           <button
             onClick={handleConfirm}
-            className={`w-full py-5 rounded-2xl text-xl font-bold text-white transition-all ${
+            disabled={isLoading}
+            className={`w-full py-4 rounded-2xl text-lg font-bold text-white transition-all disabled:opacity-50 mb-4 ${
               employee.isClockedIn
                 ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-                : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'
+                : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600'
             }`}
           >
-            {employee.isClockedIn ? 'Clock Out' : 'Clock In'}
+            {employee.isClockedIn ? 'Clock Out Now' : 'Clock In Now'}
+          </button>
+
+          {/* Cancel button */}
+          <button
+            onClick={resetKiosk}
+            disabled={isLoading}
+            className="w-full py-3 rounded-xl text-lg font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50"
+          >
+            Cancel (Not Me)
           </button>
         </div>
 
-        <div className="absolute bottom-8 text-blue-300/60 text-lg">
+        <div className="absolute bottom-8 text-white/40 text-lg">
           {formatTime(currentTime)}
         </div>
       </div>
@@ -371,7 +687,7 @@ export default function KioskPage() {
   // Photo capture screen
   if (status === 'photo') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex flex-col items-center justify-center p-8 select-none">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex flex-col items-center justify-center p-8 select-none">
         <button
           onClick={() => setStatus('confirming')}
           className="absolute top-6 left-6 text-white/60 hover:text-white flex items-center gap-2"
@@ -381,7 +697,7 @@ export default function KioskPage() {
         </button>
 
         <div className="text-center mb-6">
-          <Camera className="w-12 h-12 text-blue-300 mx-auto mb-3" />
+          <Camera className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
           <h2 className="text-2xl font-bold text-white">
             {photoData ? 'Photo Captured!' : 'Take Your Photo'}
           </h2>
@@ -412,7 +728,7 @@ export default function KioskPage() {
           {!photoData ? (
             <button
               onClick={capturePhoto}
-              className="px-8 py-4 rounded-2xl bg-white text-blue-900 text-xl font-bold hover:bg-blue-50 transition-all flex items-center gap-3"
+              className="px-8 py-4 rounded-2xl bg-white text-emerald-900 text-xl font-bold hover:bg-emerald-50 transition-all flex items-center gap-3"
             >
               <Camera className="w-6 h-6" />
               Capture Photo
@@ -431,7 +747,7 @@ export default function KioskPage() {
                 className={`px-8 py-4 rounded-2xl text-xl font-bold text-white transition-all flex items-center gap-3 disabled:opacity-50 ${
                   employee?.isClockedIn
                     ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-500'
                 }`}
               >
                 {isLoading ? (
@@ -445,7 +761,7 @@ export default function KioskPage() {
           )}
         </div>
 
-        <div className="absolute bottom-8 text-blue-300/60 text-lg">
+        <div className="absolute bottom-8 text-emerald-400/60 text-lg">
           {formatTime(currentTime)}
         </div>
       </div>
@@ -454,21 +770,59 @@ export default function KioskPage() {
 
   // Success screen
   if (status === 'success') {
+    // Note: employee.isClockedIn reflects the state BEFORE the action
+    // So if they were clocked in, they just clocked OUT, and vice versa
+    const justClockedIn = !employee?.isClockedIn
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-800 via-green-700 to-emerald-800 flex flex-col items-center justify-center p-8 select-none">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-8 select-none ${
+        justClockedIn
+          ? 'bg-gradient-to-br from-green-800 via-green-700 to-emerald-800'
+          : 'bg-gradient-to-br from-orange-700 via-orange-600 to-amber-700'
+      }`}>
         <div className="text-center">
-          <div className="w-32 h-32 rounded-full bg-white/20 mx-auto mb-8 flex items-center justify-center">
+          <div className="w-32 h-32 rounded-full bg-white/20 mx-auto mb-8 flex items-center justify-center animate-bounce">
             <CheckCircle className="w-20 h-20 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4">
-            {employee?.isClockedIn ? 'Clocked Out!' : 'Clocked In!'}
+          <h1 className="text-5xl font-bold text-white mb-4">
+            {justClockedIn ? 'Clocked In!' : 'Clocked Out!'}
           </h1>
-          <p className="text-2xl text-green-100 mb-2">
+          <p className="text-3xl text-white/90 mb-2">
             {employee?.firstName} {employee?.lastName}
           </p>
-          <p className="text-xl text-green-200">
+          <p className="text-xl text-white/70 mb-8">
             {formatTime(currentTime)}
           </p>
+
+          {/* Motivational message */}
+          <div className="bg-white/10 backdrop-blur rounded-2xl px-8 py-6 max-w-md mx-auto mb-8">
+            {justClockedIn ? (
+              <>
+                <p className="text-2xl font-medium text-white mb-2">
+                  Have a great day at work! 💪
+                </p>
+                <p className="text-lg text-white/70">
+                  Let's make it a productive one
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-medium text-white mb-2">
+                  Great job today! 🎉
+                </p>
+                <p className="text-lg text-white/70">
+                  See you next time
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Done button */}
+          <button
+            onClick={resetKiosk}
+            className="px-12 py-4 bg-white/20 hover:bg-white/30 text-white text-xl font-bold rounded-2xl transition-all border border-white/30"
+          >
+            Done
+          </button>
         </div>
       </div>
     )
@@ -485,9 +839,17 @@ export default function KioskPage() {
           <h1 className="text-4xl font-bold text-white mb-4">
             Error
           </h1>
-          <p className="text-xl text-red-100">
+          <p className="text-xl text-red-100 mb-8">
             {error || 'Something went wrong'}
           </p>
+
+          {/* Try Again button */}
+          <button
+            onClick={resetKiosk}
+            className="px-12 py-4 bg-white/20 hover:bg-white/30 text-white text-xl font-bold rounded-2xl transition-all border border-white/30"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )

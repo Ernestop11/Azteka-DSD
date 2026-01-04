@@ -7,6 +7,7 @@ import { ApiError, handleApiError } from '@/lib/apiErrors'
 import type { TApiResponse, ErrorResponse } from '@/types/api'
 import { processNewOrder } from '@/lib/services/autoWorkflow'
 import { getCustomerPrice } from '@/lib/pricing/getCustomerPrice'
+import { sendOrderConfirmationEmails } from '@/lib/email/resend'
 
 const OrderItemInputSchema = z.object({
   productId: z.string().min(1),
@@ -147,6 +148,17 @@ export async function POST(request: NextRequest) {
     // Generate unique IDs (schema doesn't use auto-generated UUIDs for Order/OrderItem)
     const orderId = crypto.randomUUID()
 
+    // For La Superior stores, append store number to order reference
+    // Extract store number from businessName (e.g., "La Superior #1" -> "1")
+    let orderSuffix = ''
+    const superiorMatch = customerName.match(/la\s*superior\s*#?(\d+)/i)
+    if (superiorMatch) {
+      orderSuffix = `-${superiorMatch[1]}`
+    }
+
+    // Create a readable order number: last 6 chars of UUID + store suffix
+    const orderNumber = orderId.slice(-6).toUpperCase() + orderSuffix
+
     const order = await prisma.order.create({
       data: {
         id: orderId,
@@ -154,6 +166,7 @@ export async function POST(request: NextRequest) {
         customerId: payload.customerId,
         total,
         userId: payload.userId,
+        notes: `Order #${orderNumber}`,
         updatedAt: new Date(),
         OrderItem: {
           create: itemsData.map((item) => ({
@@ -188,6 +201,40 @@ export async function POST(request: NextRequest) {
     } catch (workflowError) {
       // Don't fail the order creation if workflow fails
       console.error('[Order Workflow Error]', workflowError)
+    }
+
+    // Send order confirmation emails (async, don't block response)
+    try {
+      const customerData = await prisma.customer.findUnique({
+        where: { id: payload.customerId },
+        select: { businessName: true, contactName: true, email: true }
+      })
+
+      if (customerData?.email) {
+        // Send emails in background (don't await to avoid slowing response)
+        sendOrderConfirmationEmails({
+          orderId: order.id,
+          customerName: customerData.contactName || customerData.businessName,
+          customerEmail: customerData.email,
+          businessName: customerData.businessName,
+          items: order.OrderItem.map(item => ({
+            name: item.Product?.name || 'Unknown Product',
+            quantity: item.quantity,
+            price: Number(item.price)
+          })),
+          subtotal: Number(order.total),
+          total: Number(order.total),
+          orderDate: order.createdAt,
+          notes: order.notes || undefined
+        }).then(result => {
+          console.log(`[Order ${order.id}] Email results:`, result)
+        }).catch(err => {
+          console.error(`[Order ${order.id}] Email error:`, err)
+        })
+      }
+    } catch (emailError) {
+      // Don't fail order if email fails
+      console.error('[Order Email Setup Error]', emailError)
     }
 
     const response: TApiResponse<typeof order & { workflow?: typeof workflow }> = {

@@ -1,0 +1,13 @@
+{
+  "name": "azteka-print-agent",
+  "version": "1.0.0",
+  "description": "Print agent for Azteka DSD warehouse",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:dev": "VPS_URL=http://localhost:3002 node index.js"
+  },
+  "keywords": ["print", "warehouse", "azteka"],
+  "author": "Azteka DSD",
+  "license": "MIT"
+}

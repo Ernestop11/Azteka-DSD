@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useCartStore } from '@/store/cart'
 import { getPublicImageUrl } from '@/lib/imageUrl'
 
@@ -41,16 +41,70 @@ interface ProductCardProps {
   index?: number
   mode?: 'default' | 'preview'
   onCardClick?: (product: Product) => void
+  onLongPress?: (product: Product, position: { x: number; y: number }) => void
+  multiStoreMode?: boolean
+  // For delegated orders - attach store info to cart items
+  storeId?: string
+  storeName?: string
 }
 
 
-export default function ProductCard({ product, index = 0, mode = 'default', onCardClick }: ProductCardProps) {
+export default function ProductCard({ product, index = 0, mode = 'default', onCardClick, onLongPress, multiStoreMode = false, storeId, storeName }: ProductCardProps) {
   const { addItem, increment, decrement, setQuantity, getQuantity } = useCartStore()
   const [imageError, setImageError] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [isEditing, setIsEditing] = useState(false)
+  const [isLongPressing, setIsLongPressing] = useState(false)
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const isPreview = mode === 'preview'
-  const quantity = isPreview ? 0 : getQuantity(product.id)
+  // Use composite key for delegated orders (productId-storeId)
+  const itemKey = storeId ? `${product.id}-${storeId}` : product.id
+  const quantity = isPreview ? 0 : getQuantity(itemKey)
+
+  // Long press handlers for multi-store mode
+  const handleTouchStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (!onLongPress) return
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    touchStartPos.current = { x: clientX, y: clientY }
+
+    longPressTimer.current = setTimeout(() => {
+      setIsLongPressing(true)
+      // Vibrate on mobile if supported
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+      onLongPress(product, { x: clientX, y: clientY })
+    }, 500) // 500ms long press threshold
+  }, [onLongPress, product])
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    setIsLongPressing(false)
+    touchStartPos.current = null
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if (!touchStartPos.current) return
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+
+    // Cancel long press if moved more than 10px
+    const deltaX = Math.abs(clientX - touchStartPos.current.x)
+    const deltaY = Math.abs(clientY - touchStartPos.current.y)
+    if (deltaX > 10 || deltaY > 10) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+        longPressTimer.current = null
+      }
+    }
+  }, [])
 
   // Simple, clean styling - no visual preset system
   const appliedTheme = {
@@ -79,15 +133,18 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
       price: priceValue,
       quantity: 1,
       imageUrl: product.imageUrl || undefined,
+      // Attach store info for delegated orders (Carlos multi-store)
+      storeId,
+      storeName,
     })
   }
 
   const handleIncrement = () => {
-    increment(product.id)
+    increment(itemKey)
   }
 
   const handleDecrement = () => {
-    decrement(product.id)
+    decrement(itemKey)
   }
 
   return (
@@ -100,9 +157,16 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
       }}
       viewport={{ once: true }}
       whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.98 }}
-      className="group relative overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-sm transition-all duration-500 hover:shadow-2xl"
+      whileTap={{ scale: isLongPressing ? 1.02 : 0.98 }}
+      animate={{ scale: isLongPressing ? 0.95 : 1 }}
+      className={`group relative overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-sm transition-all duration-500 hover:shadow-2xl ${isLongPressing ? 'ring-4 ring-emerald-500/50' : ''}`}
       style={backgroundStyle}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      onMouseDown={handleTouchStart}
+      onMouseUp={handleTouchEnd}
+      onMouseLeave={handleTouchEnd}
     >
       {/* Simple hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-[2]" />
@@ -162,9 +226,11 @@ export default function ProductCard({ product, index = 0, mode = 'default', onCa
             <img
               src={getPublicImageUrl(product.imageUrl)}
               alt={product.name}
-              className="relative w-full h-full object-contain transform group-hover:scale-110 group-hover:rotate-2 transition-transform duration-700 drop-shadow-2xl"
+              className="relative w-full h-full object-contain transform group-hover:scale-110 group-hover:rotate-2 transition-transform duration-700 drop-shadow-2xl select-none"
               loading="lazy"
               decoding="async"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
               onError={(e) => {
                 const target = e.target as HTMLImageElement
                 // Only set error if image truly failed (no dimensions)

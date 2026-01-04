@@ -1,8 +1,8 @@
 {
   "name": "Azteka Employee",
-  "short_name": "Inventory",
-  "description": "Azteka DSD - Warehouse Inventory Management",
-  "start_url": "/employee/inventory",
+  "short_name": "Work",
+  "description": "Azteka DSD - Employee Portal",
+  "start_url": "/staff",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "minimal-ui"],

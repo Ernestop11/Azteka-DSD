@@ -161,13 +161,14 @@ export default function ProductDetailModal({
             onClick={onClose}
           />
 
-          {/* Modal */}
+          {/* Modal - prevent Android context menu on long-press */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ duration: 0.3, type: 'spring' }}
-            className="fixed inset-4 md:inset-10 lg:inset-20 z-50 overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="fixed inset-4 md:inset-10 lg:inset-20 z-50 overflow-hidden rounded-3xl bg-white shadow-2xl pwa-touch"
+            onContextMenu={(e) => e.preventDefault()}
           >
             {/* Close Button */}
             <button

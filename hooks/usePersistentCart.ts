@@ -1,53 +1,25 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { useCart } from '@/hooks/useCart'
+import { useEffect } from 'react'
+import { useCartStore } from '@/store/cart'
 import { saveToStorage, loadFromStorage, removeFromStorage } from '@/lib/offline/storage'
-import type { CartProduct } from '@/context/CartContext'
 
-const CART_STORAGE_KEY = 'cart'
 const ORDER_IN_PROGRESS_KEY = 'order_in_progress'
 
 /**
- * Hook to persist cart to localStorage and restore on mount
+ * Hook for cart persistence utilities
+ *
+ * NOTE: Cart item persistence is handled by Zustand's persist middleware.
+ * This hook only handles:
+ * 1. Manual hydration trigger for Zustand (since we use skipHydration: true)
+ * 2. In-progress order saving for offline support
  */
 export function usePersistentCart() {
-  const { items, add, clear } = useCart()
-  const isRestoringRef = useRef(false)
-
-  // Restore cart on mount
+  // Trigger Zustand rehydration on mount (client-side only)
   useEffect(() => {
-    if (isRestoringRef.current) return
-
-    try {
-      const savedCart = loadFromStorage<CartProduct[]>(CART_STORAGE_KEY)
-      if (savedCart && Array.isArray(savedCart) && savedCart.length > 0) {
-        isRestoringRef.current = true
-        // Restore each item
-        savedCart.forEach(item => {
-          add(item, item.storeId)
-        })
-        isRestoringRef.current = false
-      }
-    } catch (error) {
-      console.error('Failed to restore cart from storage:', error)
-    }
-  }, []) // Only run on mount
-
-  // Save cart whenever it changes
-  useEffect(() => {
-    if (isRestoringRef.current) return
-
-    try {
-      if (items.length > 0) {
-        saveToStorage(CART_STORAGE_KEY, items)
-      } else {
-        removeFromStorage(CART_STORAGE_KEY)
-      }
-    } catch (error) {
-      console.error('Failed to save cart to storage:', error)
-    }
-  }, [items])
+    // This manually triggers the persist middleware to load from localStorage
+    useCartStore.persist.rehydrate()
+  }, [])
 
   /**
    * Save in-progress order

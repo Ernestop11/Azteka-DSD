@@ -3,12 +3,35 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import { ShoppingCart, Plus, Minus, X, Package, ChevronLeft, ChevronRight, Box } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
 import { getPublicImageUrl } from '@/lib/imageUrl'
 import EnhancedCartDrawer from '@/components/cart/EnhancedCartDrawer'
+import CatalogHamburgerMenu, { CatalogTab, UserMode } from '@/components/catalog/CatalogHamburgerMenu'
+import FavoritesTabContent from '@/components/catalog/FavoritesTabContent'
+import CreditsTabContent from '@/components/catalog/CreditsTabContent'
+import OrderHistoryTabContent from '@/components/catalog/OrderHistoryTabContent'
+import StoreSelectionMenu from '@/components/catalog/StoreSelectionMenu'
+
+// Multi-store types
+interface MultiStore {
+  id: string
+  businessName: string
+}
+
+// Shared props for block components that render ProductCards
+interface BlockProductCardProps {
+  onAddToCart: (p: CatalogProduct, q: number) => void
+  getQuantity: (productId: string) => number
+  onSetQuantity: (productId: string, qty: number) => void
+  onMultiStoreLongPress?: (product: CatalogProduct, position: { x: number; y: number }) => void
+  isMultiStoreOwner?: boolean
+  // For delegated orders - attach store info to cart items
+  storeId?: string
+  storeName?: string
+}
 
 // Types
 interface CatalogProduct {
@@ -857,8 +880,8 @@ function WeekendSpecialBlock({
 // Bulk Order Quick Picks
 const BULK_QUANTITIES = [5, 10, 15, 20, 25, 50]
 
-// 🔥 DSD Showcase Product Card - Tap to Select, Glowing Borders, Long-Press for Bulk
-function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0, onSetQuantity }: { product: CatalogProduct; style?: string; onAddToCart: (p: CatalogProduct, q: number) => void; cardStyle?: Record<string, unknown>; cartQuantity?: number; onSetQuantity?: (productId: string, qty: number) => void }) {
+// 🔥 DSD Showcase Product Card - Tap to Select, Glowing Borders, Long-Press for Bulk or Multi-Store
+function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { product: CatalogProduct; style?: string; onAddToCart: (p: CatalogProduct, q: number) => void; cardStyle?: Record<string, unknown>; cartQuantity?: number; onSetQuantity?: (productId: string, qty: number, productData?: { name: string; price: number; imageUrl?: string | null }) => void; onMultiStoreLongPress?: (product: CatalogProduct, position: { x: number; y: number }) => void; isMultiStoreOwner?: boolean }) {
   // Derive isSelected from cart quantity - if in cart, it's selected
   const isInCart = cartQuantity > 0
   const [showControls, setShowControls] = useState(isInCart)
@@ -876,11 +899,25 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
     setShowControls(isInCart)
   }, [isInCart])
 
-  // Long press handlers for bulk order modal
-  const handleTouchStart = () => {
+  // Long press handlers for bulk order modal OR multi-store selection
+  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
     isLongPress.current = false
+
+    // Capture position for multi-store menu
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+
     longPressTimerRef.current = setTimeout(() => {
       isLongPress.current = true
+
+      // If multi-store owner and handler provided, show store selection instead of bulk modal
+      if (isMultiStoreOwner && onMultiStoreLongPress) {
+        if (navigator.vibrate) navigator.vibrate(50)
+        onMultiStoreLongPress(product, { x: clientX, y: clientY })
+        return
+      }
+
+      // Otherwise show standard bulk order modal
       // Initialize modal quantity from cart or default to 1
       setModalQuantity(cartQuantity > 0 ? cartQuantity : 1)
       // Clear any existing auto-close timer
@@ -911,9 +948,13 @@ function ProductCard({ product, style, onAddToCart, cardStyle, cartQuantity = 0,
     // Update modal preview immediately
     setModalQuantity(qty)
 
-    // Save to cart
+    // Save to cart - pass product data so item can be added if not in cart
     if (onSetQuantity) {
-      onSetQuantity(product.id, qty)
+      onSetQuantity(product.id, qty, {
+        name: product.name,
+        price: typeof product.price === 'number' ? product.price : parseFloat(String(product.price)) || 0,
+        imageUrl: product.imageUrl,
+      })
     } else {
       onAddToCart(product, qty)
     }
@@ -1493,7 +1534,7 @@ function getCardStyleFromBlock(block: CatalogBlock) {
 }
 
 // Product Grid Block
-function ProductGridBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function ProductGridBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const columns = (block.config as { columns?: number }).columns || 4
   const cardStyle = getCardStyleFromBlock(block)
@@ -1529,7 +1570,7 @@ function ProductGridBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
         )}
         <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3`}>
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
           ))}
         </div>
       </div>
@@ -1560,7 +1601,7 @@ function BannerBlock({ block }: { block: CatalogBlock }) {
 }
 
 // Promo Section Block - Visual wrapper with consistent card sizing
-function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const cardStyle = getCardStyleFromBlock(block)
 
@@ -1604,7 +1645,7 @@ function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: {
           {/* Grid - NO padding on mobile for full-width cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
             ))}
           </div>
         </div>
@@ -1614,7 +1655,7 @@ function PromoSectionBlock({ block, onAddToCart, getQuantity, onSetQuantity }: {
 }
 
 // Rack Bundle Block - DSD Feature - Consistent card sizing
-function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -1668,7 +1709,7 @@ function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { b
         {/* Products Grid - tighter gaps on tablet */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
           ))}
         </div>
       </div>
@@ -1677,7 +1718,7 @@ function RackBundleBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { b
 }
 
 // Case Deal Block - DSD Feature - Consistent card sizing
-function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -1721,7 +1762,7 @@ function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { blo
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
           ))}
         </div>
       </div>
@@ -1730,7 +1771,7 @@ function CaseDealBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { blo
 }
 
 // Vendor Spotlight Block - DSD Feature - Consistent card sizing
-function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -1777,7 +1818,7 @@ function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity }
         <div className="sm:p-2 md:p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+              <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
             ))}
           </div>
         </div>
@@ -1787,7 +1828,7 @@ function VendorSpotlightBlock({ block, onAddToCart, getQuantity, onSetQuantity }
 }
 
 // Bulk Builder Block - DSD Feature - Consistent card sizing
-function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -1828,7 +1869,7 @@ function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
           ))}
         </div>
       </div>
@@ -1837,7 +1878,7 @@ function BulkBuilderBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
 }
 
 // Brand Showcase Block - DSD Feature - Hero-style with See All modal
-function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const allProducts = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
   const config = block.config as {
@@ -1949,7 +1990,7 @@ function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: 
             >
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-2 md:gap-3">
                 {previewProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+                  <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
                 ))}
               </div>
 
@@ -2022,7 +2063,7 @@ function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: 
                 <div className="p-3 sm:p-4 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 80px)' }}>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                     {allProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+                      <ProductCard key={product.id} product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
                     ))}
                   </div>
                 </div>
@@ -2037,7 +2078,7 @@ function BrandShowcaseBlock({ block, onAddToCart, getQuantity, onSetQuantity }: 
 }
 
 // New Arrivals Block - DSD Feature
-function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void }) {
+function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock } & BlockProductCardProps) {
   const products = block.products.map(p => p.product) || []
   const baseCardStyle = getCardStyleFromBlock(block)
 
@@ -2069,7 +2110,7 @@ function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
             <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 z-10 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full bg-emerald-500 text-white text-[10px] sm:text-xs font-bold">
               NEW
             </div>
-            <ProductCard product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} />
+            <ProductCard product={product} cardStyle={cardStyle} onAddToCart={onAddToCart} cartQuantity={getQuantity(product.id)} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
           </div>
         ))}
       </div>
@@ -2078,7 +2119,7 @@ function NewArrivalsBlock({ block, onAddToCart, getQuantity, onSetQuantity }: { 
 }
 
 // Block Renderer - Hide blocks with no products (except BANNER and HERO which may not need products)
-function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity, cartTotal = 0 }: { block: CatalogBlock; onAddToCart: (p: CatalogProduct, q: number) => void; getQuantity: (productId: string) => number; onSetQuantity: (productId: string, qty: number) => void; cartTotal?: number }) {
+function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity, cartTotal = 0, onMultiStoreLongPress, isMultiStoreOwner }: { block: CatalogBlock; cartTotal?: number } & BlockProductCardProps) {
   // Skip rendering product blocks that have no products
   const productsRequired = !['BANNER'].includes(block.type)
   if (productsRequired && (!block.products || block.products.length === 0)) {
@@ -2088,20 +2129,20 @@ function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity, cartTot
   switch (block.type) {
     case 'HERO': return <HeroBlock block={block} onAddToCart={onAddToCart} />
     case 'WEEKEND_SPECIAL': return <WeekendSpecialBlock block={block} onAddToCart={onAddToCart} cartTotal={cartTotal} />
-    case 'PRODUCT_GRID': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'PRODUCT_CARDS': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'PRODUCT_GRID': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'PRODUCT_CARDS': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
     case 'BANNER': return <BannerBlock block={block} />
-    case 'PROMO_SECTION': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'CATEGORY_ROW': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'PROMO_SECTION': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'CATEGORY_ROW': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
     // DSD Block Types
-    case 'RACK_BUNDLE': return <RackBundleBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'VENDOR_SPOTLIGHT': return <VendorSpotlightBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'CASE_DEAL': return <CaseDealBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'NEW_ARRIVALS': return <NewArrivalsBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'QUICK_REORDER': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'BULK_BUILDER': return <BulkBuilderBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'SEASONAL_THEME': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
-    case 'BRAND_SHOWCASE': return <BrandShowcaseBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} />
+    case 'RACK_BUNDLE': return <RackBundleBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'VENDOR_SPOTLIGHT': return <VendorSpotlightBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'CASE_DEAL': return <CaseDealBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'NEW_ARRIVALS': return <NewArrivalsBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'QUICK_REORDER': return <ProductGridBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'BULK_BUILDER': return <BulkBuilderBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'SEASONAL_THEME': return <PromoSectionBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+    case 'BRAND_SHOWCASE': return <BrandShowcaseBlock block={block} onAddToCart={onAddToCart} getQuantity={getQuantity} onSetQuantity={onSetQuantity} onMultiStoreLongPress={onMultiStoreLongPress} isMultiStoreOwner={isMultiStoreOwner} />
     default: return null
   }
 }
@@ -2111,17 +2152,145 @@ function BlockRenderer({ block, onAddToCart, getQuantity, onSetQuantity, cartTot
 // Main Catalog Component
 export default function CatalogContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const customerId = searchParams.get('customer')
+  const mode = searchParams.get('mode') as UserMode | null // 'rep', 'customer', 'carlos', or null (guest)
+  const delegated = searchParams.get('delegated') === 'true'
+  const parentCustomerId = searchParams.get('parent')
+  const storeNameParam = searchParams.get('storeName') // Store name for delegated orders
 
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<CatalogTab>('catalog')
+  const [customerName, setCustomerName] = useState<string | null>(null)
+  const [favoritesCount, setFavoritesCount] = useState(0)
+  const [isHandoffMode, setIsHandoffMode] = useState(false)
+  const [repPin, setRepPin] = useState<string | null>(null) // Sales rep PIN for handoff mode
   const { add, items, updateQty, remove, totals, getCartCount, getQuantity, setQuantity, switchCustomer } = useCart()
 
+  // For delegated orders, calculate cart count for only this store
+  const storeCartCount = delegated && customerId
+    ? items.filter(item => item.storeId === customerId).reduce((sum, item) => sum + item.quantity, 0)
+    : getCartCount()
+
+  // Multi-store state for OWNER customers
+  const [multiStores, setMultiStores] = useState<MultiStore[]>([])
+  const [isMultiStoreOwner, setIsMultiStoreOwner] = useState(false)
+  const [storeSelectionProduct, setStoreSelectionProduct] = useState<CatalogProduct | null>(null)
+  const [storeSelectionPosition, setStoreSelectionPosition] = useState<{ x: number; y: number } | null>(null)
+
+  // Determine user mode - default to 'guest' if no mode specified
+  const userMode: UserMode = mode || (customerId ? 'customer' : 'guest')
+
   // If customer param is passed (from sales rep flow), sync cart to that customer
+  // IMPORTANT: For delegated orders (multi-store owner), DON'T clear cart - we want to keep items from all stores
   useEffect(() => {
     if (customerId) {
-      switchCustomer(customerId)
+      // Only switch customer (which clears cart) for non-delegated orders
+      // For delegated orders, each store's items are tracked by storeId so we keep them all
+      if (!delegated) {
+        switchCustomer(customerId)
+      }
+      // Fetch customer name for display
+      fetch(`/api/rep/customer/${customerId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.customer?.businessName) {
+            setCustomerName(data.customer.businessName)
+          }
+        })
+        .catch(() => {})
+
+      // Fetch favorites count
+      fetch(`/api/rep/customer/${customerId}/favorites`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.favorites) {
+            setFavoritesCount(data.favorites.length)
+          }
+        })
+        .catch(() => {})
     }
   }, [customerId, switchCustomer])
+
+  // Check if customer is a multi-store owner and fetch their stores
+  useEffect(() => {
+    if (customerId) {
+      fetch(`/api/customer/multi-store?ownerId=${customerId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.stores && data.stores.length > 0) {
+            setIsMultiStoreOwner(true)
+            setMultiStores(data.stores.map((s: { id: string; businessName: string }) => ({
+              id: s.id,
+              businessName: s.businessName
+            })))
+          } else {
+            setIsMultiStoreOwner(false)
+            setMultiStores([])
+          }
+        })
+        .catch(() => {
+          setIsMultiStoreOwner(false)
+          setMultiStores([])
+        })
+    }
+  }, [customerId])
+
+  // Handle adding product to a specific store's cart
+  const handleAddToStore = (storeId: string, storeName: string, quantity: number) => {
+    if (!storeSelectionProduct) return
+    // Add to cart with store info for multi-store display
+    add({
+      id: storeSelectionProduct.id,
+      name: storeSelectionProduct.name,
+      price: typeof storeSelectionProduct.price === 'string' ? parseFloat(storeSelectionProduct.price) : storeSelectionProduct.price,
+      quantity,
+      imageUrl: storeSelectionProduct.imageUrl,
+      storeId,
+      storeName,
+    })
+  }
+
+  // Handle product long-press for multi-store selection
+  const handleProductLongPress = (product: CatalogProduct, position: { x: number; y: number }) => {
+    if (!isMultiStoreOwner || multiStores.length === 0) return
+    setStoreSelectionProduct(product)
+    setStoreSelectionPosition(position)
+  }
+
+  // Handle back to dashboard
+  const handleBackToDashboard = () => {
+    router.push('/rep/dashboard')
+  }
+
+  // Handle entering handoff mode (tablet given to customer)
+  const handleEnterHandoff = () => {
+    // Get the rep's PIN from localStorage (last 4 of their phone)
+    try {
+      const stored = localStorage.getItem('repSession')
+      if (stored) {
+        const session = JSON.parse(stored)
+        const pin = session.pin || '0000'
+        setRepPin(pin)
+      } else {
+        setRepPin('0000') // Fallback
+      }
+    } catch {
+      setRepPin('0000') // Fallback
+    }
+    setIsHandoffMode(true)
+    setActiveTab('catalog') // Reset to catalog view when entering handoff mode
+  }
+
+  // Handle exiting handoff mode (PIN verification)
+  const handleExitHandoff = (enteredPin: string): boolean => {
+    if (enteredPin === repPin) {
+      setIsHandoffMode(false)
+      setRepPin(null)
+      return true
+    }
+    return false
+  }
 
   // Fetch catalog settings (background gradient, pattern) - auto-refresh every 3 seconds for live preview
   const { data: settingsData } = useQuery<{ data: CatalogSettings }>({
@@ -2149,10 +2318,14 @@ export default function CatalogContent() {
   })
 
   // Fetch catalog blocks - auto-refresh every 3 seconds for live preview
+  // Pass customerId for customer-specific pricing
   const { data: blocksData, isLoading, error } = useQuery<{ data: CatalogBlock[] }>({
-    queryKey: ['catalog-blocks'],
+    queryKey: ['catalog-blocks', customerId],
     queryFn: async () => {
-      const res = await fetch('/api/catalog/blocks')
+      const url = customerId
+        ? `/api/catalog/blocks?customer=${customerId}`
+        : '/api/catalog/blocks'
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Failed to fetch blocks')
       return res.json()
     },
@@ -2180,13 +2353,42 @@ export default function CatalogContent() {
     // Round to 2 decimal places to avoid floating point issues
     priceNum = Math.round(priceNum * 100) / 100
 
-    add({
+    // Build cart item - include storeId/storeName for delegated orders (Carlos multi-store)
+    const cartItem: Parameters<typeof add>[0] = {
       id: product.id,
       name: product.name,
       price: priceNum,
       imageUrl: getPublicImageUrl(product.imageUrl) || '/placeholder-product.png',
       quantity: Math.abs(quantity), // Ensure positive quantity
-    })
+    }
+
+    // If this is a delegated order (Carlos ordering for a specific store), attach store info
+    if (delegated && customerId) {
+      cartItem.storeId = customerId
+      cartItem.storeName = storeNameParam || undefined
+    }
+
+    add(cartItem)
+  }
+
+  // Wrapper for getQuantity that handles composite key for delegated orders
+  const wrappedGetQuantity = (productId: string) => {
+    // For delegated orders, use composite key (productId-storeId)
+    const key = delegated && customerId ? `${productId}-${customerId}` : productId
+    return getQuantity(key)
+  }
+
+  // Wrapper for setQuantity that handles composite key for delegated orders
+  const wrappedSetQuantity = (productId: string, qty: number, productData?: { name: string; price: number; imageUrl?: string | null }) => {
+    // For delegated orders, use composite key (productId-storeId)
+    const key = delegated && customerId ? `${productId}-${customerId}` : productId
+    // Pass product data with store info for delegated orders
+    const enrichedProductData = productData ? {
+      ...productData,
+      storeId: delegated ? customerId : undefined,
+      storeName: delegated ? customerName : undefined,
+    } : undefined
+    setQuantity(key, qty, enrichedProductData)
   }
 
   if (isLoading) {
@@ -2264,17 +2466,45 @@ export default function CatalogContent() {
       {/* Header - Optimized for mobile + iPhone safe area */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-black/40 border-b border-white/10 pt-[env(safe-area-inset-top)]">
         <div className="max-w-[1400px] mx-auto px-3 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
+            {/* Hamburger Menu - visible when in rep/customer/carlos mode */}
+            {userMode !== 'guest' && (
+              <CatalogHamburgerMenu
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                userMode={userMode}
+                customerId={customerId}
+                customerName={customerName}
+                favoritesCount={favoritesCount}
+                onBackToDashboard={userMode === 'rep' ? handleBackToDashboard : undefined}
+                isHandoffMode={isHandoffMode}
+                onEnterHandoff={userMode === 'rep' ? handleEnterHandoff : undefined}
+                onExitHandoff={userMode === 'rep' ? handleExitHandoff : undefined}
+                isDelegatedOrder={delegated}
+                parentCustomerId={parentCustomerId}
+                storeName={storeNameParam}
+              />
+            )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-base md:text-xl font-bold text-white truncate">{businessData?.name || 'Azteka Foods, LLC'}</h1>
-              <p className="text-slate-400 text-[11px] md:text-sm">Wholesale Catalog</p>
+              <h1 className="text-base md:text-xl font-bold text-white truncate">
+                {delegated && storeNameParam ? storeNameParam : (businessData?.name || 'Azteka Foods, LLC')}
+              </h1>
+              <p className="text-slate-400 text-[11px] md:text-sm">
+                {delegated && storeNameParam ? 'Ordering for store' :
+                 activeTab === 'catalog' ? 'Wholesale Catalog' :
+                 activeTab === 'favorites' ? 'Favoritos' :
+                 activeTab === 'bundles' ? 'Bundle Orders' :
+                 activeTab === 'categories' ? 'Categorias' :
+                 activeTab === 'orders' ? 'Order History' :
+                 activeTab === 'credits' ? 'Credits & Returns' : 'Wholesale Catalog'}
+              </p>
             </div>
             {/* Cart button - hidden on mobile since we have FAB */}
             <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
               <ShoppingCart className="w-6 h-6 text-white" />
-              {getCartCount() > 0 && (
+              {storeCartCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs font-bold rounded-full bg-amber-500 text-slate-900">
-                  {getCartCount() > 9 ? '9+' : getCartCount()}
+                  {storeCartCount > 9 ? '9+' : storeCartCount}
                 </span>
               )}
             </button>
@@ -2282,40 +2512,101 @@ export default function CatalogContent() {
         </div>
       </header>
 
-      {/* Main Content - Render Blocks - Tighter mobile spacing */}
+      {/* Main Content - Tab-based rendering */}
       <main className="relative max-w-[1400px] mx-auto px-2 sm:px-4 md:px-6 py-4 md:py-6">
-        {blocks.length === 0 ? (
+        {/* Catalog Tab - Render Blocks */}
+        {activeTab === 'catalog' && (
+          <>
+            {blocks.length === 0 ? (
+              <div className="text-center py-20">
+                <Package className="w-20 h-20 text-slate-600 mx-auto mb-6" />
+                <h2 className="text-2xl font-bold text-white mb-2">No blocks configured yet</h2>
+                <p className="text-slate-400 mb-6">Go to the admin Menu Editor to build your catalog</p>
+                <a href="/admin/block-builder" className="inline-block px-6 py-3 rounded-xl font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors">
+                  Open Block Builder
+                </a>
+              </div>
+            ) : (
+              blocks.sort((a, b) => a.position - b.position).map((block) => (
+                <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} getQuantity={wrappedGetQuantity} onSetQuantity={wrappedSetQuantity} cartTotal={totals.subtotal} onMultiStoreLongPress={handleProductLongPress} isMultiStoreOwner={isMultiStoreOwner} />
+              ))
+            )}
+          </>
+        )}
+
+        {/* Favorites Tab */}
+        {activeTab === 'favorites' && customerId && (
+          <FavoritesTabContent customerId={customerId} />
+        )}
+
+        {/* Categories Tab - Placeholder for future implementation */}
+        {activeTab === 'categories' && (
           <div className="text-center py-20">
             <Package className="w-20 h-20 text-slate-600 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">No blocks configured yet</h2>
-            <p className="text-slate-400 mb-6">Go to the admin Menu Editor to build your catalog</p>
-            <a href="/admin/block-builder" className="inline-block px-6 py-3 rounded-xl font-semibold bg-amber-500 text-slate-900 hover:bg-amber-400 transition-colors">
-              Open Block Builder
-            </a>
+            <h2 className="text-2xl font-bold text-white mb-2">Categories</h2>
+            <p className="text-slate-400">Browse products by category - coming soon</p>
           </div>
-        ) : (
-          blocks.sort((a, b) => a.position - b.position).map((block) => (
-            <BlockRenderer key={block.id} block={block} onAddToCart={handleAddToCart} getQuantity={getQuantity} onSetQuantity={setQuantity} cartTotal={totals.subtotal} />
-          ))
+        )}
+
+        {/* Orders Tab - Order History */}
+        {activeTab === 'orders' && customerId && (
+          <OrderHistoryTabContent customerId={customerId} />
+        )}
+
+        {/* Bundles Tab - For Carlos multi-store mode */}
+        {activeTab === 'bundles' && (
+          <div className="text-center py-20">
+            <Package className="w-20 h-20 text-slate-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-2">Bundle Orders</h2>
+            <p className="text-slate-400">Multi-store bundle ordering - coming soon</p>
+          </div>
+        )}
+
+        {/* Credits Tab - For sales reps to apply returns/credits */}
+        {activeTab === 'credits' && customerId && (
+          <CreditsTabContent customerId={customerId} />
         )}
       </main>
 
       {/* Mobile Cart FAB */}
       <button onClick={() => setIsCartOpen(true)} className="fixed bottom-6 right-6 z-40 p-4 rounded-full shadow-2xl bg-amber-500 md:hidden">
         <ShoppingCart className="w-6 h-6 text-slate-900" />
-        {getCartCount() > 0 && (
+        {storeCartCount > 0 && (
           <span className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center text-xs font-bold rounded-full bg-slate-900 text-amber-500">
-            {getCartCount() > 9 ? '9+' : getCartCount()}
+            {storeCartCount > 9 ? '9+' : storeCartCount}
           </span>
         )}
       </button>
 
-      {/* TODO: Get customerId from auth context when customer is logged in */}
+      {/* Cart drawer - filters by storeId for delegated orders */}
       <EnhancedCartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        customerId="test-customer-maria"
+        customerId={customerId || undefined}
+        storeId={delegated ? customerId || undefined : undefined}
+        isCustomerSelfOrder={userMode === 'customer'}
+        returnUrl={delegated ? '/customer/multi-store' : '/customer/dashboard'}
       />
+
+      {/* Multi-store selection menu for OWNER customers */}
+      {isMultiStoreOwner && storeSelectionProduct && (
+        <StoreSelectionMenu
+          isOpen={!!storeSelectionProduct}
+          onClose={() => {
+            setStoreSelectionProduct(null)
+            setStoreSelectionPosition(null)
+          }}
+          stores={multiStores}
+          product={{
+            id: storeSelectionProduct.id,
+            name: storeSelectionProduct.name,
+            price: typeof storeSelectionProduct.price === 'string' ? parseFloat(storeSelectionProduct.price) : storeSelectionProduct.price,
+            imageUrl: storeSelectionProduct.imageUrl
+          }}
+          onAddToStore={handleAddToStore}
+          position={storeSelectionPosition || undefined}
+        />
+      )}
     </div>
   )
 }

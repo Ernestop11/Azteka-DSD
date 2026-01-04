@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'next/navigation'
 import ProductTable from './ProductTable'
 import ProductEditor from './ProductEditor'
 import Button from '@/components/ui/button'
-import { Plus, ArrowLeft, Filter } from 'lucide-react'
+import { Plus, ArrowLeft, Filter, AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/ui/toast'
 
@@ -23,12 +24,22 @@ interface Product {
 
 export default function ProductsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterBrand, setFilterBrand] = useState<string>('all')
+  const [filterNeedsEnrichment, setFilterNeedsEnrichment] = useState(false)
+
+  // Check for URL filter param on mount
+  useEffect(() => {
+    const filter = searchParams.get('filter')
+    if (filter === 'new' || filter === 'needs-enrichment') {
+      setFilterNeedsEnrichment(true)
+    }
+  }, [searchParams])
 
   // Fetch categories for filter
   const { data: categoriesData } = useQuery({
@@ -150,11 +161,27 @@ export default function ProductsPage() {
               ))}
             </select>
 
-            {(filterCategory !== 'all' || filterBrand !== 'all') && (
+            {/* Needs Enrichment filter toggle */}
+            <button
+              onClick={() => setFilterNeedsEnrichment(!filterNeedsEnrichment)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                filterNeedsEnrichment
+                  ? 'bg-amber-100 border-amber-400 text-amber-800'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Needs Enrichment
+            </button>
+
+            {(filterCategory !== 'all' || filterBrand !== 'all' || filterNeedsEnrichment) && (
               <button
                 onClick={() => {
                   setFilterCategory('all')
                   setFilterBrand('all')
+                  setFilterNeedsEnrichment(false)
+                  // Clear URL param
+                  router.replace('/admin/products')
                 }}
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >

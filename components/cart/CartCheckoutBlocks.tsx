@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Sparkles, Clock, Package, TrendingUp, Gift, Zap, Plus, ArrowRight } from 'lucide-react'
@@ -58,21 +58,22 @@ const BLOCK_COLORS: Record<string, string> = {
 
 export default function CartCheckoutBlocks({ onAddProduct, customerId }: CartCheckoutBlocksProps) {
   const { items, totals } = useCart()
-  const [blocks, setBlocks] = useState<CartBlock[]>([])
   const [promoCode, setPromoCode] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
 
-  // Load cart blocks configuration
-  useEffect(() => {
-    const saved = localStorage.getItem('azteka-cart-blocks')
-    if (saved) {
-      try {
-        setBlocks(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to load cart blocks:', e)
-      }
-    }
-  }, [])
+  // Fetch cart blocks from API - auto-refresh every 3 seconds for real-time builder updates
+  const { data: blocksData } = useQuery<{ data: CartBlock[] }>({
+    queryKey: ['cart-blocks-display'],
+    queryFn: async () => {
+      const res = await fetch('/api/builder/cart/blocks')
+      if (!res.ok) return { data: [] }
+      return res.json()
+    },
+    refetchInterval: 3000, // Auto-refresh every 3 seconds for live preview
+    refetchIntervalInBackground: true,
+  })
+
+  const blocks = blocksData?.data || []
 
   // Fetch products for upsells
   const { data: productsData } = useQuery<{ data: CatalogProduct[] }>({

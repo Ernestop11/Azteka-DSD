@@ -52,23 +52,40 @@ export default function EmployeeLayout({
   useEffect(() => {
     async function checkAuth() {
       try {
+        // First try the new employee session
+        const empRes = await fetch('/api/employee/me')
+        if (empRes.ok) {
+          const empData = await empRes.json()
+          if (empData.employee) {
+            setUser({
+              id: empData.employee.id,
+              email: empData.employee.email || '',
+              name: `${empData.employee.firstName} ${empData.employee.lastName}`,
+              role: empData.employee.role
+            })
+            setIsLoading(false)
+            return
+          }
+        }
+
+        // Fallback to legacy session
         const res = await fetch('/api/auth/session')
 
         if (!res.ok) {
-          router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+          router.push('/staff/login')
           return
         }
 
         const data = await res.json()
 
         if (!data.user) {
-          router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+          router.push('/staff/login')
           return
         }
 
         // Check role requirements
         if (!ALLOWED_ROLES.includes(data.user.role)) {
-          router.push(`/login?redirect=${encodeURIComponent(pathname)}&error=unauthorized`)
+          router.push('/staff/login')
           return
         }
 
@@ -76,7 +93,7 @@ export default function EmployeeLayout({
         setIsLoading(false)
       } catch (error) {
         console.error('Auth check failed:', error)
-        router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+        router.push('/staff/login')
       }
     }
 
@@ -84,8 +101,12 @@ export default function EmployeeLayout({
   }, [router, pathname])
 
   const handleLogout = async () => {
-    await fetch('/api/auth/session', { method: 'DELETE' })
-    router.push('/login')
+    // Logout from both session types
+    await Promise.all([
+      fetch('/api/employee/logout', { method: 'POST' }),
+      fetch('/api/auth/session', { method: 'DELETE' })
+    ])
+    router.push('/staff/login')
   }
 
   if (isLoading) {
@@ -144,7 +165,7 @@ export default function EmployeeLayout({
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-30
           w-64 text-white
@@ -155,7 +176,9 @@ export default function EmployeeLayout({
         style={{
           backgroundColor: '#065f46',
           backgroundImage: 'none',
-          opacity: 1
+          opacity: 1,
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)'
         }}
       >
         <div className="p-4 border-b border-emerald-600 flex items-center justify-between">
@@ -195,7 +218,10 @@ export default function EmployeeLayout({
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-emerald-600">
+        <div
+          className="absolute bottom-0 left-0 right-0 p-4 border-t border-emerald-600"
+          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+        >
           <div className="mb-3 px-4">
             <p className="text-sm text-emerald-200">{user.email}</p>
             <p className="text-xs text-emerald-300 capitalize">{user.role.toLowerCase()}</p>
@@ -212,8 +238,11 @@ export default function EmployeeLayout({
 
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-0">
-        {/* Mobile header */}
-        <header className="lg:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between relative z-10">
+        {/* Mobile header - with safe area for iPhone notch */}
+        <header
+          className="lg:hidden bg-white shadow-sm px-4 py-3 flex items-center justify-between relative z-10"
+          style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 hover:bg-gray-100 rounded-lg z-20 relative"
@@ -224,7 +253,10 @@ export default function EmployeeLayout({
           <div className="w-10" /> {/* Spacer for centering */}
         </header>
 
-        <div className="p-4 lg:p-6 relative z-0">
+        <div
+          className="p-4 lg:p-6 relative z-0"
+          style={{ paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom) + 16px))' }}
+        >
           {children}
         </div>
       </main>

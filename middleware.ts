@@ -45,6 +45,11 @@ function isPublicRoute(pathname: string): boolean {
     return true
   }
 
+  // Allow /staff route (Employee PWA with PIN login)
+  if (pathname === '/staff' || pathname.startsWith('/staff/')) {
+    return true
+  }
+
   // Allow /employee route - AuthGuard handles actual role-based auth
   if (pathname === '/employee' || pathname.startsWith('/employee/')) {
     return true
@@ -52,6 +57,16 @@ function isPublicRoute(pathname: string): boolean {
 
   // Allow /rep route (Sales Rep Dashboard) - AuthGuard handles auth
   if (pathname === '/rep' || pathname.startsWith('/rep/')) {
+    return true
+  }
+
+  // Allow /c/ route (magic link entry point) - validates its own token
+  if (pathname.startsWith('/c/')) {
+    return true
+  }
+
+  // Allow /customer/ routes - customer portal handles its own auth via localStorage
+  if (pathname === '/customer' || pathname.startsWith('/customer/')) {
     return true
   }
 

@@ -36,6 +36,7 @@ export default function RepLoginPage() {
         email: data.user.email,
         role: data.user.role,
         token: data.token,
+        pin: data.user.pin, // Last 4 of phone for handoff mode
       }))
 
       // Redirect to dashboard

@@ -118,6 +118,11 @@ model Customer {
   priceOverrides     CustomerPriceOverride[]
   // Orders
   orders             Order[]
+
+  // CRM relations
+  productRequests    ProductRequest[]
+  surveys            CustomerSurvey[]
+  documents          CustomerDocument[]
 }
 
 enum CustomerRole {
@@ -128,29 +133,134 @@ enum CustomerRole {
 
 // Customer session for magic links and PIN login
 model CustomerSession {
-  id          String              @id @default(uuid())
-  customerId  String
-  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  token       String              @unique // Magic link token or session token
-  type        CustomerSessionType @default(MAGIC_LINK)
+  id           String              @id @default(uuid())
+  customerId   String
+  customer     Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  token        String              @unique // Magic link token or session token
+  type         CustomerSessionType @default(MAGIC_LINK)
+  // Link purpose for analytics and routing
+  linkPurpose  CustomerLinkPurpose?
   // Who created this session (rep ID for magic links, null for PIN login)
-  createdById String?
+  createdById  String?
   // Expiration (12hr inactivity or on order completion)
-  expiresAt   DateTime
+  expiresAt    DateTime
   // Tracking
-  usedAt      DateTime?           // When order was placed (invalidates magic link)
-  lastActiveAt DateTime           @default(now()) // For inactivity tracking
-  createdAt   DateTime            @default(now())
+  usedAt       DateTime?           // When order was placed (invalidates magic link)
+  lastActiveAt DateTime            @default(now()) // For inactivity tracking
+  createdAt    DateTime            @default(now())
+  // Link analytics events
+  linkEvents   CustomerLinkEvent[]
 
   @@index([token])
   @@index([customerId])
   @@index([expiresAt])
+  @@index([linkPurpose])
 }
 
 enum CustomerSessionType {
   MAGIC_LINK  // Sent by sales rep
   PIN_LOGIN   // Customer logged in with phone + PIN
   DELEGATED   // Multi-store owner delegated to sub-manager
+}
+
+// Purpose of customer link for routing and analytics
+enum CustomerLinkPurpose {
+  HANDOFF       // Rep hands tablet to customer (favorites in menu)
+  INSTALL       // App install/onboarding link
+  CATALOG_SHARE // Direct catalog access link
+}
+
+// ============================================
+// CUSTOMER LINK ANALYTICS SYSTEM
+// ============================================
+
+// Event tracking for customer link interactions
+model CustomerLinkEvent {
+  id           String               @id @default(uuid())
+  // Link context
+  sessionId    String
+  session      CustomerSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  customerId   String
+  // Event details
+  eventType    CustomerEventType
+  eventData    Json?                // Extra data (productId, categoryId, search query, etc.)
+  // Device & context
+  deviceType   String?              // mobile, tablet, desktop
+  userAgent    String?
+  // Timestamps
+  createdAt    DateTime             @default(now())
+
+  @@index([sessionId])
+  @@index([customerId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+enum CustomerEventType {
+  // Session events
+  LINK_OPENED
+  SESSION_STARTED
+  SESSION_ENDED
+  // Engagement events
+  SCROLL_DEPTH
+  TIME_ON_PAGE
+  // Navigation events
+  CATEGORY_VIEWED
+  BRAND_VIEWED
+  SEARCH_PERFORMED
+  PRODUCT_VIEWED
+  // Cart events
+  PRODUCT_ADDED
+  PRODUCT_REMOVED
+  QUANTITY_CHANGED
+  CART_OPENED
+  // Conversion events
+  CHECKOUT_STARTED
+  ORDER_PLACED
+  // Onboarding events (INSTALL links only)
+  PWA_PROMPT_SHOWN
+  PWA_INSTALLED
+  PIN_CREATED
+  ONBOARDING_COMPLETED
+}
+
+// Aggregated session analytics (computed periodically)
+model CustomerLinkAnalytics {
+  id                    String   @id @default(uuid())
+  customerId            String
+  // Period
+  periodStart           DateTime
+  periodEnd             DateTime
+  // Engagement metrics
+  totalLinkOpens        Int      @default(0)
+  handoffLinkOpens      Int      @default(0)
+  installLinkOpens      Int      @default(0)
+  catalogShareOpens     Int      @default(0)
+  // Attention metrics
+  totalTimeOnPageMs     BigInt   @default(0)
+  avgSessionDurationMs  BigInt   @default(0)
+  avgScrollDepth        Float    @default(0)
+  // Browse metrics
+  productsViewed        Int      @default(0)
+  categoriesBrowsed     Int      @default(0)
+  searchesPerformed     Int      @default(0)
+  // Cart metrics
+  productsAdded         Int      @default(0)
+  productsRemoved       Int      @default(0)
+  // Conversion metrics
+  ordersPlaced          Int      @default(0)
+  orderValue            Decimal  @default(0) @db.Decimal(10, 2)
+  conversionRate        Float    @default(0)
+  // PWA metrics
+  pwaPromptsShown       Int      @default(0)
+  pwaInstalls           Int      @default(0)
+  pinsCreated           Int      @default(0)
+  // Timestamps
+  updatedAt             DateTime @updatedAt
+
+  @@unique([customerId, periodStart, periodEnd])
+  @@index([customerId])
+  @@index([periodStart])
 }
 
 // Customer messages for support chat
@@ -420,9 +530,10 @@ model Vendor {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  purchaseOrders PurchaseOrder[]
-  skuMappings    VendorSkuMapping[]
-  products       Product[]
+  purchaseOrders   PurchaseOrder[]
+  skuMappings      VendorSkuMapping[]
+  products         Product[]
+  shippingExpenses ShippingExpense[]
 
   @@index([active])
   @@index([name])
@@ -463,10 +574,11 @@ model PurchaseOrder {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  vendor        Vendor?             @relation(fields: [vendorId], references: [id])
-  receivedBy    Employee?           @relation(fields: [receivedById], references: [id])
-  items         PurchaseOrderItem[]
-  receivingTask Task?               @relation("POReceivingTask")
+  vendor           Vendor?             @relation(fields: [vendorId], references: [id])
+  receivedBy       Employee?           @relation(fields: [receivedById], references: [id])
+  items            PurchaseOrderItem[]
+  receivingTask    Task?               @relation("POReceivingTask")
+  shippingExpenses ShippingExpense[]
 
   @@index([vendorId])
   @@index([status])
@@ -509,6 +621,42 @@ model PurchaseOrderItem {
   @@index([purchaseOrderId])
   @@index([productId])
   @@index([vendorSku])
+}
+
+// Shipping/Freight expenses - separate from PO invoice
+// Tracks delivery costs that come on separate invoices
+model ShippingExpense {
+  id              String    @id @default(uuid())
+  purchaseOrderId String?   // Link to PO (optional, for analysis)
+  vendorId        String?   // Vendor/carrier for this shipment
+
+  // Expense details
+  invoiceNumber   String?   // Shipping invoice #
+  invoiceDate     DateTime?
+  deliveryDate    DateTime? // When the delivery arrived
+  amount          Decimal   @db.Decimal(10, 2)
+
+  // Carrier info
+  carrierName     String?   // "FedEx Freight", "Vendor Delivery", etc.
+  trackingNumber  String?
+
+  // Notes and documentation
+  notes           String?
+  receiptUrl      String?   // Uploaded receipt/invoice image
+
+  // Audit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdById     String?
+
+  // Relations
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  vendor          Vendor?        @relation(fields: [vendorId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([vendorId])
+  @@index([deliveryDate])
+  @@index([createdAt])
 }
 
 model Reward {
@@ -686,6 +834,38 @@ model CatalogSettings {
   updatedAt          DateTime @updatedAt
 }
 
+// ============================================
+// FAVORITES UI SETTINGS (Rep Dashboard)
+// ============================================
+model FavoritesUISettings {
+  id                 String   @id @default("default")
+  // Background
+  backgroundGradient String   @default("linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)")
+  backgroundPattern  String?
+  patternOpacity     Float    @default(0.1)
+  patternSize        String?  @default("40px 40px")
+  // Card Styling
+  cardBackground     String   @default("linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)")
+  cardBorderRadius   String   @default("16px")
+  cardShadow         String   @default("0 4px 6px -1px rgba(0,0,0,0.1)")
+  cardHoverScale     Float    @default(1.02)
+  // Card Style Preset (matches Catalog builder)
+  cardStylePreset    String?  @default("dark-red")
+  imageBg            String?  @default("linear-gradient(180deg, #1e293b 0%, #334155 100%)")
+  imageEffect        String?  @default("none")
+  // Colors
+  primaryColor       String   @default("#10b981") // Emerald for add buttons
+  accentColor        String   @default("#3b82f6") // Blue for badges
+  // Effects
+  animation          String?  // pulse, shimmer, etc
+  glowEffect         Boolean  @default(false)
+  // Header Bar
+  headerBackground   String   @default("rgba(15,23,42,0.8)")
+  // Bottom Bar
+  bottomBarStyle     String   @default("gradient") // solid, gradient, blur
+  updatedAt          DateTime @updatedAt
+}
+
 model CatalogBlock {
   id        String                @id @default(uuid())
   type      CatalogBlockType      @default(PRODUCT_GRID)
@@ -765,6 +945,7 @@ model BusinessSettings {
   businessHoursClose String   @default("18:00")
   businessDays       String   @default("Mon-Sat")
   cartBlocksConfig   Json? // JSON config for cart checkout blocks
+  kioskSettings      Json? // JSON config for kiosk/time clock customization
   updatedAt          DateTime @updatedAt
 }
 
@@ -900,27 +1081,89 @@ model BrandLayout {
 // ============================================
 
 model Employee {
-  id           String          @id @default(uuid())
-  firstName    String
-  lastName     String
-  phone        String          @unique // Full phone number
-  pin          String // Last 4 digits of phone (for kiosk login)
-  email        String?         @unique
-  role         EmployeeRole    @default(WAREHOUSE)
-  hourlyRate   Decimal         @default(0) @db.Decimal(10, 2)
-  active       Boolean         @default(true)
-  photoUrl     String? // Profile photo
-  hireDate     DateTime        @default(now())
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  timeEntries  TimeEntry[]
-  tasks        Task[] // Assigned tasks
-  receivedPOs  PurchaseOrder[] // POs this employee received
-  workOrders   WorkOrder[] // Work orders assigned to this employee
-  activityLogs ActivityLog[]   @relation("EmployeeActivityLogs")
+  id             String          @id @default(uuid())
+  firstName      String
+  lastName       String
+  phone          String          @unique // Full phone number
+  pin            String // Last 4 digits of phone (for kiosk login)
+  email          String?         @unique
+  role           EmployeeRole    @default(WAREHOUSE)
+  // Pay configuration
+  payType        PayType         @default(HOURLY) // HOURLY, SALARY, COMMISSION
+  hourlyRate     Decimal         @default(0) @db.Decimal(10, 2)
+  salary         Decimal?        @db.Decimal(10, 2) // Weekly salary for SALARY type
+  commissionRate Decimal?        @db.Decimal(5, 2) // Commission % for sales (e.g., 5.00 = 5%)
+  bonusEligible  Boolean         @default(false) // Can receive performance bonuses
+  active         Boolean         @default(true)
+  photoUrl       String? // Profile photo
+  hireDate       DateTime        @default(now())
+  needsPinReset  Boolean         @default(false) // True if PIN is 0000, needs reset on first login
+  // Password hash for admin portal login (only for SUPER_ADMIN, ADMIN, SALES_REP, MANAGER)
+  passwordHash   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  timeEntries    TimeEntry[]
+  tasks          Task[] // Assigned tasks
+  receivedPOs    PurchaseOrder[] // POs this employee received
+  workOrders     WorkOrder[] // Work orders assigned to this employee
+  activityLogs   ActivityLog[]   @relation("EmployeeActivityLogs")
+  // Payroll adjustments (bonuses, deductions, commissions)
+  payrollAdjustments PayrollAdjustment[]
+  // Inventory count relations
+  countedItems   InventoryCountItem[] @relation("ItemCounter")
+  checkedItems   InventoryCountItem[] @relation("ItemChecker")
 
   @@index([pin])
   @@index([active])
+  @@index([role])
+  @@index([email])
+}
+
+enum PayType {
+  HOURLY     // Paid by the hour
+  SALARY     // Fixed weekly salary
+  COMMISSION // Commission-based (usually + base)
+}
+
+// Track bonuses, commissions, deductions per pay period
+model PayrollAdjustment {
+  id          String               @id @default(uuid())
+  employeeId  String
+  employee    Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type        PayrollAdjustmentType
+  amount      Decimal              @db.Decimal(10, 2)
+  description String?
+  // For commissions: link to specific orders
+  orderId     String?
+  // Pay period this applies to
+  periodStart DateTime
+  periodEnd   DateTime
+  // Who approved this
+  approvedBy  String?
+  approvedAt  DateTime?
+  status      AdjustmentStatus     @default(PENDING)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([employeeId])
+  @@index([periodStart, periodEnd])
+  @@index([status])
+}
+
+enum PayrollAdjustmentType {
+  BONUS           // Performance bonus
+  COMMISSION      // Sales commission
+  OVERTIME_BONUS  // Extra OT pay
+  DEDUCTION       // Deduction (advances, etc.)
+  REIMBURSEMENT   // Expense reimbursement
+  ADJUSTMENT      // Manual adjustment
+}
+
+enum AdjustmentStatus {
+  PENDING   // Awaiting approval
+  APPROVED  // Approved for payroll
+  PAID      // Included in payroll run
+  REJECTED  // Rejected
 }
 
 model TimeEntry {
@@ -943,10 +1186,13 @@ model TimeEntry {
 }
 
 enum EmployeeRole {
-  WAREHOUSE
-  DRIVER
-  OFFICE
-  MANAGER
+  SUPER_ADMIN  // Full access - Ernesto, Ana, Xeki
+  ADMIN        // Admin access - Ana (PO, accounting, deposits)
+  SALES_REP    // Mobile sales - Xeki (truck restocking, deliveries)
+  MANAGER      // Department manager
+  WAREHOUSE    // Warehouse staff (picking, packing)
+  DRIVER       // Delivery driver
+  OFFICE       // Office staff
 }
 
 enum TimeEntryStatus {
@@ -1072,6 +1318,7 @@ enum TaskType {
   STOCKING // Stock items on shelves
   DELIVERY // Deliver to customer
   COUNTING // Inventory count
+  MAPPING // Warehouse location mapping
 }
 
 enum TaskStatus {
@@ -1405,4 +1652,231 @@ enum OverrideType {
   PERCENTAGE_DISCOUNT // 10% off standard price
   FIXED_DISCOUNT // $2.00 off standard price
   TIERED // Volume-based pricing
+}
+
+// ===== CUSTOMER CRM MODELS =====
+
+// Product Request - formal workflow for customer product requests
+model ProductRequest {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Product details (may be for new or existing product)
+  productName     String
+  productSku      String?             // Optional - if known
+  description     String?             @db.Text
+  competitorPrice Decimal?            @db.Decimal(10, 2)
+  competitorName  String?             // Where customer saw the product
+  imageUrl        String?             // Photo of product/competitor price
+
+  // Workflow status: PENDING, IN_REVIEW, APPROVED, REJECTED, FULFILLED
+  status          String              @default("PENDING")
+  priority        String              @default("NORMAL")
+
+  // Resolution
+  resolvedProductId String?           // Link to product if approved/found
+  adminNotes      String?             @db.Text
+
+  // Audit
+  createdById     String              // Rep who submitted
+  reviewedById    String?             // Admin who reviewed
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  reviewedAt      DateTime?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Customer Survey - structured feedback collection
+model CustomerSurvey {
+  id                     String   @id @default(uuid())
+  customerId             String
+  customer               Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Survey date and conductor
+  surveyDate             DateTime @default(now())
+  conductedById          String   // Rep who conducted survey
+
+  // Structured ratings (1-5 scale)
+  satisfactionScore      Int      // Overall satisfaction 1-5
+  serviceQuality         Int      // Service quality 1-5
+  deliveryRating         Int?     // Delivery timeliness 1-5
+  productQuality         Int?     // Product quality 1-5
+  pricingFairness        Int?     // Pricing satisfaction 1-5
+
+  // Freeform feedback
+  notes                  String?  @db.Text
+  productFeedback        String?  @db.Text  // Specific product comments
+  improvementSuggestions String?  @db.Text
+
+  // Follow-up
+  followUpRequired       Boolean  @default(false)
+  followUpNotes          String?  @db.Text
+  followUpCompleted      Boolean  @default(false)
+
+  createdAt              DateTime @default(now())
+
+  @@index([customerId])
+  @@index([surveyDate])
+  @@index([conductedById])
+}
+
+// Customer Document - uploaded invoices, competitor pricing, etc.
+model CustomerDocument {
+  id            String   @id @default(uuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Document type: COMPETITOR_INVOICE, COMPETITOR_CATALOG, CONTRACT, TAX_EXEMPT, OTHER
+  type          String
+  fileUrl       String
+  fileName      String
+  fileSize      Int?
+  mimeType      String?
+
+  // OCR extraction (for competitor invoices)
+  extractedText String?  @db.Text
+  extractedData Json?    // Structured OCR results { products: [{name, price, sku}] }
+  ocrConfidence Float?
+
+  // Metadata
+  notes         String?  @db.Text
+  uploadedById  String   // Rep who uploaded
+
+  createdAt     DateTime @default(now())
+
+  @@index([customerId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// INVENTORY COUNT SYSTEM (Annual Physical Count)
+// ============================================
+
+model InventoryCount {
+  id               String               @id @default(uuid())
+  name             String               // "2026 Annual Count"
+  status           InventoryCountStatus @default(OPEN)
+  notes            String?              @db.Text
+  snapshotTakenAt  DateTime?            // When expected quantities were captured
+  totalCases       Int                  @default(0)
+  totalCapitalCost Decimal              @default(0) @db.Decimal(12, 2)
+  totalCapitalSell Decimal              @default(0) @db.Decimal(12, 2)
+  createdAt        DateTime             @default(now())
+  closedAt         DateTime?
+  items            InventoryCountItem[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum InventoryCountStatus {
+  OPEN     // Actively counting
+  CLOSED   // Finished, locked
+  ARCHIVED // Historical record
+}
+
+model InventoryCountItem {
+  id                String          @id @default(uuid())
+  inventoryCountId  String
+  inventoryCount    InventoryCount  @relation(fields: [inventoryCountId], references: [id], onDelete: Cascade)
+  productId         String
+  // Counter: Employee who counted this item
+  counterId         String
+  counter           Employee        @relation("ItemCounter", fields: [counterId], references: [id])
+  // Checker: Employee who verified (optional)
+  checkerId         String?
+  checker           Employee?       @relation("ItemChecker", fields: [checkerId], references: [id])
+  // Count data
+  countedCases      Int             @default(0)
+  countedPieces     Int             @default(0)
+  countedTotal      Int             @default(0) // Total units (cases * unitsPerCase + pieces)
+  expectedQuantity  Int             @default(0) // From system stock
+  variance          Int             @default(0) // countedTotal - expectedQuantity
+  unitsPerCase      Int             @default(1)
+  // Product info captured at count time
+  warehouseLocation String?         // e.g., "A-12-3"
+  needsDateCheck    Boolean         @default(false) // RED FLAG - expiration needs checking
+  expirationDate    DateTime?
+  lotNumber         String?
+  sku               String?
+  caseSku           String?
+  // Verification status
+  status            CountItemStatus @default(COUNTED)
+  // Correction tracking
+  correctionNote    String?         @db.Text
+  originalCount     Int?            // Preserved when corrected
+  // Timestamps
+  countedAt         DateTime        @default(now())
+  verifiedAt        DateTime?
+
+  @@unique([inventoryCountId, productId])
+  @@index([inventoryCountId])
+  @@index([counterId])
+  @@index([checkerId])
+  @@index([status])
+  @@index([needsDateCheck])
+  @@index([warehouseLocation])
+}
+
+enum CountItemStatus {
+  COUNTED        // Initial count done
+  VERIFIED       // Checker approved
+  RECOUNT_NEEDED // Checker flagged for recount
+  CORRECTED      // Checker made correction
+}
+
+// Key-value settings storage for app configuration
+model Setting {
+  key         String   @id
+  value       String   @db.Text
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// STORE MANAGER SYSTEM (Multi-store delegation)
+// ============================================
+
+// Store Manager - for multi-store owners to delegate ordering
+model StoreManager {
+  id          String   @id @default(uuid())
+  // Owner who created this manager
+  ownerId     String
+  // Manager details
+  name        String
+  phone       String
+  email       String?
+  // Status
+  active      Boolean  @default(true)
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Assignments to stores
+  assignments StoreManagerAssignment[]
+
+  @@index([ownerId])
+  @@index([phone])
+  @@index([active])
+}
+
+// Store Manager Assignment - links managers to specific stores
+model StoreManagerAssignment {
+  id         String       @id @default(uuid())
+  managerId  String
+  manager    StoreManager @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  storeId    String       // Customer ID of the store
+  // Assignment details
+  role       String       @default("MANAGER") // MANAGER, ASSISTANT, etc.
+  active     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+
+  @@unique([managerId, storeId])
+  @@index([managerId])
+  @@index([storeId])
 }

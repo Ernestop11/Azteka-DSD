@@ -1,13 +1,14 @@
-// Azteka DSD Service Worker - PWA Support v11 (Dec 27 2025)
-// NOTE: Admin/employee routes are intentionally excluded from caching.
-// v11: Force clear all caches including JS bundles
-const CACHE_NAME = 'azteka-dsd-v11'
-const STATIC_CACHE = 'azteka-static-v11'
-const DYNAMIC_CACHE = 'azteka-dynamic-v11'
-const IMAGE_CACHE = 'azteka-images-v11'
+// Azteka DSD Service Worker - PWA Support v40 (Jan 3 2026)
+// NOTE: Admin/employee/customer routes are intentionally excluded from caching.
+// v40: Fix composite key order submission bug
+const CACHE_VERSION = 'v40'
+const CACHE_NAME = `azteka-dsd-${CACHE_VERSION}`
+const STATIC_CACHE = `azteka-static-${CACHE_VERSION}`
+const DYNAMIC_CACHE = `azteka-dynamic-${CACHE_VERSION}`
+const IMAGE_CACHE = `azteka-images-${CACHE_VERSION}`
 
 // Static assets to cache on install - PUBLIC ONLY
-// Do NOT include auth-protected pages (e.g. /admin/*, /employee/*) here.
+// Do NOT include auth-protected pages (e.g. /admin/*, /employee/*, /customer/*) here.
 const STATIC_ASSETS = [
   '/',
   '/catalog',
@@ -18,48 +19,45 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets and PURGE all old caches
 self.addEventListener('install', (event) => {
-  console.log('[SW v11] Installing service worker...')
+  console.log(`[SW ${CACHE_VERSION}] Installing service worker...`)
   event.waitUntil(
-    // First, delete ALL old caches to force fresh images
+    // First, delete ALL old caches to force fresh content
     caches.keys().then((cacheNames) => {
-      console.log('[SW v11] Clearing all old caches:', cacheNames)
+      console.log(`[SW ${CACHE_VERSION}] Clearing all old caches:`, cacheNames)
       return Promise.all(
         cacheNames.map((name) => caches.delete(name))
       )
     }).then(() => {
       // Now cache static assets
       return caches.open(STATIC_CACHE).then((cache) => {
-        console.log('[SW v11] Caching static assets')
+        console.log(`[SW ${CACHE_VERSION}] Caching static assets`)
         return Promise.allSettled(
           STATIC_ASSETS.map(url =>
             cache.add(url).catch(err => {
-              console.log(`[SW v10] Failed to cache ${url}, skipping...`, err)
+              console.log(`[SW ${CACHE_VERSION}] Failed to cache ${url}, skipping...`, err)
               return null
             })
           )
-        ).then(() => {
-          console.log('[SW v11] Static assets cached (some may have been skipped)')
-          return Promise.resolve()
-        })
+        )
       })
     }).catch(err => {
-      console.log('[SW v11] Cache install error (non-fatal):', err)
+      console.log(`[SW ${CACHE_VERSION}] Cache install error (non-fatal):`, err)
       return Promise.resolve()
     })
   )
   self.skipWaiting()
 })
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches (keep only current version)
 self.addEventListener('activate', (event) => {
-  console.log('[SW v11] Activating service worker...')
+  console.log(`[SW ${CACHE_VERSION}] Activating service worker...`)
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => !name.includes('-v10'))
+          .filter((name) => !name.includes(CACHE_VERSION))
           .map((name) => {
-            console.log('[SW v11] Deleting old cache:', name)
+            console.log(`[SW ${CACHE_VERSION}] Deleting old cache:`, name)
             return caches.delete(name)
           })
       )
@@ -93,29 +91,26 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Never cache admin/employee routes (avoid stale/broken authenticated UI)
-  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/employee')) {
+  // NEVER cache admin/employee/customer routes - always fetch fresh
+  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/employee') || url.pathname.startsWith('/customer')) {
     event.respondWith(fetch(request))
     return
   }
 
-  // Never cache Next.js build assets to avoid serving stale JS/CSS after deploy
+  // NEVER cache Next.js build assets - always fetch fresh after deploy
   if (url.pathname.startsWith('/_next/')) {
     event.respondWith(fetch(request))
     return
   }
 
-  // Handle image requests - NEVER cache /uploads/ images (bypass service worker entirely)
+  // NEVER cache /uploads/ images - always fetch fresh
   if (url.pathname.startsWith('/uploads/')) {
-    // Bypass service worker completely for uploads - go directly to network
     event.respondWith(fetch(request))
     return
   }
-  
+
   // Use cache-first for other images (icons, logos)
   if (request.destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|webp|svg|ico)$/i)) {
-    
-    // For other images (icons, logos), use cache-first
     event.respondWith(
       caches.open(IMAGE_CACHE).then((cache) => {
         return cache.match(request).then((cachedResponse) => {
@@ -133,12 +128,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Handle navigation requests - network first, cache fallback
+  // Handle navigation requests - network first, cache fallback for offline
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          // Only cache public pages
+          if (response.ok && !url.pathname.startsWith('/admin') &&
+              !url.pathname.startsWith('/employee') && !url.pathname.startsWith('/customer')) {
             const responseClone = response.clone()
             caches.open(DYNAMIC_CACHE).then((cache) => {
               cache.put(request, responseClone)
@@ -149,13 +146,6 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(request).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse
-            // Fallback to appropriate cached page based on URL
-            if (url.pathname.startsWith('/employee')) {
-              return caches.match('/employee') || caches.match('/')
-            }
-            if (url.pathname.startsWith('/admin')) {
-              return caches.match('/admin') || caches.match('/')
-            }
             return caches.match('/catalog') || caches.match('/')
           })
         })
@@ -242,13 +232,11 @@ self.addEventListener('sync', (event) => {
 })
 
 async function syncOfflineOrders() {
-  console.log('[SW v11] Syncing offline orders...')
-  // Future: retrieve orders from IndexedDB and POST to API
+  console.log(`[SW ${CACHE_VERSION}] Syncing offline orders...`)
 }
 
 async function syncInventoryChanges() {
-  console.log('[SW v11] Syncing inventory changes...')
-  // Future: retrieve inventory updates from IndexedDB and PATCH to API
+  console.log(`[SW ${CACHE_VERSION}] Syncing inventory changes...`)
 }
 
 // Message handler for client communication
@@ -263,4 +251,4 @@ self.addEventListener('message', (event) => {
   }
 })
 
-console.log('[SW v11] Service worker loaded')
+console.log(`[SW ${CACHE_VERSION}] Service worker loaded`)

@@ -100,7 +100,12 @@ export default function CustomerLoginPage() {
         expiresAt: data.expiresAt,
       }))
 
-      router.push('/customer/dashboard')
+      // OWNER goes to multi-store dashboard, others go to regular dashboard
+      if (data.customer.role === 'OWNER') {
+        router.push('/customer/multi-store')
+      } else {
+        router.push('/customer/dashboard')
+      }
     } catch (err) {
       setError('Login failed')
     } finally {
