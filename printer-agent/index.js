@@ -17,12 +17,29 @@
  *   PRINTER_NAME - Name of the printer to use (optional, uses default if not set)
  */
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const { exec, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
 const http = require('http');
+const puppeteer = require('puppeteer');
+
+// Shared browser instance for PDF generation
+let browser = null;
+
+async function getBrowser() {
+  if (!browser) {
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+  }
+  return browser;
+}
 
 // Configuration
 const config = {
@@ -117,97 +134,371 @@ function getDefaultPrinter() {
   }
 }
 
-// Generate PDF from print job payload
-function generatePDF(job) {
-  return new Promise((resolve, reject) => {
-    // Simple PDF generation using built-in tools
-    const tempDir = os.tmpdir();
-    const pdfPath = path.join(tempDir, `azteka-print-${job.id}.pdf`);
-    const payload = job.payload;
+// Generate formatted HTML picking list with FIXED HEADER on all pages
+// Uses CSS position:fixed for running header - no Puppeteer displayHeaderFooter
+function generateFormattedPickingListHTML(job) {
+  const payload = job.payload;
+  const items = payload.items || [];
+  const totalCases = items.reduce((sum, item) => sum + (item.quantity || item.qty || 0), 0);
+  const totalPacks = items.reduce((sum, item) => sum + ((item.quantity || item.qty || 0) * (item.packCount || item.unitsPerCase || 1)), 0);
 
-    // Create HTML content
+  // Sort items by warehouse location, then by name
+  const sortedItems = [...items].sort((a, b) => {
+    const locA = (a.location || a.warehouseLocation || 'ZZZ').toUpperCase();
+    const locB = (b.location || b.warehouseLocation || 'ZZZ').toUpperCase();
+    if (locA !== locB) return locA.localeCompare(locB);
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const customerName = (payload.customerName || 'CUSTOMER').toUpperCase();
+  const orderNumber = payload.orderNumber || payload.orderId || '-';
+  const orderDate = payload.date || new Date().toLocaleDateString();
+  const salesRep = payload.salesRep || payload.orderedBy || payload.createdBy || '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: letter;
+      margin: 0.5in 0.4in 0.5in 0.4in;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      line-height: 1.3;
+      color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* FIXED HEADER - repeats on every page */
+    .page-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: #fff;
+      border: 2px solid #000;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .header-customer {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .header-order {
+      text-align: right;
+      font-size: 11px;
+    }
+
+    .header-order-num {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    /* Content wrapper - adds top padding for header */
+    .content {
+      padding-top: 85px; /* Space for fixed header */
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 12px;
+      padding: 6px 12px;
+      border: 1px solid #999;
+      background: #f5f5f5;
+    }
+    .stat-value { font-weight: 900; font-size: 14px; }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      page-break-inside: auto;
+    }
+
+    thead { display: table-header-group; }
+
+    tr { page-break-inside: avoid; page-break-after: auto; }
+
+    th {
+      background: #e0e0e0;
+      padding: 8px 5px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 1px solid #000;
+    }
+    th.left { text-align: left; padding-left: 12px; }
+
+    td {
+      padding: 6px 5px;
+      border: 1px solid #000;
+      vertical-align: middle;
+    }
+
+    tr:nth-child(even) { background: #f8f8f8; }
+
+    /* Column styles */
+    .col-loc {
+      width: 50px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .col-name {
+      text-align: left;
+      font-size: 16px;
+      font-weight: 600;
+      padding: 8px 12px !important;
+    }
+
+    .col-desc {
+      font-size: 11px;
+      color: #555;
+      font-weight: 400;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .col-cases { width: 65px; text-align: center; }
+    .col-pack { width: 55px; text-align: center; font-size: 12px; }
+    .col-check { width: 40px; text-align: center; }
+
+    /* Quantity box */
+    .qty-box {
+      display: inline-block;
+      min-width: 40px;
+      padding: 6px 10px;
+      border: 2px solid #000;
+      font-size: 18px;
+      font-weight: 900;
+      text-align: center;
+      background: #fff;
+    }
+
+    /* Checkbox */
+    .check-box {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border: 2px solid #000;
+      background: #fff;
+    }
+
+    /* Total row */
+    .totals-row { background: #e0e0e0 !important; }
+    .totals-row td { font-weight: 700; font-size: 13px; padding: 10px 6px; }
+
+    /* Footer */
+    .footer-section {
+      border: 1px solid #000;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    .footer-item { flex: 1; }
+    .footer-label { font-size: 10px; color: #666; text-transform: uppercase; }
+    .footer-line { border-bottom: 1px solid #000; height: 22px; margin-right: 20px; }
+  </style>
+</head>
+<body>
+  <!-- FIXED HEADER - appears on every page -->
+  <div class="page-header">
+    <div class="header-customer">${customerName}</div>
+    <div class="header-title">PICKING LIST</div>
+    <div class="header-order">
+      <div class="header-order-num">#${orderNumber}</div>
+      <div>${orderDate}</div>
+    </div>
+  </div>
+
+  <!-- Content with padding for header -->
+  <div class="content">
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div>Items: <span class="stat-value">${sortedItems.length}</span></div>
+      <div>Total Cases: <span class="stat-value">${totalCases}</span></div>
+      <div>Total Packs: <span class="stat-value">${totalPacks}</span></div>
+      ${salesRep ? `<div>Rep: <span class="stat-value">${salesRep}</span></div>` : ''}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>LOC</th>
+          <th class="left">PRODUCT</th>
+          <th>CASES</th>
+          <th>PACK</th>
+          <th>✓</th>
+        </tr>
+      </thead>
+      <tbody>
+${sortedItems.map(item => {
+  const qty = item.quantity || item.qty || 0;
+  const packCount = item.packCount || item.unitsPerCase || 1;
+  const loc = item.location || item.warehouseLocation || '-';
+  const name = item.name || item.productName || '-';
+  const desc = item.invoiceDescription || item.description || '';
+  return `        <tr>
+          <td class="col-loc">${loc}</td>
+          <td class="col-name">${name}${desc ? `<span class="col-desc">${desc}</span>` : ''}</td>
+          <td class="col-cases"><span class="qty-box">${qty}</span></td>
+          <td class="col-pack">${packCount}</td>
+          <td class="col-check"><span class="check-box"></span></td>
+        </tr>`;
+}).join('\n')}
+        <tr class="totals-row">
+          <td style="text-align:right;font-weight:700;">TOTAL:</td>
+          <td style="text-align:right;padding-right:15px;">${sortedItems.length} items</td>
+          <td class="col-cases"><span class="qty-box">${totalCases}</span></td>
+          <td class="col-pack">${totalPacks}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer-section">
+      <div class="footer-item">
+        <div class="footer-label">Picked By:</div>
+        <div class="footer-line"></div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">Checked By:</div>
+        <div class="footer-line"></div>
+      </div>
+      <div class="footer-item">
+        <div class="footer-label">Date:</div>
+        <div class="footer-line"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// Generate printable content from job using Puppeteer for PDF
+async function generatePrintContent(job) {
+  const tempDir = os.tmpdir();
+  const payload = job.payload;
+
+  // For picking lists, generate formatted HTML and convert to PDF with Puppeteer
+  // PDF uses much less ink than PNG screenshots
+  if (job.type === 'PICKING_LIST') {
+    const htmlContent = generateFormattedPickingListHTML(job);
+    const pdfPath = path.join(tempDir, `azteka-print-${job.id}.pdf`);
+
+    try {
+      const browser = await getBrowser();
+      const page = await browser.newPage();
+
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+      // Generate PDF - header is embedded in HTML using CSS position:fixed
+      // This avoids Puppeteer displayHeaderFooter overlap issues
+      await page.pdf({
+        path: pdfPath,
+        format: 'Letter',
+        printBackground: true,
+        displayHeaderFooter: false,
+        margin: { top: '0.5in', right: '0.4in', bottom: '0.5in', left: '0.4in' },
+      });
+      await page.close();
+      log('info', `Generated PDF picking list with Puppeteer: ${pdfPath}`);
+      return { filePath: pdfPath, format: 'pdf' };
+    } catch (e) {
+      log('error', `Puppeteer PDF generation failed: ${e.message}`);
+      throw e;
+    }
+  }
+
+    // For other types, generate HTML (will try Chrome PDF, fallback to text)
+    const htmlPath = path.join(tempDir, `azteka-print-${job.id}.html`);
+
+    // Create HTML content for other document types
     let html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; font-size: 12px; }
-    h1 { font-size: 18px; margin-bottom: 10px; }
-    h2 { font-size: 14px; margin: 15px 0 5px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 5px 10px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #f5f5f5; font-weight: bold; }
-    .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-    .total { font-weight: bold; font-size: 14px; text-align: right; margin-top: 15px; }
-    .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 10px; color: #666; }
+    body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+    h1 { font-size: 24px; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+    th { background: #eee; }
   </style>
 </head>
 <body>`;
 
-    if (job.type === 'PICKING_LIST') {
-      html += `
-  <h1>PICKING LIST</h1>
-  <div class="header">
-    <div>
-      <strong>Order:</strong> ${payload.orderNumber || payload.orderId || 'N/A'}<br>
-      <strong>Customer:</strong> ${payload.customerName || 'N/A'}<br>
-      <strong>Date:</strong> ${payload.date || new Date().toLocaleDateString()}
-    </div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Location</th>
-        <th>SKU</th>
-        <th>Product</th>
-        <th>Qty</th>
-        <th>Picked</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
-      const items = payload.items || [];
-      for (const item of items) {
-        html += `
-      <tr>
-        <td>${item.location || '-'}</td>
-        <td>${item.sku || '-'}</td>
-        <td>${item.name || item.productName || '-'}</td>
-        <td>${item.quantity || item.qty || 0}</td>
-        <td>[ ]</td>
-      </tr>`;
-      }
-
-      html += `
-    </tbody>
-  </table>
-  <div class="total">Total Items: ${items.length}</div>`;
-
-    } else if (job.type === 'PACKING_SLIP') {
-      html += `
-  <h1>PACKING SLIP</h1>
-  <div class="header">
-    <div>
-      <strong>Order:</strong> ${payload.orderNumber || payload.orderId || 'N/A'}<br>
-      <strong>Customer:</strong> ${payload.customerName || 'N/A'}<br>
-      <strong>Address:</strong> ${payload.address || 'N/A'}<br>
-      <strong>Date:</strong> ${payload.date || new Date().toLocaleDateString()}
-    </div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>SKU</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody>`;
-
+    // PACKING_SLIP (HTML with pricing)
+    if (job.type === 'PACKING_SLIP') {
       const items = payload.items || [];
       let grandTotal = 0;
+      const totalQty = items.reduce((sum, item) => sum + (item.quantity || item.qty || 0), 0);
+
+      html += `
+  <!-- WHO: Customer Name - BIG and prominent -->
+  <div class="who-section">
+    <div class="customer-name">${(payload.customerName || 'CUSTOMER').toUpperCase()}</div>
+  </div>
+
+  <!-- Quick Info Bar -->
+  <div class="info-bar">
+    <div class="info-item">
+      <span class="info-label">Order #</span>
+      <span class="info-value">${payload.orderNumber || payload.orderId || '-'}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Date</span>
+      <span class="info-value">${payload.date || new Date().toLocaleDateString()}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Items</span>
+      <span class="info-value">${items.length}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Cases</span>
+      <span class="info-value large">${totalQty}</span>
+    </div>
+  </div>
+  ${payload.address ? `<div style="font-size:16px;margin-bottom:15px;"><strong>Ship To:</strong> ${payload.address}</div>` : ''}
+
+  <!-- Items Table with Pricing -->
+  <table>
+    <thead>
+      <tr>
+        <th>Product Name</th>
+        <th class="col-qty">Cases</th>
+        <th style="width:90px;text-align:right">Price</th>
+        <th style="width:100px;text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
       for (const item of items) {
         const qty = item.quantity || item.qty || 0;
         const price = item.price || 0;
@@ -215,18 +506,38 @@ function generatePDF(job) {
         grandTotal += total;
         html += `
       <tr>
-        <td>${item.name || item.productName || '-'}</td>
-        <td>${item.sku || '-'}</td>
-        <td>${qty}</td>
-        <td>$${price.toFixed(2)}</td>
-        <td>$${total.toFixed(2)}</td>
+        <td>
+          <span class="product-name">${item.name || item.productName || '-'}</span>
+          <div style="font-size:12px;color:#666;">SKU: ${item.sku || '-'}</div>
+        </td>
+        <td class="col-qty"><span class="qty">${qty}</span></td>
+        <td style="text-align:right;font-size:16px;">$${price.toFixed(2)}</td>
+        <td style="text-align:right;font-size:18px;font-weight:700;">$${total.toFixed(2)}</td>
       </tr>`;
       }
 
+      // Grand total row
       html += `
+      <tr class="totals-row">
+        <td>GRAND TOTAL</td>
+        <td class="col-qty"><span class="qty">${totalQty}</span></td>
+        <td style="text-align:right;">cases</td>
+        <td style="text-align:right;font-size:24px;">$${grandTotal.toFixed(2)}</td>
+      </tr>
     </tbody>
   </table>
-  <div class="total">Grand Total: $${grandTotal.toFixed(2)}</div>`;
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      <div class="azteka-logo">AZTEKA FOODS</div>
+      <div class="printed-date">${new Date().toLocaleString()}</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div class="signature-label">Received By</div>
+    </div>
+  </div>`;
 
     } else if (job.type === 'INVOICE') {
       html += `
@@ -348,40 +659,39 @@ function generatePDF(job) {
 </body>
 </html>`;
 
-    // Write HTML to temp file
-    const htmlPath = path.join(tempDir, `azteka-print-${job.id}.html`);
-    fs.writeFileSync(htmlPath, html);
+  // Write HTML to temp file and convert to PDF with Puppeteer
+  fs.writeFileSync(htmlPath, html);
 
-    // Convert HTML to PDF using cupsfilter or textutil (macOS)
-    // For simplicity, we'll use the lp command directly with HTML
-    // Note: macOS CUPS can print HTML directly
-    resolve({ htmlPath, pdfPath: htmlPath });
-  });
+  // Convert HTML to PDF using Puppeteer
+  const pdfPath = htmlPath.replace('.html', '.pdf');
+  try {
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.pdf({
+      path: pdfPath,
+      format: 'Letter',
+      printBackground: true,
+      margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' },
+    });
+    await page.close();
+    log('info', `Generated PDF with Puppeteer: ${pdfPath}`);
+    // Clean up HTML file
+    try { fs.unlinkSync(htmlPath); } catch (e) {}
+    return { filePath: pdfPath, format: 'pdf' };
+  } catch (e) {
+    log('error', `Puppeteer PDF failed: ${e.message}`);
+    // Fallback to HTML
+    return { filePath: htmlPath, format: 'html' };
+  }
 }
 
 // Print a file using lp command (macOS)
+// Puppeteer generates PDFs, so we use lp for all files now
 async function printFile(filePath, copies = 1) {
   const ext = path.extname(filePath).toLowerCase();
-  let printPath = filePath;
 
-  // For HTML, convert to plain text (most universally supported)
-  if (ext === '.html') {
-    const txtPath = filePath.replace('.html', '.txt');
-    try {
-      await new Promise((resolve, reject) => {
-        exec(`textutil -convert txt -output "${txtPath}" "${filePath}"`, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-      printPath = txtPath;
-      log('info', `Converted HTML to TXT: ${txtPath}`);
-    } catch (e) {
-      log('warn', 'Could not convert HTML to text');
-    }
-  }
-
-  // Build lp command
+  // Build lp command for PDF or any file
   let cmd = `lp`;
   if (config.printerName) {
     cmd += ` -d "${config.printerName}"`;
@@ -389,7 +699,7 @@ async function printFile(filePath, copies = 1) {
   if (copies > 1) {
     cmd += ` -n ${copies}`;
   }
-  cmd += ` "${printPath}"`;
+  cmd += ` "${filePath}"`;
 
   log('info', `Executing: ${cmd}`);
 
@@ -398,9 +708,9 @@ async function printFile(filePath, copies = 1) {
       if (error) {
         reject(new Error(`Print failed: ${stderr || error.message}`));
       } else {
-        // Extract job ID from lp output
+        // Extract job ID from output
         const match = stdout.match(/request id is (\S+)/);
-        const jobId = match ? match[1] : 'unknown';
+        const jobId = match ? match[1] : 'sent';
         resolve({ jobId, output: stdout });
       }
     });
@@ -428,16 +738,19 @@ async function processJob(job) {
     // Update status to PRINTING
     await updateJobStatus(job.id, 'PRINTING');
 
-    // Generate printable content
-    const { htmlPath } = await generatePDF(job);
+    // Generate printable content (text for picking lists, HTML for others)
+    const { filePath } = await generatePrintContent(job);
 
     // Send to printer
-    const result = await printFile(htmlPath, job.copies || 1);
+    const result = await printFile(filePath, job.copies || 1);
     log('success', `Printed job ${job.id}: ${result.jobId}`);
 
     // Clean up temp file
     try {
-      fs.unlinkSync(htmlPath);
+      fs.unlinkSync(filePath);
+      // Also try to clean up any generated PDF
+      const pdfPath = filePath.replace('.txt', '.pdf').replace('.html', '.pdf');
+      if (pdfPath !== filePath) fs.unlinkSync(pdfPath);
     } catch (e) {
       // Ignore cleanup errors
     }
@@ -526,7 +839,11 @@ async function main() {
   log('info', 'Starting poll loop...');
 
   while (true) {
-    await pollForJobs();
+    try {
+      await pollForJobs();
+    } catch (e) {
+      log('error', `Poll loop error: ${e.message}`);
+    }
     await new Promise(r => setTimeout(r, config.pollInterval));
   }
 }
@@ -540,6 +857,16 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   log('info', 'Shutting down...');
   process.exit(0);
+});
+
+// Handle unhandled promise rejections (prevents silent crashes)
+process.on('unhandledRejection', (reason, promise) => {
+  log('error', `Unhandled rejection: ${reason}`);
+});
+
+process.on('uncaughtException', (error) => {
+  log('error', `Uncaught exception: ${error.message}`);
+  // Don't exit - keep the agent running
 });
 
 // Run
